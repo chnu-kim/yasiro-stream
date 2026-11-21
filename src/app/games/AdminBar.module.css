@@ -49,6 +49,27 @@
   flex-wrap: wrap;
 }
 
+.link {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: var(--tap);
+  padding: 0 12px;
+  font-size: var(--fs-sm);
+  color: var(--text);
+  text-decoration: none;
+}
+
+.link:hover {
+  text-decoration: underline;
+}
+
+.link:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+  border-radius: var(--radius-sm);
+}
+
 .check {
   display: flex;
   align-items: center;

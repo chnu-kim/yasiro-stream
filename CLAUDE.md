@@ -16,7 +16,7 @@
 pnpm dev            # UI 개발. D1 바인딩 없음 → 세션 null, API 실패 (D1이 필요하면 pnpm preview)
 pnpm test           # vitest run
 pnpm lint
-pnpm test:coverage  # src/lib/games/**, chzzk-category.ts는 100% threshold. 미달하면 exit 1
+pnpm test:coverage  # src/lib/games/**, src/lib/awards/**, chzzk-category.ts는 100% threshold. 미달하면 exit 1
 pnpm games:seed <input.json>   # 게임 JSON → migrations/0008 형태 시드 SQL (기존 파일은 --force 없이는 거부. 원격 적용 후엔 다시 만들지 않는다)
 pnpm -s games:export [--local|--remote] [--hidden] [--out file]  # D1 → games.json 형식 백업. stdout으로 받을 땐 `-s`(pnpm 배너 제거) 또는 --out. --remote는 사람이 실행. 기본은 보이는 게임만, --hidden은 숨긴 게임만(전체 백업은 두 번). 변경 기록은 담지 않는다
 pnpm -s games:edit --find <키워드> | --search <검색어> | <ops.json> [--apply]  # 운영 D1 게임 기록 고치기. 절차는 games-edit 스킬
@@ -38,11 +38,12 @@ src/app/
   about/                소개 — 고정 그림판 + 챕터 도감(Dossier: 소개·프로필·취향·팬네임·찾아가기(채널), 목록은 chapters.ts), 탐험 기록 숫자
   games/                플레이한 게임. page=서버(D1 읽기·관리자 판별), GamesBoard·GameCard·GameDetailDialog·Pagination·Poster(공개) +
                         관리자 UI: AdminBar·GameEditForm·CategoryPicker·AddGameFlow·DialogFrame·Toast, adminApi(fetch 래퍼)·drafts(localStorage)
+  awards/               2026 야시로 게임 어워즈(이상형 월드컵, 관리자 전용: 비관리자 404·noindex, Nav·sitemap·SITE_PAGES·홈 카드 미등록, 진입은 /games AdminBar "어워즈"). 브라우저 안에서만 진행. 대진·진행·결과·검증은 src/lib/awards(순수, rng 주입). 공개로 바꿀 때 Nav·SITE_PAGES·더 둘러보기에 넣는다
   auth/{login,callback,logout}/route.ts   치지직 OAuth (login?next=<경로>는 oauth_next 쿠키로 복귀). 로직은 src/lib/auth-routes.ts
   api/games/            관리자 API (route·[id]·[id]/hidden·[id]/changes·categories·youtube). 핸들러는 얇게, 로직은 src/lib/games/api.ts
 src/components/         Nav, SkipLink, ClearStamp (공유)
 scripts/games-{seed,export,edit}.ts   pnpm games:seed / games:export / games:edit 진입점 (얇게. 로직은 src/lib/games/seed.ts, ops.ts)
-src/lib/                순수 로직 + *.test.ts (session, auth-routes, http, chzzk-auth, chzzk-category(검색·slugify만), games/{schema,query,labels,rows,repo,admin,diff,patch,client,api,seed,youtube-meta,home,media})
+src/lib/                순수 로직 + *.test.ts (session, auth-routes, http, chzzk-auth, chzzk-category(검색·slugify만), games/{schema,query,labels,rows,repo,admin,diff,patch,client,api,seed,youtube-meta,home,media}, awards/{entries,options,draw,tournament,flow,labels,verify,media})
 migrations/             D1 마이그레이션 (wrangler 관리)
 _design/                원본 디자인 핸드오프 (gitignored)
 ```

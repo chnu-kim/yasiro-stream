@@ -8,6 +8,7 @@ import {
   handleSetHidden,
   handleUpdateGame,
   handleYoutubeMeta,
+  loadAwardsGames,
   loadGamesPageData,
   type ApiDeps,
 } from "./api.ts";
@@ -207,5 +208,34 @@ describe("API 전 과정과 익명 규칙", () => {
     });
     expect(await loadGamesPageData(deps({ db: { prepare: broken, batch: broken } as unknown as ApiDeps["db"] }), null)).toEqual({ ok: false });
     expect(logs.at(-1)).toBe("games-api unavailable Error");
+  });
+  it("loadAwardsGames: 관리자만 보이는 게임을 받는다 / 그 밖은 denied / D1 오류는 error", async () => {
+    const sid = (c: string) => `__Host-session=${c.repeat(64)}`;
+    await read(await handleCreateGame(req("POST", "/api/games", "a".repeat(64), { input: INPUT }), deps()));
+    await read(await handleCreateGame(req("POST", "/api/games", "a".repeat(64), { input: { ...INPUT, name: "숨길 게임", originalTitle: undefined, vods: [] } }), deps()));
+    const hiddenId = (d1.sqlite.prepare("SELECT id FROM games WHERE name = ?").get("숨길 게임") as { id: string }).id;
+    await read(await handleSetHidden(req("POST", `/api/games/${hiddenId}/hidden`, "a".repeat(64), { hidden: true }), deps(), hiddenId));
+
+    for (const cookie of [null, sid("c"), sid("d"), sid("e")]) {
+      expect(await loadAwardsGames(deps(), cookie)).toEqual({ kind: "denied" });
+    }
+    const admin = await loadAwardsGames(deps(), sid("a"));
+    expect(admin.kind).toBe("admin");
+    const games = admin.kind === "admin" ? admin.games : [];
+    expect(games.map((g) => g.name)).toEqual(["엘든 링"]);
+    expect(Object.keys(games[0])).not.toEqual(expect.arrayContaining(["hidden", "version", "updatedByName"]));
+    const text = JSON.stringify(admin);
+    expect(text).not.toContain(FAKE_ADMIN_ID);
+    expect(text).not.toContain(REAL_NAME);
+
+    // 야시로 채널 ID는 ADMIN_CHANNEL_IDS 없이도 관리자
+    expect((await loadAwardsGames(deps({ env: {} }), sid("b"))).kind).toBe("admin");
+
+    const broken = vi.fn(() => {
+      throw new Error("no such table");
+    });
+    expect(await loadAwardsGames(deps({ db: { prepare: broken, batch: broken } as unknown as ApiDeps["db"] }), sid("a"))).toEqual({ kind: "error" });
+    expect(logs.at(-1)).toBe("games-api unavailable Error");
+    expect(logs.join("\n")).not.toContain(FAKE_ADMIN_ID);
   });
 });
