@@ -6,12 +6,12 @@
 //  - 지금 챕터(화면 세로 가운데를 지난 마지막 챕터): 목차 표시
 // 전신이 되면 루트에 data-zoomed를 붙여 CSS가 눈금자·장비 라벨을 켠다. 끄는 기준(z<0.9)을 켜는 기준(z=1)보다 낮춰 경계에서 깜빡이지 않게 하고,
 // 한 번 꺼진 뒤에는 data-seen을 붙여 다시 켤 때 순차 등장 없이 바로 보인다(정교한 등장은 페이지당 한 번).
-// 데스크톱(861px 이상, 높이 641px 이상)에서만 움직인다. 그 밖이나 JS가 없으면 그림판은 모든 표시가 켜진 상태로 보인다.
+// 데스크톱(1024px 이상, 높이 641px 이상)에서만 움직인다. 그 밖이나 JS가 없으면 그림판은 모든 표시가 켜진 상태로 보인다.
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { CHAPTERS, chapterNo } from './chapters';
 import styles from './page.module.css';
 
-const DESKTOP = '(min-width: 861px) and (min-height: 641px)';
+const DESKTOP = '(min-width: 1024px) and (min-height: 641px)';
 const REDUCE = '(prefers-reduced-motion: reduce)';
 
 export default function Dossier({ plate, children }: { plate: ReactNode; children: ReactNode }) {

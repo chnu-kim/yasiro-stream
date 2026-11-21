@@ -168,11 +168,14 @@ export default async function About() {
         <section data-chapter-id="intro" className={`${styles.chapter} ${styles.intro}`} aria-labelledby="about-title">
           {/* 도장은 이름 묶음에 붙여 신분 표시로 읽히게 한다. 위치가 화면 폭에 따라 바뀌어 CSS 클래스로 둔다 */}
           <div className={styles.idBlock}>
-            <span className={styles.introStamp}>
-              <RoundStamp size={104} rotate={-12} />
-            </span>
             <h1 id="about-title" className={styles.idName} tabIndex={-1}>
-              야시로
+              {/* 도장은 이름 글자 끝에 붙인다(묶음 폭은 태그라인이 정해서, 묶음에 붙이면 이름에서 떨어져 떠 보인다) */}
+              <span className={styles.nameMark}>
+                야시로
+                <span className={styles.introStamp}>
+                  <RoundStamp size={104} rotate={-12} />
+                </span>
+              </span>
             </h1>
             {/* 소개는 번호를 달지 않는다(번호는 목차에만). 이름 아래 영문 표기만 */}
             <p className={styles.roman} lang="en">
@@ -220,7 +223,7 @@ export default async function About() {
           </dl>
         </section>
 
-        <section data-chapter-id="fan" className={`${styles.chapter} ${styles.lastChapter}`} aria-labelledby="fan-title">
+        <section data-chapter-id="fan" className={styles.chapter} aria-labelledby="fan-title">
           <ChapterTitle index={3} id="fan-title" />
           <div className={styles.record}>
             <dl className={`${styles.recordRow} ${styles.fanRow}`}>
@@ -262,38 +265,34 @@ export default async function About() {
             </dl>
           </div>
         </section>
+        <section data-chapter-id="channels" className={`${styles.chapter} ${styles.lastChapter}`} aria-labelledby="channel-title">
+          <ChapterTitle index={4} id="channel-title" />
+          <ul className={styles.channelList}>
+            {CHANNELS.map((ch) => (
+              <li key={ch.id}>
+                <a
+                  href={ch.href}
+                  target="_blank"
+                  rel="noreferrer"
+                  className={styles.row}
+                  aria-label={`${ch.label} ${ch.desc} (새 탭에서 열림)`}
+                >
+                  <span style={{ color: 'var(--accent-text)', display: 'inline-flex' }}>
+                    <ChannelGlyph kind={KIND[ch.id]} size={24} />
+                  </span>
+                  <span className={styles.text}>
+                    <span className={styles.name}>{ch.label}</span>
+                    <span className={styles.desc}>{ch.desc}</span>
+                  </span>
+                  <span className={styles.arrow} aria-hidden="true">
+                    <ArrowIcon direction="up-right" size={16} />
+                  </span>
+                </a>
+              </li>
+            ))}
+          </ul>
+        </section>
       </Dossier>
-
-      {/* ══ 채널 ══ */}
-      <section className={styles.section} aria-labelledby="channel-title">
-        <h2 id="channel-title" className={styles.chapterTitle}>
-          야시로 찾아가기
-        </h2>
-        <ul className={styles.channelList}>
-          {CHANNELS.map((ch) => (
-            <li key={ch.id}>
-              <a
-                href={ch.href}
-                target="_blank"
-                rel="noreferrer"
-                className={styles.row}
-                aria-label={`${ch.label} ${ch.desc} (새 탭에서 열림)`}
-              >
-                <span style={{ color: 'var(--accent-text)', display: 'inline-flex' }}>
-                  <ChannelGlyph kind={KIND[ch.id]} size={24} />
-                </span>
-                <span className={styles.text}>
-                  <span className={styles.name}>{ch.label}</span>
-                  <span className={styles.desc}>{ch.desc}</span>
-                </span>
-                <span className={styles.arrow} aria-hidden="true">
-                  <ArrowIcon direction="up-right" size={16} />
-                </span>
-              </a>
-            </li>
-          ))}
-        </ul>
-      </section>
 
       {/* ══ 다음 페이지 ══ */}
       <section className={styles.outro} aria-labelledby="outro-title">
@@ -351,7 +350,7 @@ function Plate() {
           width={1600}
           height={2277}
           // 데스크톱은 처음에 얼굴을 1.9배로 보여 주므로 DPR 1에서도 960w를 받게 크게 잡는다
-          sizes="(max-width: 860px) 340px, 940px"
+          sizes="(max-width: 1023px), (max-height: 640px) 340px, 940px"
           priority
           style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'contain' }}
         />
