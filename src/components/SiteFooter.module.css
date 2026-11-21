@@ -16,8 +16,8 @@
   display: inline-flex;
   align-items: center;
   gap: 8px;
-  font-family: 'Noto Serif KR', serif;
-  font-weight: 700;
+  font-family: var(--font-display);
+  font-weight: 400;
   font-size: 18px;
 }
 

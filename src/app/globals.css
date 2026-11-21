@@ -14,6 +14,8 @@ html {
 
 /* 한국어 제목은 어절 단위로 끊고 줄 길이를 고르게(지원 안 하는 브라우저는 지금처럼 보인다) */
 h1, h2, h3 {
+  /* Jua 제목에 브라우저 기본 bold가 합성되지 않게 */
+  font-synthesis: none;
   word-break: keep-all;
   overflow-wrap: anywhere;
   text-wrap: balance;
@@ -31,6 +33,9 @@ body {
 /* ═══════════════════ 토큰 (라이트) ═══════════════════
    대비는 WCAG 2.x 계산값. 괄호 안 숫자는 --bg / --surface / --paper-hi 위 */
 :root {
+  /* 글꼴: 제목·로고·큰 값. Jua는 굵기가 400 하나뿐이라 font-weight를 올리지 않는다(가짜 볼드가 된다) */
+  --font-display: 'Jua', sans-serif;
+
   /* 면 */
   --bg: #FBFAF7;               /* 페이지 바탕 (종이 흰색) */
   --surface: #EEE6D6;          /* 패널 */

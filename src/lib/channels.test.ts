@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { CHANNELS, CHZZK_CHANNEL_URL, CHZZK_LIVE_URL } from './channels';
 
 describe('channels', () => {
-  it('푸터·/about 순서는 치지직 → 유튜브 → 시로의 탐험일지 → X → 팬카페', () => {
+  it('푸터·/about 순서는 치지직 → 유튜브 → 풀영상 채널 → X → 팬카페', () => {
     expect(CHANNELS.map((c) => c.id)).toEqual(['chzzk', 'youtube', 'journal', 'x', 'cafe']);
   });
 

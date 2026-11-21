@@ -35,7 +35,7 @@ src/app/
   layout.tsx            세션 조회(D1) + Nav + 테마 초기화 스크립트 + 기본 메타데이터(siteDefaults). force-dynamic
   sitemap.ts, robots.ts 검색엔진용. 페이지 목록은 src/lib/seo.ts SITE_PAGES
   page.tsx              홈(/) — 히어로(상반신 크롭), 최근 탐험 띠(D1 games, lib/games/home.ts), 더 둘러보기 카드·채널 링크
-  about/                소개 — 프로필, 주요 콘텐츠, 채널 링크
+  about/                소개 — 고정 그림판 + 챕터 도감(Dossier: 소개·프로필·취향·팬네임, 목록은 chapters.ts), 채널 링크, 탐험 기록 숫자
   games/                플레이한 게임. page=서버(D1 읽기·관리자 판별), GamesBoard·GameCard·GameDetailDialog·Pagination·Poster(공개) +
                         관리자 UI: AdminBar·GameEditForm·CategoryPicker·AddGameFlow·DialogFrame·Toast, adminApi(fetch 래퍼)·drafts(localStorage)
   auth/{login,callback,logout}/route.ts   치지직 OAuth (login?next=<경로>는 oauth_next 쿠키로 복귀). 로직은 src/lib/auth-routes.ts
@@ -58,6 +58,7 @@ _design/                원본 디자인 핸드오프 (gitignored)
 
 - 새 페이지는 `src/app/<name>/page.tsx` + `page.module.css`로 만든다.
 - 홈(`/`)은 히어로(상자 없이 크게 세운 일러스트, 아래는 바탕에 스며드는 mask) → FIELD LOG 최근 탐험(큰 썸네일 1장 + 기록 줄 3개) → ARCHIVE 더 둘러보기(꿀붕이 카드 2장, 게임 카드에 기록 수 기입란) → 푸터(채널 링크) 순서다. 최근 탐험은 `buildHomeData`(첫 플레이 최신순, 다시보기 있는 게임만, 같은 첫 영상은 하나만, 번호는 /games와 같음)가 고른다. 큰 썸네일(`featured`)은 그중 제목이 그 게임 하나만 가리키는 다시보기(`namedYoutubeVod`, 아래 /games 현장 사진 규칙)가 있는 가장 최근 게임이고 링크도 그 영상이다. 그래서 더 최근 게임이 기록 줄(`rows`, 첫 영상 링크)로 먼저 올 수 있다. 대표 칸이 없거나 D1을 못 읽으면(`pnpm dev`) 섹션을 숨긴다. 썸네일은 유튜브 `hqdefault`를 `<img>`로 16:9에 잘라 쓰고, 위에 칩을 얹지 않는다.
+- /about은 왼쪽 고정 그림판(전신 + 키 눈금자 + 장비 콜아웃, 스크롤하면 얼굴 1.9배에서 전신으로 물러남)과 오른쪽 챕터다. 챕터는 '현장 기록지' 한 가지 문법(위 굵은 선 1개 + 행 사이 가는 선 + 작은 라벨 위 큰 값)으로 맞추고 상자·칩·타일을 쓰지 않는다. 콜아웃 순차 연출은 페이지에서 한 번만 돈다(되감은 뒤에는 즉시 표시). 취향은 오려 붙인 스티커 그림(`TasteSticker`, 흰 칼선 + 기울기)을, 팬네임은 꿀붕이 그림 스티커를 쓴다.
 - 홈에는 야시로 얼굴을 히어로 그림과 대표 썸네일 1장으로만 둔다(반복하면 소재를 돌려 쓴 페이지로 읽힌다). 키는 /about 키 측정판이 맡는다.
 - 공유 레이어는 `globals.css`의 토큰·keyframe과 `src/components/`뿐. `globals.css`에 유틸리티 클래스를 넣지 않는다.
 - 새 페이지를 추가하면 `Nav.tsx`의 `LINKS`(데스크톱·모바일 공용), '더 둘러보기' 카드(푸터는 채널 링크뿐이라 `SiteFooter`·`src/lib/channels.ts`가 맡고 페이지 목록은 없다), `src/lib/seo.ts`의 `SITE_PAGES`에 넣는다.
@@ -70,8 +71,9 @@ _design/                원본 디자인 핸드오프 (gitignored)
 - hover·transition·animation·blend-mode 같은 효과는 CSS Module에, layout·spacing·color 같은 정적 스타일은 inline style로 쓴다.
 - 토큰은 `globals.css`가 정본이다(색·type `--fs-*`·간격 `--space-*`·shadow·z-index·motion). 다크 값은 `[data-theme="dark"]`에서 덮어쓴다. `prefers-reduced-motion`은 globals에서 일괄 처리한다.
 - keyframe: `blink`, `float`(꿀붕이 부유), `fadeUp`(진입), `pinDrop`.
-- 폰트는 `layout.tsx`의 Google Fonts `<link>` 한 줄로 로드한다. 현재 로드되는 폰트는 Gaegu, Fredoka(500–700), Noto Sans KR, Noto Serif KR(600·700). 한국어 subset 문제 때문에 `next/font`는 쓰지 않는다. 새 폰트는 같은 URL에 추가하고, URL에 없는 폰트를 코드에 쓰지 않는다(조용히 폴백된다).
-  - Noto Serif KR: 헤드라인·로고 / Noto Sans KR: 본문·UI / Fredoka: 영문 라벨과 숫자(한글 글리프 없음)
+- 폰트는 `layout.tsx`의 Google Fonts `<link>` 한 줄로 로드한다. 현재 로드되는 폰트는 Gaegu, Fredoka(500–700), Noto Sans KR, Jua. 한국어 subset 문제 때문에 `next/font`는 쓰지 않는다. 새 폰트는 같은 URL에 추가하고, URL에 없는 폰트를 코드에 쓰지 않는다(조용히 폴백된다).
+  - Jua(`var(--font-display)`): 제목·로고·큰 값 / Noto Sans KR: 본문·UI / Fredoka: 영문 라벨과 숫자(한글 글리프 없음)
+  - Jua는 굵기가 400 하나뿐이다. `--font-display`를 쓰는 곳은 `font-weight: 400`으로 두고 600·700을 주지 않는다(가짜 볼드가 합성된다). 2026-11 Noto Serif KR에서 바꿨다
   - Gaegu: /about 장비 콜아웃만. `letter-spacing: 0`, 18px 이상
 - 컨셉은 "호기심 많은 탐험가". 탐험가 느낌은 캐릭터 장비(고글·쌍안경·지도 두루마리·파우치·부츠)와 현장 기록(기록 카드, 콜아웃, 눈금자, 스탬프, 테이프)으로 낸다. 지도 모티프(점선 경로·웨이포인트)는 지금 쓰지 않는다(2026-11 홈 개편 때 "다음 목적지" 경로를 뺐다). 다시 쓰면 사이트 전체에서 한 곳만. 장식은 화면당 스탬프 1개, 테이프 4개 이하.
 - 색: 작은 앰버 텍스트는 `--accent-text`, 주 버튼은 `--btn-primary-*`, `--accent`·`--brass`·`--eye`는 텍스트에 쓰지 않는다(AA 미달).

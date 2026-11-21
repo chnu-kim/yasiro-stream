@@ -1,5 +1,5 @@
 // 채널용 범용 글리프(상표 로고 흉내 금지). props: kind, size(기본 24), style. currentColor, aria-hidden.
-// kind: 'broadcast'(치지직 라이브) · 'play'(유튜브) · 'journal'(시로의 탐험일지) · 'post'(X) · 'community'(팬카페).
+// kind: 'broadcast'(치지직 라이브) · 'play'(유튜브) · 'journal'(풀영상 채널) · 'post'(X) · 'community'(팬카페).
 // 링크 텍스트(채널 이름)는 따로 둔다 — 아이콘만으로 채널을 구분하게 하지 않는다.
 import type { CSSProperties } from 'react';
 
