@@ -1,36 +1,170 @@
-/* ─── 기록 카드 ─── */
-.hero {
+/* ─── 탐험가 도감: 왼쪽 캐릭터 고정(sticky, 화면 왼쪽 끝까지) + 오른쪽 챕터 스크롤 ─── */
+.dossier {
   display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: var(--space-7);
-  align-items: stretch;
-  padding: var(--space-7) var(--page-x) var(--section-gap);
+  grid-template-columns: minmax(0, 1.05fr) minmax(0, 1fr);
+  column-gap: var(--space-7);
+  padding: 0 var(--page-x) var(--section-gap);
+}
+
+/* 왼쪽 칸은 페이지 여백을 넘어 화면 끝까지 */
+.plateCol {
+  position: relative;
+  margin-left: calc(-1 * var(--page-x));
+}
+
+.plateSticky {
+  position: sticky;
+  top: var(--nav-h);
+  height: calc(100svh - var(--nav-h));
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.chapterCol {
+  display: flex;
+  flex-direction: column;
+}
+
+/* 챕터마다 높이를 채우지 않고 같은 간격으로 쌓는다. 기록지 글자·간격은 챕터 폭(cqi)에 맞춘다 */
+.chapter {
+  position: relative;
+  container-type: inline-size;
+  padding-block: clamp(72px, 12svh, 128px);
+  --rec-gap: clamp(12px, 4cqi, 32px);
+  --rec-pad: clamp(16px, 3.4cqi, 22px);
+}
+
+.intro {
+  min-height: calc(100svh - var(--nav-h));
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  padding-block: var(--space-7);
+}
+
+/* 마지막 챕터가 화면 높이를 채워야 목차로 와도 그림판이 고정된 채로 남는다 */
+.lastChapter {
   min-height: calc(100svh - var(--nav-h));
 }
 
-.stage {
-  position: relative;
+.chapterTitle {
   display: flex;
-  justify-content: flex-end;
-  align-items: flex-end;
-  overflow: hidden;
-  padding: 0 var(--space-6) 0 0;
-  background: var(--tile);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-md);
-  box-shadow: var(--shadow-sm);
+  align-items: baseline;
+  gap: var(--space-3);
+  font-family: var(--font-display);
+  font-size: var(--fs-2xl);
+  font-weight: 400;
+  line-height: var(--lh-tight);
+  margin-bottom: var(--space-5);
+  word-break: keep-all;
+  text-wrap: balance;
+  scroll-margin-top: calc(var(--nav-h) + 12svh);
 }
 
+.chapterNo {
+  flex-shrink: 0;
+  font-family: 'Fredoka', sans-serif;
+  font-size: 0.6em;
+  font-weight: 600;
+  letter-spacing: 0;
+  color: var(--accent-text);
+}
+
+/* 목차로 옮긴 포커스(tabIndex -1)가 키보드 사용자에게 보이게 */
+.chapterTitle:focus-visible,
+.idName:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 4px;
+}
+
+/* 챕터 목차: 캐릭터 칸 아래 가장자리 */
+.rail {
+  position: relative;
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1) var(--space-4);
+  padding: var(--space-2) 0 var(--space-3) var(--page-x);
+}
+
+.railItem {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: var(--tap);
+  padding: 0 2px;
+  border: 0;
+  border-bottom: 2px solid transparent;
+  background: none;
+  font: 500 var(--fs-sm) 'Noto Sans KR', sans-serif;
+  color: var(--text-dim);
+  cursor: pointer;
+  transition: color var(--dur-fast), border-color var(--dur-fast);
+}
+
+.railNo {
+  font-family: 'Fredoka', sans-serif;
+  font-weight: 600;
+}
+
+.railItem:hover {
+  color: var(--text);
+}
+
+.railItem[aria-current='location'] {
+  color: var(--accent-text);
+  border-bottom-color: var(--accent);
+}
+
+.railItem:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+}
+
+/* 캐릭터 무대: 상자 없이 사선 띠 하나만 뒤에. 크기 컨테이너라 그림 상자를 무대 크기에서 바로 계산한다.
+   확대된 그림이 아래 목차 글자 밑으로 깔리지 않게 무대에서 자른다(자른 끝은 아래 스크롤 연동 절의 mask가 바탕에 스며들게 한다) */
+.stage {
+  flex: 1;
+  min-height: 0;
+  position: relative;
+  container-type: size;
+  overflow: clip;
+  display: flex;
+  justify-content: center;
+  align-items: flex-end;
+  padding-left: calc(var(--page-x) + 96px); /* 왼쪽에 키 눈금자와 "149.8 cm" 라벨 자리 */
+}
+
+/* 띠 아래 끝은 바탕에 스며들게 한다. sticky가 풀릴 때 수평으로 잘린 끝이 보이지 않게(홈 히어로와 같은 처리) */
+.stage::before {
+  content: '';
+  position: absolute;
+  top: -10%;
+  bottom: 0;
+  left: 22%;
+  width: 46%;
+  background: var(--tile);
+  transform: skewX(-14deg);
+  mask-image: linear-gradient(to bottom, #000 82%, transparent);
+}
+
+/* 그림 상자를 늘 원화 비율(1600×2277)로 둔다. 그래야 장비 점과 눈금자 0·149.8이 그림에 붙는다 */
 .figure {
   position: relative;
-  width: 420px;
-  max-width: calc(100% - 96px); /* 왼쪽 눈금자와 149.8 cm 라벨 자리 */
-  margin-top: -40px;
+  width: min(100cqw, calc(94cqh * 1600 / 2277));
   aspect-ratio: 1600 / 2277;
+  transform-origin: 50% 6%;
 }
 
 .callouts {
   list-style: none;
+  position: absolute;
+  inset: 0;
+}
+
+/* 라벨 하나 = 그림 크기의 칸 하나. 등장할 때 li에 transform이 걸리면 li가 안쪽 절대 위치의 기준이 되므로,
+   li 자체를 그림과 같은 크기로 겹쳐 두어야 등장 중에도 점·선·글자가 제자리에 있다 */
+.callouts li {
   position: absolute;
   inset: 0;
 }
@@ -64,66 +198,412 @@
   color: var(--text);
 }
 
-.card {
+/* 선은 점에서 바깥쪽으로 뻗는다 */
+.callouts li[data-side='right'] .calloutLine {
+  transform-origin: left center;
+}
+
+.callouts li[data-side='left'] .calloutLine {
+  transform-origin: right center;
+}
+
+.rulerWrap {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+/* ─── 소개 ─── */
+/* 이름 묶음. 도장을 이 묶음 오른쪽에 글자와 떼어 붙인다(이름 글자를 가리지 않게).
+   도장 폭 104 + 간격 8만큼 자리를 남겨 칼럼 밖으로 넘치지 않게 */
+.idBlock {
   position: relative;
-  padding: var(--space-7) var(--space-6) var(--space-6);
-  background: var(--paper-hi);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-md);
-  box-shadow: var(--shadow-md);
+  width: fit-content;
+  max-width: calc(100% - 112px);
+}
+
+.introStamp {
+  position: absolute;
+  left: calc(100% + 8px);
+  top: -24px;
+  width: 104px;
+  height: 104px;
+  pointer-events: none;
+}
+
+.introStamp svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.idName {
+  font-family: var(--font-display);
+  font-size: clamp(72px, 4.5vw + 48px, 128px);
+  font-weight: 400;
+  line-height: 1;
+  letter-spacing: -0.02em;
+}
+
+/* 데스크톱 좁은 칼럼(861px대)에서는 도장 자리(112px)를 뺀 폭에 세 글자가 한 줄로 들어가게 줄인다('야시/로'로 꺾이지 않게) */
+@media (min-width: 861px) {
+  .idName {
+    font-size: min(clamp(72px, 4.5vw + 48px, 128px), calc((100cqi - 112px) / 3.15));
+  }
+}
+
+.roman {
+  margin: var(--space-2) 0 var(--space-5);
+  font-family: 'Fredoka', sans-serif;
+  font-size: 22px;
+  font-weight: 600;
+  letter-spacing: 0.32em;
+  color: var(--accent-text);
+}
+
+.tagline {
+  font-size: var(--fs-lg);
+  color: var(--text-dim);
+  word-break: keep-all;
+}
+
+/* ─── 현장 기록지: 프로필·취향·꿀붕이·마무리 공용 ───
+   상자·바탕 면 없이 3열 공유 격자 + 챕터당 굵은 선 하나 + 행 사이 가는 선. 열 시작마다 눈금 틱(키 눈금자와 같은 어휘) */
+.record {
+  border-top: 2px solid var(--text);
+}
+
+/* 프로필 두 번째 묶음(신분): 굵은 선 대신 가는 선, 위 묶음과 간격을 크게 벌려 한 챕터 안의 다른 묶음으로 읽히게 */
+.recordNext {
+  margin-top: var(--space-6);
+  border-top-width: 1px;
+  border-top-color: var(--border-strong);
+}
+
+/* 행 하나 = dl 하나. 모든 행이 같은 3열이라 열이 위아래로 맞는다. 칸 합치기는 data-span(좁은 폭에서 CSS가 풀 수 있게 inline style을 쓰지 않는다) */
+.recordRow {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  column-gap: var(--rec-gap);
+  margin: 0;
+  padding-block: var(--rec-pad);
+}
+
+.recordRow + .recordRow {
+  border-top: 1px solid var(--border);
+}
+
+.item {
+  position: relative;
+  min-width: 0;
+}
+
+.item[data-span='2'] {
+  grid-column: span 2;
+}
+
+/* 첫 행의 굵은 선과 만나는 세로 눈금(키 눈금자와 같은 어휘). 모든 가는 선에 달면 표처럼 보여 첫 행에만 */
+.recordRow:first-child .item::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: calc(-1 * var(--rec-pad) - 4px);
+  width: 1px;
+  height: 7px;
+  background: var(--border-strong);
+}
+
+.label {
   display: flex;
-  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 6px;
+  font: 500 var(--fs-sm) / 1.4 'Noto Sans KR', sans-serif;
+  color: var(--text-dim);
+  word-break: keep-all;
+}
+
+/* 명세도를 0으로(:where) 둔다. `.recordRow dd`(0,1,1)로 쓰면 .actions의 margin-top까지 지워 값과 버튼이 붙는다 */
+:where(.recordRow, .tasteRecord, .outroStats) dd {
+  margin: 0;
+}
+
+/* L: 측정값·팬아트 태그 / M: 신원값(보조 행). 320px대 칼럼에서도 '149.8cm'가 3열 한 칸에 들어가는 하한 */
+.valL {
+  font-family: var(--font-display);
+  font-size: clamp(22px, 7.6cqi, 40px);
+  font-weight: 400;
+  line-height: 1.1;
+}
+
+.valM {
+  font: 400 clamp(19px, 4.2cqi, 26px) / 1.35 var(--font-display);
+  word-break: keep-all;
+}
+
+/* 보조 행: 값을 한 단계 낮추고 위아래 간격도 줄여 첫 행 측정값이 주인공이 되게 */
+.minorRow {
+  padding-block: calc(var(--rec-pad) * 0.75);
+}
+
+.minorRow .label {
+  margin-bottom: 2px;
+}
+
+.num {
+  font-family: 'Fredoka', sans-serif;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+/* 단위는 숫자와 살짝 띄운다(눈금자 라벨 '149.8 cm'와 같은 표기). 작아져도 보조 텍스트 하한 밑으로 내려가지 않게 */
+.unit {
+  margin-left: 0.15em;
+  font-family: 'Noto Sans KR', sans-serif;
+  font-size: max(var(--fs-sm), 0.45em);
+  font-weight: 500;
+  color: var(--text-dim);
+}
+
+.sub {
+  display: block;
+  margin-top: 4px;
+  font: 600 var(--fs-xs) 'Fredoka', sans-serif;
+  letter-spacing: 0.12em;
+  color: var(--accent-text);
+}
+
+.note {
+  display: block;
+  margin-top: 4px;
+  font: 500 var(--fs-sm) 'Noto Sans KR', sans-serif;
+  color: var(--text-dim);
+}
+
+/* ─── 생일 D-day (브라우저에서만 그림). 값 아래 줄에 ─── */
+.dday {
+  display: block;
+  width: fit-content;
+  margin-top: 6px;
+  padding: 0 10px;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-pill);
+  font: 600 var(--fs-sm) / 22px 'Fredoka', 'Noto Sans KR', sans-serif;
+  color: var(--accent-text);
+}
+
+/* 생일 당일: 인주색은 글자에 못 쓰므로(AA 미달) 테두리·바탕에만 */
+.ddayToday {
+  border-color: var(--stamp);
+  background: color-mix(in srgb, var(--stamp) 12%, transparent);
+  color: var(--text);
+}
+
+.srOnly {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+/* ─── 취향: 2열(좋아하는 것 | 싫어하는 것). 묶음마다 위 선 색이 극성, 두 묶음 사이에 세로 가는 선 ─── */
+.tasteRecord {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  column-gap: var(--rec-gap);
+  margin: 0;
+}
+
+.tasteGroup {
+  position: relative;
+  min-width: 0;
+  padding-top: var(--rec-pad);
+  border-top: 2px solid var(--accent);
+}
+
+.tasteGroup[data-kind='dislike'] {
+  border-top-color: var(--stamp);
+}
+
+.tasteGroup[data-kind='dislike']::before {
+  content: '';
+  position: absolute;
+  left: calc(var(--rec-gap) / -2);
+  top: var(--rec-pad);
+  bottom: 0;
+  width: 1px;
+  background: var(--border);
+}
+
+.tasteMark {
+  flex-shrink: 0;
+}
+
+.tasteGroup[data-kind='like'] .tasteMark {
+  color: var(--accent-text);
+}
+
+.tasteGroup[data-kind='dislike'] .tasteMark {
+  color: var(--stamp);
+}
+
+/* 스티커 + 단어 한 줄. 칸이 좁아 단어가 들어가지 않으면 스티커가 단어 위 줄로 올라간다(단어는 꺾지 않는다) */
+.tasteItem {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 10px;
+}
+
+.tasteWord {
+  font: 400 clamp(22px, 6.4cqi, 38px) / 1.15 var(--font-display);
+  white-space: nowrap;
+}
+
+/* 같은 칸에 쌓은 항목 사이에 가는 선: 한 항목이 두 줄로 감긴 것이 아니라 두 항목임을 보인다 */
+.tasteItem + .tasteItem {
+  margin-top: var(--space-3);
+  padding-top: var(--space-3);
+  border-top: 1px solid var(--border);
+}
+
+/* 오려 붙인 스티커: 흰 칼선은 SVG 안에, 기울기·그림자는 여기서. 항목마다 기울기를 달리해 손으로 붙인 느낌 */
+.sticker {
+  flex-shrink: 0;
+  width: clamp(40px, 10cqi, 60px);
+  height: auto;
+  aspect-ratio: 1;
+  overflow: visible;
+  filter: drop-shadow(0 1.5px 1.5px rgba(60, 40, 20, 0.28));
+  transform: rotate(-8deg);
+}
+
+.sticker[data-kind='chat'] {
+  transform: rotate(6deg);
+}
+
+.sticker[data-kind='idle'] {
+  transform: rotate(-4deg);
+}
+
+:global([data-theme='dark']) .sticker {
+  filter: drop-shadow(0 2px 2px rgba(0, 0, 0, 0.55));
+}
+
+/* ─── 팬네임 ─── */
+/* 꿀붕이 스티커 + 이름 한 줄 */
+.fanName {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+/* 투명 PNG 둘레에 흰 칼선(사방 drop-shadow)을 둘러 취향 스티커와 같은 오려 붙인 느낌으로 */
+.kkulSticker {
+  display: inline-flex;
+  flex-shrink: 0;
+  transform: rotate(-6deg);
+  filter: drop-shadow(2.5px 0 0 #fffdf8) drop-shadow(-2.5px 0 0 #fffdf8) drop-shadow(0 2.5px 0 #fffdf8)
+    drop-shadow(0 -2.5px 0 #fffdf8) drop-shadow(0 1.5px 1.5px rgba(60, 40, 20, 0.28));
+}
+
+:global([data-theme='dark']) .kkulSticker {
+  filter: drop-shadow(2.5px 0 0 #fffdf8) drop-shadow(-2.5px 0 0 #fffdf8) drop-shadow(0 2.5px 0 #fffdf8)
+    drop-shadow(0 -2.5px 0 #fffdf8) drop-shadow(0 2px 2px rgba(0, 0, 0, 0.55));
+}
+
+.valWord {
+  font: 400 clamp(28px, 6.5cqi, 40px) / 1.1 var(--font-display);
+  word-break: keep-all;
+}
+
+.valEmoji {
+  font-family: system-ui, sans-serif;
+  font-size: clamp(28px, 6.5cqi, 40px);
+  line-height: 1.1;
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2) var(--space-4);
+  margin-top: var(--space-3);
+}
+
+/* 테두리 버튼은 실제로 동작하는 복사에만. 테두리는 --text-dim(대비 3:1 이상) */
+.copy {
+  display: inline-flex;
+  align-items: center;
   justify-content: center;
-  animation: fadeUp var(--dur-slow) var(--ease-out) both;
+  min-width: 92px;
+  min-height: var(--tap);
+  padding: 0 14px;
+  border: 1px solid var(--text-dim);
+  border-radius: var(--radius-pill);
+  background: transparent;
+  font: 500 var(--fs-sm) 'Noto Sans KR', sans-serif;
+  color: var(--text);
+  cursor: pointer;
+  transition: color var(--dur-fast), border-color var(--dur-fast);
 }
 
-.keyFacts {
-  display: grid;
-  grid-template-columns: repeat(3, auto);
-  justify-content: start;
-  gap: var(--space-4) var(--space-5);
+.copy:hover,
+.copy[data-state='done'] {
+  color: var(--accent-text);
+  border-color: var(--accent-text);
 }
 
-.keyFact {
-  display: flex;
-  flex-direction: column;
+.copy[data-state='fail'] {
+  color: var(--text);
+  border-color: var(--text);
+}
+
+/* 바깥 링크는 밑줄 글자 링크로(버튼과 구분) */
+.textLink {
+  display: inline-flex;
+  align-items: center;
   gap: 4px;
-  padding-left: var(--space-3);
-  border-left: 2px solid var(--brass);
+  min-height: var(--tap);
+  font: 500 var(--fs-sm) 'Noto Sans KR', sans-serif;
+  color: var(--text);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  transition: color var(--dur-fast);
 }
 
-.profileList {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: var(--space-4) var(--space-5);
+.textLink:hover {
+  color: var(--accent-text);
 }
 
-/* 5개라 마지막(소속)은 한 줄을 다 쓴다 */
-.profileList > :last-child {
-  grid-column: 1 / -1;
+.copy:focus-visible,
+.textLink:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
 }
 
-/* ─── 섹션 공통 ─── */
+/* ─── 채널: 기록지와 같은 선 체계(위 굵은 선 + 행 사이 가는 선)의 한 가지 행 목록 ─── */
 .section {
   padding: 0 var(--page-x) var(--section-gap);
 }
 
-/* ─── 채널 ─── */
-/* 기록장 색인처럼 hairline으로 나눈 한 가지 행 목록. 바탕·그림자·카드 테두리는 쓰지 않는다 */
 .channelList {
   list-style: none;
   margin: 0;
   padding: 0;
-  border-top: 1px solid var(--border-strong);
+  border-top: 2px solid var(--text);
 }
 
-.channelList li {
-  border-bottom: 1px solid var(--border);
+.channelList li + li {
+  border-top: 1px solid var(--border);
 }
 
 .row {
   display: grid;
-  grid-template-columns: 24px 200px 1fr 16px;
+  grid-template-columns: 24px minmax(0, 1fr) 16px;
   align-items: center;
   column-gap: var(--space-4);
   min-height: 64px;
@@ -132,23 +612,25 @@
   text-decoration: none;
 }
 
-/* 데스크톱에서는 text 래퍼를 풀어 name·desc가 각각 칸을 차지한다 */
 .text {
-  display: contents;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
 }
 
 .name {
-  font-family: 'Noto Serif KR', serif;
-  font-weight: 700;
-  font-size: 18px;
+  font-family: var(--font-display);
+  font-weight: 400;
+  font-size: var(--fs-lg);
   line-height: var(--lh-tight);
   color: var(--text);
-  transition: color 150ms;
+  transition: color var(--dur-fast);
 }
 
 .desc {
   font-family: 'Noto Sans KR', sans-serif;
-  font-size: 14px;
+  font-size: var(--fs-sm);
   color: var(--text-dim);
 }
 
@@ -156,8 +638,8 @@
   color: var(--text-dim);
   display: inline-flex;
   transition:
-    transform 150ms,
-    color 150ms;
+    transform var(--dur-fast),
+    color var(--dur-fast);
 }
 
 .row:hover .name,
@@ -176,10 +658,6 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .arrow {
-    transition: color 150ms;
-  }
-
   .row:hover .arrow {
     transform: none;
   }
@@ -198,58 +676,242 @@
   gap: var(--space-5);
 }
 
+.outroStats {
+  display: flex;
+  gap: var(--space-6);
+  margin: var(--space-4) 0 0;
+}
+
+.outroNum {
+  font-size: var(--fs-xl);
+  line-height: 1.1;
+}
+
+/* ─── 그림판 스크롤 연동 ───
+   데스크톱·충분한 높이·모션 허용·JS 있음일 때만. 처음(--z 없음)은 얼굴 1.9배, 눈금자·장비 라벨 숨김.
+   JS가 붙기 전 서버 HTML부터 이 상태라 하이드레이션 순간 그림이 바뀌지 않는다. 조건이 하나라도 빠지면 전신 + 모든 표시 */
+@media (min-width: 861px) and (min-height: 641px) and (prefers-reduced-motion: no-preference) and (scripting: enabled) {
+  .figure {
+    transform: scale(calc(1.9 - 0.9 * var(--z, 0)));
+  }
+
+  /* 확대 중에는 그림이 무대 아래 끝에서 잘린다. 그 끝을 72px 페이드로 바탕에 스며들게 하고,
+     전신(--z=1)이 되면 페이드 길이를 0으로 줄여 발끝·눈금자 0을 가리지 않는다 */
+  .stage {
+    mask-image: linear-gradient(to bottom, #000 calc(100% - 72px * (1 - var(--z, 0))), transparent);
+  }
+
+  /* 눈금자는 발끝에서 149.8cm까지 그려 올라간다(700ms). 숨길 때와 다시 켤 때(data-seen)는 짧게 */
+  .rulerWrap {
+    clip-path: inset(-40px -200px -40px -200px);
+    transition: clip-path 700ms var(--ease-out);
+  }
+
+  .dossier[data-seen] .rulerWrap {
+    transition-duration: 150ms;
+  }
+
+  .dossier:not([data-zoomed]) .rulerWrap {
+    clip-path: inset(100% -200px -40px -200px);
+    transition-duration: 120ms;
+  }
+
+  /* 장비 라벨은 하나씩 점 → 선 → 글자 순서로 그린다(--t = 그 라벨의 시작 시각, 라벨끼리 120ms 간격) */
+  .callouts li {
+    --t: calc(300ms + var(--i) * 120ms);
+  }
+
+  .calloutDot {
+    transition:
+      opacity 120ms ease-out var(--t),
+      transform 260ms cubic-bezier(0.3, 1.6, 0.6, 1) var(--t);
+  }
+
+  .calloutLine {
+    transition:
+      opacity 80ms linear calc(var(--t) + 120ms),
+      transform 360ms cubic-bezier(0.65, 0, 0.35, 1) calc(var(--t) + 120ms);
+  }
+
+  .calloutText {
+    transition:
+      opacity 240ms ease-out calc(var(--t) + 400ms),
+      transform 320ms var(--ease-out) calc(var(--t) + 400ms);
+  }
+
+  /* 한 번 본 뒤 되감았다 다시 오면 순차 등장 없이 바로 */
+  .dossier[data-seen][data-zoomed] .callouts :is(.calloutDot, .calloutLine, .calloutText) {
+    transition:
+      opacity 150ms ease-out,
+      transform 150ms ease-out;
+  }
+
+  /* 숨김: 지연 없이 짧게 사라진다 */
+  .dossier:not([data-zoomed]) .callouts :is(.calloutDot, .calloutLine, .calloutText) {
+    opacity: 0;
+    transition:
+      opacity 120ms ease-out,
+      transform 120ms ease-out;
+  }
+
+  .dossier:not([data-zoomed]) .calloutDot {
+    transform: translate(-50%, -50%) scale(0);
+  }
+
+  .dossier:not([data-zoomed]) .calloutLine {
+    transform: scaleX(0);
+  }
+
+  .dossier:not([data-zoomed]) .callouts li[data-side='right'] .calloutText {
+    transform: translate(-6px, -50%);
+  }
+
+  .dossier:not([data-zoomed]) .callouts li[data-side='left'] .calloutText {
+    transform: translate(6px, -50%);
+  }
+}
+
 /* ─── 반응형 ─── */
-@media (max-width: 860px) {
-  .hero {
-    grid-template-columns: 1fr;
-    min-height: unset;
-    gap: var(--space-6);
-    padding-top: var(--space-7);
+/* 좁은 칼럼(모바일, 861px대 데스크톱): 첫 행 측정값은 3열 그대로 두고, 보조 행은 '라벨 | 값' 한 줄씩으로 바꾼다.
+   3칸 행을 2열로 접으면 홀수 칸이 혼자 남아 오른쪽이 빈다 */
+@container (max-width: 420px) {
+  .minorRow {
+    grid-template-columns: minmax(0, 1fr);
+    row-gap: var(--space-3);
+  }
+
+  .minorRow .item {
+    grid-column: auto;
+    display: grid;
+    grid-template-columns: 6.5em minmax(0, 1fr);
+    column-gap: var(--space-3);
+    align-items: baseline;
+  }
+
+  .minorRow .label {
+    margin-bottom: 0;
+  }
+
+  /* '라벨 | 값' 목록에서는 칸이 세로로 쌓여 눈금이 칸 사이에 떠 보이므로 뺀다 */
+  .recordRow.minorRow .item::before {
+    content: none;
+  }
+
+  /* 꿀붕이 첫 행은 팬네임 | 팬 마크 반반 */
+  .fanRow {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .fanRow .item[data-span='2'] {
+    grid-column: auto;
+  }
+}
+
+/* 좁은 화면·낮은 화면에서는 목차를 숨긴다(고정 그림판이 없어 따라갈 위치가 없다) */
+@media (max-width: 860px), (max-height: 640px) {
+  .rail {
+    display: none;
+  }
+}
+
+/* 낮은 데스크톱 화면: 고정·확대를 끄고 2단만 유지한다 */
+@media (min-width: 861px) and (max-height: 640px) {
+  .plateSticky {
+    position: static;
+    height: auto;
+    overflow: visible;
   }
 
   .stage {
-    order: 2;
-    justify-content: center;
-    padding: 0;
+    flex: none;
+    container-type: normal;
+    padding-block: var(--space-6) 0;
   }
 
   .figure {
-    width: min(100%, 340px);
-    max-width: 100%;
-    margin-top: -40px;
+    width: min(100%, calc(80svh * 1600 / 2277));
+  }
+}
+
+@media (max-width: 860px) {
+  /* 모바일: 고정하지 않고 소개 → 그림판 → 챕터 순서로 흐른다(그림판은 모든 표시가 켜진 상태) */
+  .dossier {
+    grid-template-columns: 1fr;
+  }
+
+  .plateCol {
+    order: 2;
+    margin-right: calc(-1 * var(--page-x));
+  }
+
+  .chapterCol {
+    display: contents;
+  }
+
+  .intro {
+    order: 1;
+    min-height: 0;
+    padding-block: var(--space-6) var(--space-5);
+  }
+
+  .chapter:not(.intro) {
+    order: 3;
+    padding-block: var(--space-7) 0;
+  }
+
+  .lastChapter {
+    min-height: 0;
+  }
+
+  .plateSticky {
+    position: static;
+    height: auto;
+    overflow: visible;
+  }
+
+  .stage {
+    container-type: normal;
+    padding: var(--space-5) 0 0;
+  }
+
+  /* 좌우에 여유를 남겨 왼쪽 장비 라벨이 화면 밖으로 잘리지 않게 */
+  .figure {
+    width: min(calc(100% - 48px), 340px);
   }
 
   .rulerWrap {
     display: none;
   }
 
-  .card {
-    padding: var(--space-7) var(--space-5) var(--space-5);
+  /* 도장은 이름 오른쪽에. 이름 줄 높이 안에 들어가 Nav·태그라인과 겹치지 않는다 */
+  .idBlock {
+    width: auto;
+    max-width: none;
   }
 
-  .row {
-    grid-template-columns: 24px 1fr 16px;
-    column-gap: var(--space-3);
-  }
-
-  .text {
-    display: flex;
-    flex-direction: column;
-    gap: 2px;
-    min-width: 0;
+  .introStamp {
+    left: auto;
+    right: 0;
+    top: 0;
+    width: 80px;
+    height: 80px;
   }
 
   .name {
-    font-size: 17px;
+    font-size: var(--fs-md);
+  }
+}
+
+/* 320px대: 이름 옆 도장이 '로'에 닿지 않게 줄인다 */
+@media (max-width: 359px) {
+  .introStamp {
+    top: -4px;
+    width: 64px;
+    height: 64px;
   }
 }
 
 @media (max-width: 640px) {
-  .keyFacts {
-    grid-template-columns: 1fr;
-    gap: var(--space-3);
-  }
-
   .outroRow {
     flex-direction: column;
     align-items: flex-start;

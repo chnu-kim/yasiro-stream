@@ -166,8 +166,8 @@
 }
 
 .labelName {
-  font-family: 'Noto Serif KR', serif;
-  font-weight: 700;
+  font-family: var(--font-display);
+  font-weight: 400;
   font-size: 16px;
   line-height: 1.3;
   word-break: keep-all;

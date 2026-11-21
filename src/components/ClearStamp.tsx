@@ -60,7 +60,7 @@ export default function ClearStamp({
         </text>
         <line x1="22" y1="40" x2="78" y2="40" strokeWidth="1.6" />
         <line x1="22" y1="62" x2="78" y2="62" strokeWidth="1.6" />
-        <text x="50" y="58.5" textAnchor="middle" strokeWidth="0.9" strokeLinejoin="round" style={{ fontFamily: "'Noto Serif KR', serif", fontWeight: 700, fontSize: 21 }}>
+        <text x="50" y="58.5" textAnchor="middle" strokeWidth="0.9" strokeLinejoin="round" style={{ fontFamily: 'var(--font-display)', fontWeight: 400, fontSize: 21 }}>
           정복
         </text>
       </g>

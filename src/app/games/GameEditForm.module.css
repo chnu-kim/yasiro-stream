@@ -169,8 +169,8 @@
 
 .nameInput {
   height: 52px;
-  font-family: 'Noto Serif KR', serif;
-  font-weight: 700;
+  font-family: var(--font-display);
+  font-weight: 400;
   font-size: 26px;
 }
 
@@ -509,8 +509,8 @@
 }
 
 .pickerTitle {
-  font-family: 'Noto Serif KR', serif;
-  font-weight: 700;
+  font-family: var(--font-display);
+  font-weight: 400;
   font-size: 22px;
   padding-right: 52px;
 }
