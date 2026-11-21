@@ -38,12 +38,13 @@ src/app/
   about/                소개 — 고정 그림판 + 챕터 도감(Dossier: 소개·프로필·취향·팬네임·찾아가기(채널), 목록은 chapters.ts), 탐험 기록 숫자
   games/                플레이한 게임. page=서버(D1 읽기·관리자 판별), GamesBoard·GameCard·GameDetailDialog·Pagination·Poster(공개) +
                         관리자 UI: AdminBar·GameEditForm·CategoryPicker·AddGameFlow·DialogFrame·Toast, adminApi(fetch 래퍼)·drafts(localStorage)
-  awards/               2026 야시로 게임 어워즈(이상형 월드컵, 관리자 전용: 비관리자 404·noindex, Nav·sitemap·SITE_PAGES·홈 카드 미등록, 진입은 /games AdminBar "어워즈"). 브라우저 안에서만 진행. 대진·진행·결과·검증은 src/lib/awards(순수, rng 주입). 공개로 바꿀 때 Nav·SITE_PAGES·더 둘러보기에 넣는다
+  awards/               2026 야시로 게임 어워즈(이상형 월드컵, 관리자 전용: 비관리자 404·noindex, Nav·sitemap·SITE_PAGES·홈 카드 미등록, 진입은 /games AdminBar "어워즈"). 대진은 서버가 뽑아 서명 토큰(24시간)으로 건네고, 끝까지 마친 판만 제출받아 부문별로 집계한다(설정 화면 "순위 보기"). 대진·진행·결과·검증은 src/lib/awards(순수, rng 주입). 공개로 바꿀 때 Nav·SITE_PAGES·더 둘러보기에 넣는다
   auth/{login,callback,logout}/route.ts   치지직 OAuth (login?next=<경로>는 oauth_next 쿠키로 복귀). 로직은 src/lib/auth-routes.ts
   api/games/            관리자 API (route·[id]·[id]/hidden·[id]/changes·categories·youtube). 핸들러는 얇게, 로직은 src/lib/games/api.ts
+  api/awards/           어워즈 API (draw·submit·rankings, 관리자 전용: AWARDS_PUBLIC). 핸들러는 얇게, 로직은 src/lib/awards/api.ts(repo·token·keys·limit·rankings)
 src/components/         Nav, SkipLink, ClearStamp (공유)
 scripts/games-{seed,export,edit}.ts   pnpm games:seed / games:export / games:edit 진입점 (얇게. 로직은 src/lib/games/seed.ts, ops.ts)
-src/lib/                순수 로직 + *.test.ts (session, auth-routes, http, chzzk-auth, chzzk-category(검색·slugify만), games/{schema,query,labels,rows,repo,admin,diff,patch,client,api,seed,youtube-meta,home,media,timecode}, awards/{entries,options,draw,tournament,flow,labels,verify,media})
+src/lib/                순수 로직 + *.test.ts (session, auth-routes, http, chzzk-auth, chzzk-category(검색·slugify만), games/{schema,query,labels,rows,repo,admin,diff,patch,client,api,seed,youtube-meta,home,media,timecode}, awards/{entries,options,draw,tournament,flow,labels,verify,media,rng,keys,token,limit,repo,rankings,client,api})
 migrations/             D1 마이그레이션 (wrangler 관리)
 _design/                원본 디자인 핸드오프 (gitignored)
 ```
@@ -97,8 +98,8 @@ _design/                원본 디자인 핸드오프 (gitignored)
 - Worker `yasiro-contest`(레포 개명과 무관하게 그대로 둔다. 바꾸면 새 Worker가 생겨 secret·도메인을 옮겨야 한다) · Account `fc7323801136ae087db0b88ab4d07b53` · 도메인 `yasiro.stream`, `www.yasiro.stream`
 - D1 `yasiro-db` (`69020930-766c-423b-8cbd-85d62eee3e02`) → `env.DB`. 타입은 `src/types/cloudflare.d.ts`
 - 접근: `const { env } = await getCloudflareContext({ async: true })` (`@opennextjs/cloudflare`)
-- 테이블: `auth_sessions`(0009, 아래 '세션'), `games`, `game_vods`, `game_changes`(0007, 시드 0008), `game_vods.highlight_start`(0012, 다시보기별 하이라이트 시작 초, NULL = 없음). 레거시 `guestbook`(0002, 방명록 제거 #38)·`sessions`(0001)는 0011로 DROP했다(2026-11-20 원격 적용, 방명록 1건은 로컬 백업 `~/Documents/project/yasiro-ops/guestbook-backup-20261120.sql`). 스키마 변경은 `d1-migration` 스킬로 한다.
-- Worker secret: `CHZZK_CLIENT_ID`, `CHZZK_CLIENT_SECRET`, `CHZZK_REDIRECT_URI`, `ADMIN_CHANNEL_IDS`(쉼표 구분 관리자 채널 ID, 아래 '관리자') (`printf 'v' | pnpm wrangler secret put KEY`). Route Handler에서 `process.env`로 읽는다.
+- 테이블: `auth_sessions`(0009, 아래 '세션'), `games`, `game_vods`, `game_changes`(0007, 시드 0008), `award_runs`·`award_tally`·`award_limits`(0013, 아래 '어워즈 집계'), `game_vods.highlight_start`(0012, 다시보기별 하이라이트 시작 초, NULL = 없음). 레거시 `guestbook`(0002, 방명록 제거 #38)·`sessions`(0001)는 0011로 DROP했다(2026-11-20 원격 적용, 방명록 1건은 로컬 백업 `~/Documents/project/yasiro-ops/guestbook-backup-20261120.sql`). 스키마 변경은 `d1-migration` 스킬로 한다.
+- Worker secret: `CHZZK_CLIENT_ID`, `CHZZK_CLIENT_SECRET`, `CHZZK_REDIRECT_URI`, `ADMIN_CHANNEL_IDS`(쉼표 구분 관리자 채널 ID, 아래 '관리자'), `AWARDS_SECRET`(어워즈 대진 서명·제출 제한 IP 해시. `openssl rand -hex 32`. 바꾸면 발급된 대진 토큰이 모두 무효가 된다) (`printf 'v' | pnpm wrangler secret put KEY`). Route Handler에서 `process.env`로 읽는다.
 - GitHub secret: `CLOUDFLARE_API_TOKEN`, `CLOUDFLARE_ACCOUNT_ID`. 자격증명 원본은 1Password "Cloudflare R2 - yasiro-contest".
 - wrangler 4.x는 Node 22 이상이 필요하다.
 
@@ -168,3 +169,16 @@ _design/                원본 디자인 핸드오프 (gitignored)
 - 쓰기 API는 `checkSameOrigin`(CSRF) → 인증 → 본문 크기 → 모양 → 검증 순서이고, 동시 수정은 `version` 낙관적 잠금(충돌 시 409 + "관리자가 방금(HH:MM) 이 게임을 먼저 고쳤어요…")이다. 응답은 `Cache-Control: no-store`.
 - UI는 /games 안에서만: 관리자 띠(숨긴 게임 보기·게임 추가), 카드 호버/포커스 시 "수정" 칩(`@media (hover: none)`에서는 숨김), 상세 모달 하단 관리자 영역(숨기기·수정·변경 기록), 같은 모달의 수정 모드, 게임 추가 2단계. 수정 중 Esc·배경 클릭·닫기는 확인을 거치고(`DialogFrame intercept`), 로그인이 만료되면 입력을 `localStorage['yasiro-games-draft:<id|new>']`에 보존한다. 알림(`Toast`)은 열린 `<dialog>`(top layer) 위에 보이도록 dialog 안에도 렌더링하고, 한 번에 하나만 내용을 가진다.
 - 응답 해석·문구·폼 로직은 `src/lib/games/{client,patch,diff}.ts`(순수 함수, 100% 커버리지)에 둔다. 컴포넌트는 상태와 fetch만 한다.
+
+### 어워즈 집계 (/awards, 0013)
+
+- 흐름: `POST /api/awards/draw` → 서버가 D1 후보(`inDivision`)로 `newRun`(crypto rng), `v1.<payload>.<HMAC>` 토큰(drawId·부문·대진·3·4위전·iat·exp, 24시간)을 준다. D1에 쓰지 않는다. `POST /api/awards/submit?division=` → 서명·만료 → `verifyRun` → batch 한 번(`award_runs` INSERT, draw_id UNIQUE는 409, `award_limits` +1, `award_tally` UPSERT). 클라이언트는 결과 화면에 들어가면 자동으로 제출한다(`AwardsApp`, 응답 해석·문구는 `src/lib/awards/client.ts`).
+- 검사 순서: 출처 → 관리자 → secret(503) → 쿼리 부문 → 제출 한도(429) → 본문 512KB → 모양 → 토큰(400/410) → verifyRun(422) → batch(409/429). 한도를 넘긴 뒤의 재제출은 409가 아니라 429다.
+- 제한: IP(`CF-Connecting-IP`, IPv6는 /64) × 부문 × KST 하루 10회(`SUBMIT_LIMIT_PER_DAY`). 성공한 제출만 센다. IP는 `HMAC(파생 키, "<KST day>|<버킷>")`로만 저장하고 오늘·전날 행만 남긴다(다음 제출 때 지운다). 로그에 IP·해시·토큰을 남기지 않는다.
+- 순위: `GET /api/awards/rankings?division=`. 우승 횟수 상위 10, 승률 상위 10(대결 10판 이상). 읽을 때 `games` JOIN `hidden = 0`이고, 2026은 지금 첫 플레이가 2026인 게임만 보인다. 누계는 지우지 않는다.
+- 공개 전환: `src/lib/awards/api.ts`의 `AWARDS_PUBLIC`(페이지·API 셋 공통). Nav·SITE_PAGES·robots는 따로 손본다. 공개 전에 draw 호출 제한과 봇 방어(Turnstile 등)를 검토한다.
+- 로컬: `pnpm wrangler d1 migrations apply yasiro-db --local` → `pnpm build:worker` → `pnpm exec opennextjs-cloudflare preview -- --port <p> --var ADMIN_CHANNEL_IDS:<가짜 ID> --var AWARDS_SECRET:$(openssl rand -hex 32)`. 로그인 세션은 `verify` 스킬 '로그인 세션'. 로컬에는 CF-Connecting-IP가 없을 수 있고, 그때는 모든 요청이 `unknown` 버킷 하나를 쓴다(한도 확인은 curl `-H "cf-connecting-ip: …"`). `.dev.vars`(1Password FIFO)에 AWARDS_SECRET을 넣지 않고 `--var`로만 주입한다. preview를 다시 띄우면 secret이 바뀌어 그 전 토큰은 `bad_token`이 된다.
+- **배포 순서(0013, AWARDS_SECRET)**: (1) 사람이 원격에 0013을 적용한다. 이 PR 브랜치 worktree에서 `pnpm wrangler d1 migrations list yasiro-db --remote`(대기 목록이 `0013_awards_tally.sql` 하나인지) → `pnpm wrangler d1 migrations apply yasiro-db --remote` → `pnpm wrangler d1 execute yasiro-db --remote --command "SELECT count(*) FROM award_runs"`(0). (2) 사람이 secret을 넣는다: `openssl rand -hex 32`로 값을 만들고 `printf '<그 값>' | pnpm wrangler secret put AWARDS_SECRET`(값은 1Password에만 보관, 출력·커밋 금지). (3) 머지한다.
+  - secret 없이 배포되면 /awards 페이지는 열리지만 시작하기가 503("어워즈 설정이 끝나지 않아 시작할 수 없어요.")이라 토너먼트를 시작할 수 없다. 제출도 503이고 로그에 요청마다 `awards-api secret missing`이 찍힌다. 순위 보기는 secret 없이 동작한다. secret을 넣으면 재배포 없이 복구된다.
+  - 0013 적용 전에 배포되면 페이지·draw는 동작하지만 submit은 500(`awards-api unavailable Error`)이고 순위 보기는 "순위를 불러오지 못했어요."다. 그 사이 끝낸 판은 집계되지 않는다. 0013을 적용하면 복구된다.
+  - 롤백: 0013은 테이블만 추가하므로 이전 코드로 롤백해도 안전하다. 쌓인 집계는 남는다.

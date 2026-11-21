@@ -16,7 +16,6 @@ import type {
   GameInput,
   GamePatch,
   GamesDb,
-  Game,
   GamesPageData,
   SessionState,
   Vod,
@@ -192,7 +191,7 @@ async function requireWriter(req: Request, deps: ApiDeps): Promise<Actor | Respo
   return requireAdmin(req, deps);
 }
 
-type Body = { ok: true; value: unknown } | { ok: false; response: Response };
+export type Body = { ok: true; value: unknown } | { ok: false; response: Response };
 
 /** 스트림을 max바이트까지만 읽는다. 넘으면 그 자리에서 읽기를 취소하고 null */
 async function readCapped(body: ReadableStream<Uint8Array> | null, max: number): Promise<Uint8Array | null> {
@@ -219,12 +218,13 @@ async function readCapped(body: ReadableStream<Uint8Array> | null, max: number):
   return out;
 }
 
-/** 본문을 64KB까지만 받아 JSON으로 읽는다. Content-Length가 없거나 거짓이어도 스트림을 64KB에서 끊는다 */
-async function readJsonBody(req: Request): Promise<Body> {
+/** 본문을 max바이트(기본 64KB)까지만 받아 JSON으로 읽는다. Content-Length가 없거나 거짓이어도 스트림을 max에서 끊는다.
+ *  awards/api.ts도 쓴다(413·400 응답 모양이 같다) */
+export async function readJsonBody(req: Request, max: number = BODY_MAX_BYTES): Promise<Body> {
   const declared = Number(req.headers.get("content-length"));
   const tooLarge = fail(413, "payload_too_large", "요청이 너무 커요.");
-  if (declared > BODY_MAX_BYTES) return { ok: false, response: tooLarge };
-  const bytes = await readCapped(req.body, BODY_MAX_BYTES);
+  if (declared > max) return { ok: false, response: tooLarge };
+  const bytes = await readCapped(req.body, max);
   if (bytes === null) return { ok: false, response: tooLarge };
   try {
     return { ok: true, value: JSON.parse(new TextDecoder("utf-8", { fatal: true }).decode(bytes)) };
@@ -302,25 +302,6 @@ export async function loadGamesPageData(deps: ApiDeps, cookieHeader: string | nu
   } catch (error) {
     unexpected(deps, error);
     return { ok: false };
-  }
-}
-
-/** /awards 서버 컴포넌트용 결과. 관리자일 때만 보이는 게임(숨김 제외)을 준다 */
-export type AdminGamesResult =
-  | { kind: "admin"; games: Game[] }
-  /** anonymous·expired·user */
-  | { kind: "denied" }
-  /** D1 오류(로그는 코드·error.name만) */
-  | { kind: "error" };
-
-export async function loadAwardsGames(deps: ApiDeps, cookieHeader: string | null): Promise<AdminGamesResult> {
-  try {
-    const state = await getSessionActor(deps.db, cookieHeader, deps.now(), parseAdminIds(deps.env.ADMIN_CHANNEL_IDS));
-    if (state.kind !== "admin") return { kind: "denied" };
-    return { kind: "admin", games: (await listGames(deps.db, { includeHidden: false })).map(toGame) };
-  } catch (error) {
-    unexpected(deps, error);
-    return { kind: "error" };
   }
 }
 

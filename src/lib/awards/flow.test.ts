@@ -25,7 +25,7 @@ describe("newRun", () => {
 
 describe("reduce", () => {
   it("start → pick … → result, 같은 값 재입력은 no-op", () => {
-    let s = reduce(INITIAL_SCREEN, { type: "start", run: run0() });
+    let s = reduce(INITIAL_SCREEN, { type: "start", run: run0(), token: "tok" });
     expect(s.kind).toBe("play");
     const m = s.kind === "play" ? currentMatch(s.run)! : null!;
     s = pickFirst(s);
@@ -42,7 +42,7 @@ describe("reduce", () => {
 
   it("다른 화면에서의 pick·undo는 같은 객체", () => {
     const result = (() => {
-      let s: Screen = reduce(INITIAL_SCREEN, { type: "start", run: run0() });
+      let s: Screen = reduce(INITIAL_SCREEN, { type: "start", run: run0(), token: "tok" });
       for (let i = 0; i < 4; i++) s = pickFirst(s);
       return s;
     })();
@@ -53,7 +53,7 @@ describe("reduce", () => {
   });
 
   it("undo: 빈 picks는 같은 객체, 그 밖은 한 판 되돌림", () => {
-    const start = reduce(INITIAL_SCREEN, { type: "start", run: run0() });
+    const start = reduce(INITIAL_SCREEN, { type: "start", run: run0(), token: "tok" });
     expect(reduce(start, { type: "undo" })).toBe(start);
     const picked = pickFirst(start);
     const back = reduce(picked, { type: "undo" });
@@ -61,15 +61,39 @@ describe("reduce", () => {
   });
 
   it("restart: 어디서든 setup, setup이면 같은 객체", () => {
-    const start = reduce(INITIAL_SCREEN, { type: "start", run: run0() });
+    const start = reduce(INITIAL_SCREEN, { type: "start", run: run0(), token: "tok" });
     expect(reduce(start, { type: "restart" })).toEqual({ kind: "setup" });
     expect(reduce(INITIAL_SCREEN, { type: "restart" })).toBe(INITIAL_SCREEN);
   });
 });
 
+describe("token·rankings", () => {
+  it("start의 token이 play·result까지 따라간다", () => {
+    let s = reduce(INITIAL_SCREEN, { type: "start", run: run0(), token: "tok" });
+    expect(s.kind === "play" && s.token).toBe("tok");
+    s = pickFirst(s);
+    expect(s.kind === "play" && s.token).toBe("tok");
+    s = reduce(s, { type: "undo" });
+    expect(s.kind === "play" && s.token).toBe("tok");
+    for (let i = 0; i < 4; i++) s = pickFirst(s);
+    expect(s.kind === "result" && s.token).toBe("tok");
+  });
+  it("showRankings: 설정에서만 순위로, restart로 돌아온다, 순위에서 pick·undo는 no-op", () => {
+    const rk = reduce(INITIAL_SCREEN, { type: "showRankings" });
+    expect(rk).toEqual({ kind: "rankings" });
+    expect(reduce(rk, { type: "showRankings" })).toBe(rk);
+    expect(reduce(rk, { type: "pick", winnerId: "a", expectedIndex: 0 })).toBe(rk);
+    expect(reduce(rk, { type: "undo" })).toBe(rk);
+    expect(reduce(rk, { type: "restart" })).toEqual({ kind: "setup" });
+    const play = reduce(INITIAL_SCREEN, { type: "start", run: run0(), token: "tok" });
+    expect(reduce(play, { type: "showRankings" })).toBe(play);
+    expect(focusHeadingAfter(INITIAL_SCREEN, rk)).toBe(true);
+  });
+});
+
 describe("inProgress", () => {
   it("한 판 이상 골랐고 끝나지 않았을 때만", () => {
-    const start = reduce(INITIAL_SCREEN, { type: "start", run: run0() });
+    const start = reduce(INITIAL_SCREEN, { type: "start", run: run0(), token: "tok" });
     expect(inProgress(INITIAL_SCREEN)).toBe(false);
     expect(inProgress(start)).toBe(false);
     const picked = pickFirst(start);
@@ -81,7 +105,7 @@ describe("inProgress", () => {
 });
 
 describe("focusHeadingAfter", () => {
-  const start = () => reduce(INITIAL_SCREEN, { type: "start", run: run0() });
+  const start = () => reduce(INITIAL_SCREEN, { type: "start", run: run0(), token: "tok" });
   it("설정 → 대결: 시작 버튼이 사라지므로 대결 제목으로 옮긴다", () => {
     expect(focusHeadingAfter(INITIAL_SCREEN, start())).toBe(true);
   });

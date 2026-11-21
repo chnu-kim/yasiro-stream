@@ -6,10 +6,10 @@ import { applyMigrations, createGamesTestDb, createTestD1, FAKE_ADMIN_ID, findSt
 const insertGame = "INSERT INTO games (id, name) VALUES (?, ?)";
 
 describe("test-d1", () => {
-  it("applies 0007 + 0009 and exposes the games and session tables (no legacy tables)", () => {
+  it("applies 0007 + 0009 + 0012 + 0013 and exposes the games, session and award tables (no legacy tables)", () => {
     const d = createGamesTestDb();
     const names = d.sqlite.prepare("SELECT name FROM sqlite_master WHERE type='table' ORDER BY name").all().map((r) => r.name);
-    expect(names).toEqual(expect.arrayContaining(["game_changes", "game_vods", "games", "auth_sessions"]));
+    expect(names).toEqual(expect.arrayContaining(["game_changes", "game_vods", "games", "auth_sessions", "award_runs", "award_tally", "award_limits"]));
     expect(names).not.toContain("sessions");
     expect(names).not.toContain("guestbook");
   });

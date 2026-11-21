@@ -1,22 +1,24 @@
-// 화면 흐름(설정 → 대결 → 결과)의 순수 리듀서. 컴포넌트는 이 함수만 부른다. DOM·Math.random 없음(rng 주입).
+// 화면 흐름(설정 → 대결 → 결과, 설정 → 순위)의 순수 리듀서. 컴포넌트는 이 함수만 부른다. DOM·Math.random 없음(rng 주입).
 import { drawBracket } from "./draw.ts";
 import { isComplete, pick, startTournament, undo } from "./tournament.ts";
 import type { Division, SizeChoice, TournamentState } from "./types.ts";
 
 export type Screen =
   | { kind: "setup" }
-  | { kind: "play"; run: TournamentState }
-  | { kind: "result"; run: TournamentState };
+  | { kind: "rankings" }
+  | { kind: "play"; run: TournamentState; token: string }
+  | { kind: "result"; run: TournamentState; token: string };
 
 export type Action =
-  | { type: "start"; run: TournamentState }
+  | { type: "start"; run: TournamentState; token: string }
   | { type: "pick"; winnerId: string; expectedIndex: number }
   | { type: "undo" }
-  | { type: "restart" };
+  | { type: "restart" }
+  | { type: "showRankings" };
 
 export const INITIAL_SCREEN: Screen = { kind: "setup" };
 
-/** 후보 id → 시작 상태. rng는 호출부(컴포넌트)가 Math.random을 넘긴다.
+/** 후보 id → 시작 상태. 서버(draw API)가 crypto rng를 넘겨 부른다.
  *  !sizeEnabled(후보 부족 등)이면 drawBracket이 RangeError를 던진다 */
 export function newRun(ids: readonly string[], division: Division, choice: SizeChoice, thirdPlaceRequested: boolean, rng: () => number): TournamentState {
   const bracket = drawBracket(ids, choice, rng);
@@ -27,19 +29,21 @@ export function newRun(ids: readonly string[], division: Division, choice: SizeC
 export function reduce(screen: Screen, action: Action): Screen {
   switch (action.type) {
     case "start":
-      return { kind: "play", run: action.run };
+      return { kind: "play", run: action.run, token: action.token };
     case "restart":
       return screen.kind === "setup" ? screen : { kind: "setup" };
+    case "showRankings":
+      return screen.kind === "setup" ? { kind: "rankings" } : screen;
     case "pick": {
       if (screen.kind !== "play") return screen;
       const run = pick(screen.run, action.winnerId, action.expectedIndex);
       if (run === screen.run) return screen;
-      return isComplete(run) ? { kind: "result", run } : { kind: "play", run };
+      return isComplete(run) ? { kind: "result", run, token: screen.token } : { kind: "play", run, token: screen.token };
     }
     case "undo": {
       if (screen.kind !== "play") return screen;
       const run = undo(screen.run);
-      return run === screen.run ? screen : { kind: "play", run };
+      return run === screen.run ? screen : { kind: "play", run, token: screen.token };
     }
   }
 }

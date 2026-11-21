@@ -1,10 +1,10 @@
 import { headers } from 'next/headers';
 import { notFound } from 'next/navigation';
 import type { Metadata } from 'next';
-import { loadAwardsGames, type AdminGamesResult } from '@/lib/games/api';
+import { loadAwardsPage, type AwardsPageResult } from '@/lib/awards/api';
 import { toAwardEntries } from '@/lib/awards/entries';
 import { PAGE_TITLE } from '@/lib/awards/labels';
-import { getGamesDeps } from '../api/games/_deps';
+import { getAwardsDeps } from '../api/awards/_deps';
 import AwardsApp from './AwardsApp';
 import styles from './page.module.css';
 
@@ -14,15 +14,15 @@ export const metadata: Metadata = {
   robots: { index: false, follow: false },
 };
 
-// 관리자가 아니거나 D1을 못 읽으면(pnpm dev 포함) 404. notFound()는 던져서 동작하므로 try 밖에서 부른다.
+// 권한이 없거나(AWARDS_PUBLIC = false면 관리자만) D1을 못 읽으면(pnpm dev 포함) 404. notFound()는 던져서 동작하므로 try 밖에서 부른다.
 export default async function AwardsPage() {
-  let result: AdminGamesResult;
+  let result: AwardsPageResult;
   try {
-    result = await loadAwardsGames(await getGamesDeps(), (await headers()).get('cookie'));
+    result = await loadAwardsPage(await getAwardsDeps(), (await headers()).get('cookie'));
   } catch {
     result = { kind: 'error' };
   }
-  if (result.kind !== 'admin') notFound();
+  if (result.kind !== 'ok') notFound();
 
   return (
     <div className={styles.page}>

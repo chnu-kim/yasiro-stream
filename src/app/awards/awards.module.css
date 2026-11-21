@@ -138,6 +138,8 @@
 
 .actions {
   display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-3);
   margin-top: var(--space-6);
 }
 
@@ -501,4 +503,54 @@
   .choiceText {
     font-size: var(--fs-lg);
   }
+}
+
+/* ─── 순위 화면 ─── */
+.actions + .note {
+  margin-top: var(--space-4);
+}
+
+.rankDivision {
+  margin: var(--space-6) 0 0;
+  padding: 0;
+  border: 0;
+  min-width: 0;
+}
+
+.rankFail {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--space-3);
+  margin-top: var(--space-5);
+}
+
+.rankSection {
+  margin-top: var(--space-6);
+}
+
+.rankSectionTitle {
+  font-family: var(--font-display);
+  font-weight: 400;
+  font-size: var(--fs-xl);
+  line-height: 1.2;
+}
+
+.rankSection .rankList {
+  margin-top: var(--space-3);
+}
+
+.rankSection .rankList + .note,
+.rankSection > .note {
+  margin-top: var(--space-3);
+}
+
+.rankNo {
+  flex: none;
+  width: 2ch;
+  font-family: 'Fredoka', sans-serif;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+  color: var(--text-dim);
 }

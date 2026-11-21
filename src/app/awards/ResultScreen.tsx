@@ -1,6 +1,4 @@
-import { useState, type Ref } from 'react';
-import PawMark from '@/components/PawMark';
-import { cardMedia } from '@/lib/awards/media';
+import type { Ref } from 'react';
 import Button from '@/components/Button';
 import SectionLabel from '@/components/SectionLabel';
 import TapeStrip from '@/components/TapeStrip';
@@ -8,19 +6,25 @@ import { DIVISION_LABEL } from '@/lib/awards/entries';
 import { placementLabel, resultSummary } from '@/lib/awards/labels';
 import { placements, totalMatches } from '@/lib/awards/tournament';
 import type { AwardEntry, TournamentState } from '@/lib/awards/types';
+import { canRetrySubmit, submitStatusText, type SubmitStatus } from '@/lib/awards/client';
 import Poster from '../games/Poster';
+import RankThumb from './RankThumb';
 import styles from './awards.module.css';
 
-// 결과 화면: 우승 큰 카드 + 나머지 순위 기록지 행. 저장하지 않는다.
+// 결과 화면: 우승 큰 카드 + 나머지 순위 기록지 행 + 집계 제출 상태 한 줄.
 export default function ResultScreen({
   run,
   byId,
   headingRef,
+  submit,
+  onRetry,
   onRestart,
 }: {
   run: TournamentState;
   byId: ReadonlyMap<string, AwardEntry>;
   headingRef: Ref<HTMLHeadingElement>;
+  submit: SubmitStatus | null;
+  onRetry: () => void;
   onRestart: () => void;
 }) {
   const list = placements(run)!;
@@ -63,33 +67,19 @@ export default function ResultScreen({
         })}
       </ol>
 
-      <p className={styles.note}>결과는 이 브라우저에만 보이고 저장되지 않아요.</p>
+      <p className={styles.note} aria-live="polite">
+        {submit === null ? '' : submitStatusText(submit)}
+      </p>
       <div className={styles.actions}>
+        {submit !== null && canRetrySubmit(submit) && (
+          <Button variant="secondary" size="lg" onClick={onRetry}>
+            다시 보내기
+          </Button>
+        )}
         <Button variant="primary" size="lg" onClick={onRestart}>
           다시 하기
         </Button>
       </div>
     </div>
-  );
-}
-
-// 순위 행의 작은 썸네일. 64px 폭에서는 표본 라벨 글자가 잘리므로 그림만(포스터·현장 사진) 꽉 채우고, 없으면 발자국 타일
-function RankThumb({ entry }: { entry: AwardEntry }) {
-  const m = cardMedia(entry);
-  // 결과 화면은 재생하지 않는다. clip이면 그 정지 그림(포스터 → 현장 사진 → 표본)을 쓴다
-  const media = m.kind === 'clip' ? m.still : m;
-  const [failed, setFailed] = useState(false);
-  const url = media.kind === 'specimen' || failed ? null : media.url;
-  return (
-    <span className={styles.rankThumb} aria-hidden="true">
-      {url === null ? (
-        <span className={styles.rankThumbEmpty}>
-          <PawMark size={28} />
-        </span>
-      ) : (
-        // eslint-disable-next-line @next/next/no-img-element -- next/image는 unoptimized라 쓰지 않는다(CLAUDE.md)
-        <img src={url} alt="" loading="lazy" referrerPolicy="no-referrer" onError={() => setFailed(true)} className={styles.rankThumbImg} />
-      )}
-    </span>
   );
 }

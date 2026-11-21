@@ -2,7 +2,7 @@
 import { sizeOptions } from "./options.ts";
 import { highlightVod, namedYoutubeVod } from "../games/media.ts";
 import { copyVod } from "../games/rows.ts";
-import { filterGames, indexGames } from "../games/query.ts";
+import { indexGames } from "../games/query.ts";
 import type { Game } from "../games/types.ts";
 import type { AwardEntry, Division } from "./types.ts";
 
@@ -34,10 +34,15 @@ export function toAwardEntries(visible: readonly Game[]): AwardEntry[] {
   });
 }
 
-/** 부문 후보. alltime = 전체(새 배열), 2026 = /games 연도 필터와 같은 기준(firstPlayed가 null이면 빠진다) */
+/** 부문 술어(서버 후보·순위와 클라이언트 후보 공용). alltime = 언제나, 2026 = 첫 플레이 연도가 AWARDS_YEAR
+ *  (/games 연도 필터 filterGames year와 같은 기준, null이면 빠진다) */
+export function inDivision(firstPlayed: string | null, division: Division): boolean {
+  return division === "alltime" || firstPlayed?.slice(0, 4) === AWARDS_YEAR;
+}
+
+/** 부문 후보(새 배열, 순서 유지) */
 export function divisionEntries(entries: readonly AwardEntry[], division: Division): AwardEntry[] {
-  if (division === "alltime") return [...entries];
-  return filterGames(entries, { q: "", status: "all", year: AWARDS_YEAR });
+  return entries.filter((e) => inDivision(e.firstPlayed, division));
 }
 
 /** 부문을 시작할 수 있는가 = 보이는 강이 하나라도 있다(가장 작은 4강에 후보 3개 이상) */

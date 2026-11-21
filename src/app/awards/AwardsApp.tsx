@@ -4,15 +4,19 @@ import { useEffect, useMemo, useReducer, useRef, useState } from 'react';
 import { defaultSizeChoice, coerceSizeChoice } from '@/lib/awards/options';
 import { DEFAULT_THIRD_PLACE, defaultDivision, DIVISIONS, divisionEntries } from '@/lib/awards/entries';
 import { PAGE_TITLE } from '@/lib/awards/labels';
-import { focusHeadingAfter, INITIAL_SCREEN, inProgress, newRun, reduce } from '@/lib/awards/flow';
+import { classifyDraw, classifySubmit, drawFailureMessage, type DrawFailure, type SubmitStatus } from '@/lib/awards/client';
+import { focusHeadingAfter, INITIAL_SCREEN, inProgress, reduce } from '@/lib/awards/flow';
 import type { AwardEntry, Division, SizeChoice } from '@/lib/awards/types';
+import { awardsApi } from './awardsApi';
 import MatchScreen from './MatchScreen';
+import RankingsScreen from './RankingsScreen';
 import ResultScreen from './ResultScreen';
 import SetupScreen from './SetupScreen';
 import styles from './awards.module.css';
 
-// 화면 상태(setup | play | result)는 lib/awards/flow의 리듀서가 정한다. 설정 값은 화면과 따로 들고 있어
-// "다시 하기"로 돌아와도 이전 선택이 남는다. Math.random은 여기서만 넘긴다.
+// 화면 상태(setup | rankings | play | result)는 lib/awards/flow의 리듀서가 정한다. 설정 값은 화면과 따로 들고 있어
+// "다시 하기"로 돌아와도 이전 선택이 남는다. 대진은 서버가 뽑아 서명해 주고(/api/awards/draw),
+// 결과 화면에 들어가면 그 판을 자동으로 제출한다(/api/awards/submit).
 export default function AwardsApp({ entries }: { entries: AwardEntry[] }) {
   const [screen, dispatch] = useReducer(reduce, INITIAL_SCREEN);
   const counts = useMemo(
@@ -29,10 +33,44 @@ export default function AwardsApp({ entries }: { entries: AwardEntry[] }) {
     setSizeChoice((cur) => coerceSizeChoice(cur, counts[next]));
   };
 
-  const start = () => {
-    const ids = divisionEntries(entries, division).map((e) => e.id);
-    if (sizeChoice === null) return; // 시작 버튼이 막혀 있어 오지 않는다
-    dispatch({ type: 'start', run: newRun(ids, division, sizeChoice, thirdRequested, Math.random) });
+  const [draw, setDraw] = useState<{ kind: 'idle' } | { kind: 'loading' } | { kind: 'failed'; reason: DrawFailure }>({ kind: 'idle' });
+  const drawing = useRef(false);
+
+  const start = async () => {
+    if (sizeChoice === null || drawing.current) return; // 시작 버튼이 막혀 있어 오지 않는다
+    drawing.current = true;
+    setDraw({ kind: 'loading' });
+    const res = await awardsApi.draw(division, sizeChoice, thirdRequested);
+    drawing.current = false;
+    const outcome = classifyDraw(res.status, res.body, new Set(byId.keys()));
+    if (outcome.ok) {
+      setDraw({ kind: 'idle' });
+      dispatch({ type: 'start', run: outcome.run, token: outcome.token });
+    } else {
+      setDraw({ kind: 'failed', reason: outcome.reason });
+    }
+  };
+
+  // 결과 화면에 들어가면 그 판을 한 번 제출한다. 같은 token은 ref로 막는다(개발 모드의 effect 두 번 실행이
+  // 가짜 409로 성공 문구를 덮어쓰지 않게). 응답이 늦게 와도 지금 token의 것만 반영한다.
+  const [submit, setSubmit] = useState<SubmitStatus | null>(null);
+  const submittedToken = useRef<string | null>(null);
+  const send = (run: { picks: string[]; division: Division }, token: string, retried: boolean) => {
+    submittedToken.current = token;
+    setSubmit({ kind: 'sending', retried });
+    awardsApi.submit(run.division, token, run.picks).then((res) => {
+      if (submittedToken.current === token) setSubmit(classifySubmit(res.status, retried));
+    });
+  };
+  useEffect(() => {
+    if (screen.kind === 'result' && submittedToken.current !== screen.token) send(screen.run, screen.token, false);
+    // screen이 result로 바뀔 때 한 번만 보낸다(같은 token은 ref가 막는다)
+  }, [screen]);
+
+  const restart = () => {
+    submittedToken.current = null;
+    setSubmit(null);
+    dispatch({ type: 'restart' });
   };
 
   // 대진 도중 새로고침·닫기 경고(브라우저 기본 문구)
@@ -64,8 +102,19 @@ export default function AwardsApp({ entries }: { entries: AwardEntry[] }) {
         onDivision={changeDivision}
         onSize={setSizeChoice}
         onThird={setThirdRequested}
+        drawing={draw.kind === 'loading'}
+        drawError={draw.kind === 'failed' ? drawFailureMessage(draw.reason) : null}
         onStart={start}
+        onRankings={() => dispatch({ type: 'showRankings' })}
       />
+    );
+  }
+  if (screen.kind === 'rankings') {
+    return (
+      <>
+        <h1 className={styles.srOnly}>{PAGE_TITLE}</h1>
+        <RankingsScreen initialDivision={division} byId={byId} headingRef={headingRef} onBack={restart} />
+      </>
     );
   }
   if (screen.kind === 'play') {
@@ -76,14 +125,21 @@ export default function AwardsApp({ entries }: { entries: AwardEntry[] }) {
         headingRef={headingRef}
         onPick={(winnerId, expectedIndex) => dispatch({ type: 'pick', winnerId, expectedIndex })}
         onUndo={() => dispatch({ type: 'undo' })}
-        onRestart={() => dispatch({ type: 'restart' })}
+        onRestart={restart}
       />
     );
   }
   return (
     <>
       <h1 className={styles.srOnly}>{PAGE_TITLE}</h1>
-      <ResultScreen run={screen.run} byId={byId} headingRef={headingRef} onRestart={() => dispatch({ type: 'restart' })} />
+      <ResultScreen
+        run={screen.run}
+        byId={byId}
+        headingRef={headingRef}
+        submit={submit}
+        onRetry={() => send(screen.run, screen.token, true)}
+        onRestart={restart}
+      />
     </>
   );
 }
