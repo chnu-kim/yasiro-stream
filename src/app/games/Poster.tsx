@@ -18,6 +18,7 @@ export default function Poster({
   nameWideOnly = false,
   stampTopWhenEmpty = false,
   stampAnimate = false,
+  stamp = true,
 }: {
   game: IndexedGame;
   showNo?: boolean;
@@ -29,6 +30,8 @@ export default function Poster({
   stampTopWhenEmpty?: boolean;
   /** 정복 도장을 붙을 때 한 번 '쿵' 찍는다. 상세처럼 한 화면에 도장이 하나뿐인 곳에서만 쓴다 */
   stampAnimate?: boolean;
+  /** false면 정복 도장을 그리지 않는다(어워즈 카드처럼 정복 여부가 판단을 흔들면 안 되는 곳) */
+  stamp?: boolean;
 }) {
   const [failedUrl, setFailedUrl] = useState<string | null>(null);
   const url = game.posterUrl;
@@ -102,7 +105,7 @@ export default function Poster({
           </span>
         </div>
       )}
-      {game.status === 'clear' && (
+      {stamp && game.status === 'clear' && (
         <ClearStamp
           no={game.no}
           className={[styles.stamp, !showImage && stampTopWhenEmpty && styles.stampTop, stampAnimate && styles.stampIn].filter(Boolean).join(' ')}

@@ -16,6 +16,7 @@ import type {
   GameInput,
   GamePatch,
   GamesDb,
+  Game,
   GamesPageData,
   SessionState,
   Vod,
@@ -293,6 +294,25 @@ export async function loadGamesPageData(deps: ApiDeps, cookieHeader: string | nu
   } catch (error) {
     unexpected(deps, error);
     return { ok: false };
+  }
+}
+
+/** /awards 서버 컴포넌트용 결과. 관리자일 때만 보이는 게임(숨김 제외)을 준다 */
+export type AdminGamesResult =
+  | { kind: "admin"; games: Game[] }
+  /** anonymous·expired·user */
+  | { kind: "denied" }
+  /** D1 오류(로그는 코드·error.name만) */
+  | { kind: "error" };
+
+export async function loadAwardsGames(deps: ApiDeps, cookieHeader: string | null): Promise<AdminGamesResult> {
+  try {
+    const state = await getSessionActor(deps.db, cookieHeader, deps.now(), parseAdminIds(deps.env.ADMIN_CHANNEL_IDS));
+    if (state.kind !== "admin") return { kind: "denied" };
+    return { kind: "admin", games: (await listGames(deps.db, { includeHidden: false })).map(toGame) };
+  } catch (error) {
+    unexpected(deps, error);
+    return { kind: "error" };
   }
 }
 

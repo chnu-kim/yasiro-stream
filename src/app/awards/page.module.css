@@ -1,0 +1,11 @@
+/* /awards 관리자 전용 어워즈. 색은 전부 globals.css 토큰 */
+.page {
+  padding: var(--space-8) var(--page-x) var(--section-y);
+  color: var(--text);
+}
+
+@media (max-width: 640px) {
+  .page {
+    padding-top: var(--space-6);
+  }
+}
