@@ -35,7 +35,7 @@ src/app/
   layout.tsx            세션 조회(D1) + Nav + 테마 초기화 스크립트 + 기본 메타데이터(siteDefaults). force-dynamic
   sitemap.ts, robots.ts 검색엔진용. 페이지 목록은 src/lib/seo.ts SITE_PAGES
   page.tsx              홈(/) — 히어로(상반신 크롭), 최근 탐험 띠(D1 games, lib/games/home.ts), 더 둘러보기 카드·채널 링크
-  about/                소개 — 고정 그림판 + 챕터 도감(Dossier: 소개·프로필·취향·팬네임, 목록은 chapters.ts), 채널 링크, 탐험 기록 숫자
+  about/                소개 — 고정 그림판 + 챕터 도감(Dossier: 소개·프로필·취향·팬네임·찾아가기(채널), 목록은 chapters.ts), 탐험 기록 숫자
   games/                플레이한 게임. page=서버(D1 읽기·관리자 판별), GamesBoard·GameCard·GameDetailDialog·Pagination·Poster(공개) +
                         관리자 UI: AdminBar·GameEditForm·CategoryPicker·AddGameFlow·DialogFrame·Toast, adminApi(fetch 래퍼)·drafts(localStorage)
   auth/{login,callback,logout}/route.ts   치지직 OAuth (login?next=<경로>는 oauth_next 쿠키로 복귀). 로직은 src/lib/auth-routes.ts
@@ -58,7 +58,7 @@ _design/                원본 디자인 핸드오프 (gitignored)
 
 - 새 페이지는 `src/app/<name>/page.tsx` + `page.module.css`로 만든다.
 - 홈(`/`)은 히어로(상자 없이 크게 세운 일러스트, 아래는 바탕에 스며드는 mask) → FIELD LOG 최근 탐험(큰 썸네일 1장 + 기록 줄 3개) → ARCHIVE 더 둘러보기(꿀붕이 카드 2장, 게임 카드에 기록 수 기입란) → 푸터(채널 링크) 순서다. 최근 탐험은 `buildHomeData`(첫 플레이 최신순, 다시보기 있는 게임만, 같은 첫 영상은 하나만, 번호는 /games와 같음)가 고른다. 큰 썸네일(`featured`)은 그중 제목이 그 게임 하나만 가리키는 다시보기(`namedYoutubeVod`, 아래 /games 현장 사진 규칙)가 있는 가장 최근 게임이고 링크도 그 영상이다. 그래서 더 최근 게임이 기록 줄(`rows`, 첫 영상 링크)로 먼저 올 수 있다. 대표 칸이 없거나 D1을 못 읽으면(`pnpm dev`) 섹션을 숨긴다. 썸네일은 유튜브 `hqdefault`를 `<img>`로 16:9에 잘라 쓰고, 위에 칩을 얹지 않는다.
-- /about은 왼쪽 고정 그림판(전신 + 키 눈금자 + 장비 콜아웃, 스크롤하면 얼굴 1.9배에서 전신으로 물러남)과 오른쪽 챕터다. 챕터는 '현장 기록지' 한 가지 문법(위 굵은 선 1개 + 행 사이 가는 선 + 작은 라벨 위 큰 값)으로 맞추고 상자·칩·타일을 쓰지 않는다. 콜아웃 순차 연출은 페이지에서 한 번만 돈다(되감은 뒤에는 즉시 표시). 취향은 오려 붙인 스티커 그림(`TasteSticker`, 흰 칼선 + 기울기)을, 팬네임은 꿀붕이 그림 스티커를 쓴다.
+- /about은 왼쪽 고정 그림판(전신 + 키 눈금자 + 장비 콜아웃, 스크롤하면 얼굴 1.9배에서 전신으로 물러남)과 오른쪽 챕터다. 2단은 폭 1024px 이상·높이 641px 이상일 때만이고(CSS 미디어쿼리와 `Dossier.tsx` `DESKTOP`이 같은 조건), 그 밖에서는 소개 → 그림판 → 챕터 한 줄 흐름이다. 도장은 이름 글자 끝에 붙인다. 챕터는 '현장 기록지' 한 가지 문법(위 굵은 선 1개 + 행 사이 가는 선 + 작은 라벨 위 큰 값)으로 맞추고 상자·칩·타일을 쓰지 않는다. 콜아웃 순차 연출은 페이지에서 한 번만 돈다(되감은 뒤에는 즉시 표시). 취향은 오려 붙인 스티커 그림(`TasteSticker`, 흰 칼선 + 기울기)을, 팬네임은 꿀붕이 그림 스티커를 쓴다.
 - 홈에는 야시로 얼굴을 히어로 그림과 대표 썸네일 1장으로만 둔다(반복하면 소재를 돌려 쓴 페이지로 읽힌다). 키는 /about 키 측정판이 맡는다.
 - 공유 레이어는 `globals.css`의 토큰·keyframe과 `src/components/`뿐. `globals.css`에 유틸리티 클래스를 넣지 않는다.
 - 새 페이지를 추가하면 `Nav.tsx`의 `LINKS`(데스크톱·모바일 공용), '더 둘러보기' 카드(푸터는 채널 링크뿐이라 `SiteFooter`·`src/lib/channels.ts`가 맡고 페이지 목록은 없다), `src/lib/seo.ts`의 `SITE_PAGES`에 넣는다.

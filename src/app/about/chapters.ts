@@ -8,6 +8,7 @@ export const CHAPTERS: readonly Chapter[] = [
   { id: 'profile', label: '프로필' },
   { id: 'taste', label: '취향' },
   { id: 'fan', label: '팬네임' },
+  { id: 'channels', label: '찾아가기' },
 ];
 
 export function chapterNo(i: number): string {
