@@ -14,6 +14,17 @@ export interface Vod {
   url: string;
   /** 업로드/방송 날짜 YYYY-MM-DD (실재하는 날짜) */
   date: string;
+  /** 하이라이트 시작 시각(초). 0 이상 HIGHLIGHT_MAX(86399) 이하 정수. 없으면 키를 두지 않는다(null 금지).
+   *  관리자가 적은 값이라 제목 대조(namedYoutubeVod) 없이 신뢰한다(어워즈 clip, media.ts highlightVod) */
+  highlightStart?: number;
+}
+
+/** 수정 폼의 다시보기 한 줄. highlight는 입력 원문("" = 없음). 저장할 때 parseTimecode로 초가 된다(patch.ts formToRaw) */
+export interface FormVod {
+  title: string;
+  url: string;
+  date: string;
+  highlight: string;
 }
 
 /** 게임 한 개의 기록 필드. 정본은 D1 games + game_vods 테이블(0007). games.json 형식(serializeGames)도 이 모양이다. */
@@ -182,6 +193,8 @@ export interface VodRow {
   date: string;
   /** 게임 안 순서(0부터). 조회는 ORDER BY date, position */
   position: number;
+  /** 하이라이트 시작 시각(초, 0012). NULL = 없음 */
+  highlight_start: number | null;
 }
 
 export type ChangeAction = "import" | "create" | "update" | "hide" | "unhide";
@@ -322,7 +335,7 @@ export interface GameForm {
   /** "날짜 기록 없음" 체크. true면 firstPlayed는 무시하고 null로 저장 */
   undated: boolean;
   status: GameStatus;
-  vods: Vod[];
+  vods: FormVod[];
 }
 
 /** 폼 필드 키. 다시보기는 index 포함 (DOM id: fieldDomId) */
@@ -335,13 +348,14 @@ export type FormFieldKey =
   | "vods"
   | `vods.${number}.title`
   | `vods.${number}.url`
-  | `vods.${number}.date`;
+  | `vods.${number}.date`
+  | `vods.${number}.highlight`;
 
 export type FormFix = { kind: "setFirstPlayed"; date: string };
 
 export interface FormIssue {
   field: FormFieldKey;
-  /** 요약 링크 문구: "이름", "다시보기 링크", "다시보기 날짜" */
+  /** 요약 링크 문구: "이름", "다시보기 링크", "다시보기 날짜", "하이라이트 시작" */
   label: string;
   /** 사용자용 한국어 메시지 */
   message: string;

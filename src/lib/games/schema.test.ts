@@ -5,6 +5,8 @@ import {
   isChzzkPosterUrl,
   isPosterUrl,
   GamesValidationError,
+  HIGHLIGHT_MAX,
+  isHighlightStart,
   isValidIsoDate,
   isYoutubeUrl,
   parseGames,
@@ -615,5 +617,43 @@ describe("isChzzkUrl", () => {
   });
   it("message is the fixed copy", () => {
     expect(CHZZK_VOD_MESSAGE).toBe("치지직 다시보기는 한 달 뒤 사라져요. 유튜브 링크만 넣을 수 있어요.");
+  });
+});
+
+describe("highlightStart (다시보기 하이라이트 시작, 초)", () => {
+  it("isHighlightStart: 0..HIGHLIGHT_MAX 정수만", () => {
+    expect(HIGHLIGHT_MAX).toBe(86399);
+    for (const v of [0, 1, 5025, 86399]) expect(isHighlightStart(v), String(v)).toBe(true);
+    for (const v of [-1, 86400, 1.5, NaN, Infinity, "5", null, undefined, 2 ** 53]) expect(isHighlightStart(v), String(v)).toBe(false);
+  });
+  it("0과 86399는 통과하고 값이 그대로 남는다", () => {
+    for (const h of [0, 86399]) {
+      const [g] = parseGames([{ ...base(), vods: [vod({ highlightStart: h })] }]);
+      expect(g.vods[0]).toEqual({ title: "t", url: "https://youtu.be/dQw4w9WgXcQ", date: "2025-09-01", highlightStart: h });
+    }
+  });
+  it("범위 밖·정수 아님·문자열·null은 vods[i].highlightStart 이슈", () => {
+    for (const h of [86400, -1, 1.5, "5", null, NaN]) {
+      const found = issues([{ ...base(), vods: [vod(), vod({ url: "https://youtu.be/aaaaaaaaaaa", highlightStart: h })] }]);
+      expect(found.map((i) => i.path), String(h)).toEqual(["[0].vods[1].highlightStart"]);
+      expect(found[0].message).toBe("0 이상 86399 이하의 정수(초)여야 합니다 (없으면 키를 생략)");
+    }
+  });
+  it("알 수 없는 vod 키는 여전히 거부", () => {
+    expect(paths([{ ...base(), vods: [vod({ highlightStart: 1, highlight: "1:00" })] }])).toEqual(["[0].vods[0].highlight"]);
+  });
+  it("parseGames: 없으면 키가 없다", () => {
+    const [g] = parseGames([{ ...base(), vods: [vod()] }]);
+    expect("highlightStart" in g.vods[0]).toBe(false);
+  });
+  it("serializeGames: date 뒤에 highlightStart, 없으면 생략(0도 남긴다)", () => {
+    const g = G({ id: "a", vods: [
+      { title: "a", url: "https://youtu.be/aaaaaaaaaaa", date: "2025-01-01", highlightStart: 0 },
+      { title: "b", url: "https://youtu.be/bbbbbbbbbbb", date: "2025-01-02" },
+    ] });
+    const out = JSON.parse(serializeGames([g]));
+    expect(Object.keys(out[0].vods[0])).toEqual(["title", "url", "date", "highlightStart"]);
+    expect(out[0].vods[0].highlightStart).toBe(0);
+    expect(Object.keys(out[0].vods[1])).toEqual(["title", "url", "date"]);
   });
 });

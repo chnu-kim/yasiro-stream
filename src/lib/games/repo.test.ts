@@ -449,3 +449,48 @@ describe("변화 없는 쓰기는 batch를 쓰지 않는다", () => {
     expect((await listChanges(d1.db, "엘든-링")).total).toBe(2);
   });
 });
+
+describe("하이라이트 시작(highlightStart)", () => {
+  const hv = (k: number, h?: number) => (h === undefined ? vod(k) : { ...vod(k), highlightStart: h });
+  it("create → update(고침) → update(지움) 왕복, 기록 요약·스냅샷", async () => {
+    const r = await createGame(d1.db, input({ vods: [hv(1, 0), hv(2)] }), ctx());
+    expect(r.ok && r.game.vods).toEqual([hv(1, 0), hv(2)]);
+    expect(d1.sqlite.prepare("SELECT highlight_start h FROM game_vods ORDER BY video_id").all()).toEqual([{ h: 0 }, { h: null }]);
+    const id = "엘든-링";
+    now += 60;
+    const u = await updateGame(d1.db, id, { vods: [hv(1, 5025), hv(2, 30)] }, 1, ctx());
+    expect(u).toMatchObject({ ok: true, changed: true, game: { version: 2 } });
+    expect((await getGame(d1.db, id, { includeHidden: true }))?.vods).toEqual([hv(1, 5025), hv(2, 30)]);
+    expect((await listChanges(d1.db, id)).changes[0].summary).toBe("하이라이트 바뀜");
+    const after = d1.sqlite.prepare("SELECT after_json FROM game_changes WHERE action = 'update'").get() as { after_json: string };
+    expect(JSON.parse(after.after_json).vods.map((v: { highlightStart?: number }) => v.highlightStart)).toEqual([5025, 30]);
+    const created = d1.sqlite.prepare("SELECT after_json FROM game_changes WHERE action = 'create'").get() as { after_json: string };
+    expect(JSON.parse(created.after_json).vods[0].highlightStart).toBe(0);
+    now += 60;
+    const del = await updateGame(d1.db, id, { vods: [hv(1), hv(2, 30)] }, 2, ctx());
+    expect(del.ok && del.game.vods[0]).not.toHaveProperty("highlightStart");
+  });
+  it("같은 값이면 changed=false", async () => {
+    await createGame(d1.db, input({ vods: [hv(1, 90)] }), ctx());
+    const r = await updateGame(d1.db, "엘든-링", { vods: [{ ...hv(1, 90), title: " 1화 " }] }, 1, ctx());
+    expect(r).toMatchObject({ ok: true, changed: false, game: { version: 1 } });
+  });
+  it("범위 밖은 invalid(DB CHECK까지 가지 않는다)", async () => {
+    const r = await createGame(d1.db, input({ vods: [hv(1, 86400)] }), ctx());
+    expect(r).toMatchObject({ ok: false, reason: "invalid", issues: [{ path: "vods[0].highlightStart" }] });
+    await createGame(d1.db, input({ vods: [hv(1)] }), ctx());
+    const u = await updateGame(d1.db, "엘든-링", { vods: [hv(1, 1.5)] }, 1, ctx());
+    expect(u).toMatchObject({ ok: false, reason: "invalid" });
+  });
+  // 바인딩 7×14(+가드 2) = 100. test-d1은 100을 넘으면 던진다
+  for (const count of [14, 15, 29]) {
+    it(`다시보기 ${count}편(하이라이트 포함)을 create(비가드)·update(가드)로 저장한다`, async () => {
+      const vods = Array.from({ length: count }, (_, i) => ({ ...vod(i + 1, `2026-10-${String(i + 1).padStart(2, "0")}`), highlightStart: i }));
+      const c = await createGame(d1.db, input({ vods }), ctx());
+      expect(c.ok && c.game.vods).toEqual(vods);
+      const changed = vods.map((v) => ({ ...v, highlightStart: v.highlightStart + 100 }));
+      const u = await updateGame(d1.db, "엘든-링", { vods: changed }, 1, ctx());
+      expect(u.ok && u.game.vods).toEqual(changed);
+    });
+  }
+});

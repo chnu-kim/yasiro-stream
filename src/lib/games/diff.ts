@@ -3,7 +3,7 @@ import { STATUS_FILTER_LABEL } from "./labels.ts";
 import { formatDate } from "./query.ts";
 import { sortVods } from "./rows.ts";
 import { youtubeVideoId } from "./schema.ts";
-import type { ChangeAction, Game, GameField, GameRecord } from "./types.ts";
+import type { ChangeAction, Game, GameField, GameRecord, Vod } from "./types.ts";
 
 export const FIELD_LABEL: Readonly<Record<GameField, string>> = {
   name: "이름",
@@ -19,7 +19,7 @@ export const FIELD_ORDER: readonly GameField[] = ["name", "originalTitle", "cate
 const SUMMARY_MAX = 300;
 
 function vodsKey(g: Game): string {
-  return JSON.stringify(sortVods(g.vods).map((v) => [v.title, v.url, v.date]));
+  return JSON.stringify(sortVods(g.vods).map((v) => [v.title, v.url, v.date, v.highlightStart ?? null]));
 }
 
 const DIFFERS: Readonly<Record<GameField, (a: Game, b: Game) => boolean>> = {
@@ -35,19 +35,32 @@ export function diffGames(before: Game, after: Game): GameField[] {
   return FIELD_ORDER.filter((f) => DIFFERS[f](before, after));
 }
 
-function vodIds(g: Game): Set<string> {
-  return new Set(g.vods.map((v) => youtubeVideoId(v.url) ?? v.url));
+function vodsById(g: Game): Map<string, Vod> {
+  return new Map(g.vods.map((v) => [youtubeVideoId(v.url) ?? v.url, v]));
 }
 
+/** 추가·삭제 수 + 공통 영상(같은 ID)의 정보(제목·날짜)·하이라이트 변화. 새로 추가한 영상의 하이라이트는 "N편 추가"에 포함된다 */
 function vodsPiece(before: Game, after: Game): string {
-  const a = vodIds(before);
-  const b = vodIds(after);
-  const added = [...b].filter((id) => !a.has(id)).length;
-  const removed = [...a].filter((id) => !b.has(id)).length;
-  if (added > 0 && removed > 0) return `다시보기 ${added}편 추가·${removed}편 삭제`;
-  if (added > 0) return `다시보기 ${added}편 추가`;
-  if (removed > 0) return `다시보기 ${removed}편 삭제`;
-  return "다시보기 정보 수정";
+  const a = vodsById(before);
+  const b = vodsById(after);
+  const added = [...b.keys()].filter((id) => !a.has(id)).length;
+  const removed = [...a.keys()].filter((id) => !b.has(id)).length;
+  let info = false;
+  let hl = false;
+  for (const [id, x] of a) {
+    const y = b.get(id);
+    if (y === undefined) continue;
+    if (x.title !== y.title || x.date !== y.date) info = true;
+    if ((x.highlightStart ?? null) !== (y.highlightStart ?? null)) hl = true;
+  }
+  const pieces: string[] = [];
+  if (added > 0 && removed > 0) pieces.push(`다시보기 ${added}편 추가·${removed}편 삭제`);
+  else if (added > 0) pieces.push(`다시보기 ${added}편 추가`);
+  else if (removed > 0) pieces.push(`다시보기 ${removed}편 삭제`);
+  else if (info) pieces.push("다시보기 정보 수정");
+  if (hl) pieces.push("하이라이트 바뀜");
+  // 같은 날짜끼리 순서만 바뀐 경우 등
+  return pieces.length === 0 ? "다시보기 정보 수정" : pieces.join("·");
 }
 
 function categoryPiece(before: Game, after: Game): string {

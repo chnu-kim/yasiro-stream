@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { rowsToRecords, rowToRecord, sortVods, toGame, toSnapshot } from "./rows.ts";
+import { copyVod, rowsToRecords, rowToRecord, sortByDate, sortVods, toGame, toSnapshot, VOD_COLUMNS } from "./rows.ts";
 import type { GameRow, VodRow } from "./types.ts";
 
 const row = (over: Partial<GameRow> = {}): GameRow => ({
@@ -24,6 +24,7 @@ const vod = (game_id: string, n: number, date: string, position: number): VodRow
   title: `t${n}`,
   date,
   position,
+  highlight_start: null,
 });
 
 describe("rowToRecord", () => {
@@ -95,5 +96,45 @@ describe("toGame / toSnapshot", () => {
     const s = toSnapshot(rec, true);
     expect(s.hidden).toBe(true);
     expect(JSON.stringify(s)).not.toMatch(/updatedBy|관리자|version/);
+  });
+});
+
+describe("하이라이트(highlight_start)", () => {
+  it("VOD_COLUMNS에 highlight_start가 있다", () => {
+    expect(VOD_COLUMNS.split(", ")).toContain("highlight_start");
+  });
+  it("rowToRecord: NULL이면 키 없음, 값이면 숫자(0 포함)", () => {
+    const r = rowToRecord(row(), [vod("a", 1, "2026-01-01", 0), { ...vod("a", 2, "2026-01-02", 1), highlight_start: 0 }, { ...vod("a", 3, "2026-01-03", 2), highlight_start: 5025 }]);
+    expect("highlightStart" in r.vods[0]).toBe(false);
+    expect(r.vods[1].highlightStart).toBe(0);
+    expect(r.vods[2]).toEqual({ title: "t3", url: "https://youtu.be/vid00000003", date: "2026-01-03", highlightStart: 5025 });
+  });
+  it("copyVod: 여분 키를 버리고 highlightStart(0 포함)는 유지한다", () => {
+    const extra = { title: "a", url: "u", date: "2026-01-01", highlight: "1:00", extra: 1 } as unknown as Parameters<typeof copyVod>[0];
+    expect(copyVod(extra)).toEqual({ title: "a", url: "u", date: "2026-01-01" });
+    expect(copyVod({ title: "a", url: "u", date: "2026-01-01", highlightStart: 0 })).toEqual({ title: "a", url: "u", date: "2026-01-01", highlightStart: 0 });
+    expect(Object.keys(copyVod({ highlightStart: 1, date: "d", url: "u", title: "t" }))).toEqual(["title", "url", "date", "highlightStart"]);
+  });
+  it("sortByDate: 안정 정렬, 원소 동일성 유지, 새 배열", () => {
+    const a = { date: "2026-02-01", k: 1 };
+    const b = { date: "2026-01-01", k: 2 };
+    const c = { date: "2026-01-01", k: 3 };
+    const input = [a, b, c];
+    const out = sortByDate(input);
+    expect(out).toEqual([b, c, a]);
+    expect(out[0]).toBe(b);
+    expect(out).not.toBe(input);
+    expect(input).toEqual([a, b, c]);
+  });
+  it("sortVods는 highlightStart를 유지한다", () => {
+    expect(sortVods([{ title: "b", url: "u", date: "2026-02-01", highlightStart: 7 }, { title: "a", url: "u", date: "2026-01-01" }])).toEqual([
+      { title: "a", url: "u", date: "2026-01-01" },
+      { title: "b", url: "u", date: "2026-02-01", highlightStart: 7 },
+    ]);
+  });
+  it("toGame·toSnapshot이 highlightStart를 담는다", () => {
+    const rec = rowToRecord(row(), [{ ...vod("a", 1, "2026-01-01", 0), highlight_start: 90 }]);
+    expect(toGame(rec).vods[0].highlightStart).toBe(90);
+    expect(JSON.parse(JSON.stringify(toSnapshot(rec, false))).vods[0].highlightStart).toBe(90);
   });
 });

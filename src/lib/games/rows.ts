@@ -5,17 +5,36 @@ import type { Game, GameRecord, GameRow, GameSnapshot, Vod, VodRow } from "./typ
 export const GAME_COLUMNS =
   "id, name, original_title, category_id, poster_url, first_played, status, hidden, version, created_at, updated_at, updated_by_name";
 
-export const VOD_COLUMNS = "game_id, video_id, url, title, date, position";
+/** game_vods SELECT 열. highlight_start는 0012(원격에 0012가 적용된 뒤에만 이 코드를 배포한다) */
+export const VOD_COLUMNS = "game_id, video_id, url, title, date, position, highlight_start";
 
 /** 다시보기 조회 순서. serializeGames의 안정 정렬(date 오름차순)과 같은 결과가 나오게 position으로 동률을 푼다 */
 export const VOD_ORDER = "ORDER BY game_id, date, position";
 
-/** 다시보기를 serializeGames와 같은 순서(date 오름차순, 같은 날짜는 원래 순서)로 정렬한 사본 */
-export function sortVods(vods: readonly Vod[]): Vod[] {
-  return vods
+/** 다시보기 한 편의 사본: title, url, date와 정의된 highlightStart만(여분 키는 버린다). 키 순서도 이 순서로 고정한다 */
+export function copyVod(v: Vod): Vod {
+  const out: Vod = { title: v.title, url: v.url, date: v.date };
+  if (v.highlightStart !== undefined) out.highlightStart = v.highlightStart;
+  return out;
+}
+
+/** date 오름차순 안정 정렬한 새 배열. 원소는 그대로 둔다(폼의 FormVod도 정렬할 수 있게) */
+export function sortByDate<T extends { date: string }>(items: readonly T[]): T[] {
+  return items
     .map((v, i) => ({ v, i }))
     .sort((a, b) => (a.v.date < b.v.date ? -1 : a.v.date > b.v.date ? 1 : a.i - b.i))
-    .map(({ v }) => ({ title: v.title, url: v.url, date: v.date }));
+    .map(({ v }) => v);
+}
+
+/** 다시보기를 serializeGames와 같은 순서(date 오름차순, 같은 날짜는 원래 순서)로 정렬한 사본 */
+export function sortVods(vods: readonly Vod[]): Vod[] {
+  return sortByDate(vods).map(copyVod);
+}
+
+function rowToVod(v: VodRow): Vod {
+  const out: Vod = { title: v.title, url: v.url, date: v.date };
+  if (v.highlight_start !== null) out.highlightStart = v.highlight_start;
+  return out;
 }
 
 /** game_vods 행들을 game_id별로 묶는다. 같은 게임 안에서는 date, position 순 */
@@ -38,7 +57,7 @@ export function rowToRecord(row: GameRow, vods: readonly VodRow[]): GameRecord {
     name: row.name,
     firstPlayed: row.first_played,
     status: row.status,
-    vods: vods.map((v) => ({ title: v.title, url: v.url, date: v.date })),
+    vods: vods.map(rowToVod),
     hidden: row.hidden === 1,
     version: row.version,
     createdAt: row.created_at,
@@ -59,7 +78,7 @@ export function rowsToRecords(games: readonly GameRow[], vods: readonly VodRow[]
 
 /** 방문자용: 관리 메타(hidden·version·수정자 등)를 뺀 Game 사본. JSON 키 순서가 필요하면 serializeGames를 쓴다 */
 export function toGame(g: Game): Game {
-  const out: Game = { id: g.id, name: g.name, firstPlayed: g.firstPlayed, status: g.status, vods: g.vods.map((v) => ({ ...v })) };
+  const out: Game = { id: g.id, name: g.name, firstPlayed: g.firstPlayed, status: g.status, vods: g.vods.map(copyVod) };
   if (g.originalTitle !== undefined) out.originalTitle = g.originalTitle;
   if (g.categoryId !== undefined) out.categoryId = g.categoryId;
   if (g.posterUrl !== undefined) out.posterUrl = g.posterUrl;

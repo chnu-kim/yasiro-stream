@@ -27,8 +27,10 @@ import type {
 
 export const RESERVED_IDS: ReadonlySet<string> = new Set(["categories", "youtube", "new"]);
 
-/** 여러 행 INSERT 한 문장당 다시보기 수. 바인딩 6×16(+가드 2) = 98 ≤ D1 문장당 100 */
-const VOD_CHUNK = 16;
+/** 다시보기 한 행의 바인딩 수(game_id, video_id, url, title, date, position, highlight_start) */
+const VOD_BINDS = 7;
+/** 여러 행 INSERT 한 문장당 다시보기 수. 바인딩 7×14(+가드 2) = 100 ≤ D1 문장당 100 */
+const VOD_CHUNK = 14;
 const CHANGES_DEFAULT = 20;
 const CHANGES_MAX = 50;
 
@@ -115,22 +117,22 @@ function chunks<T>(items: readonly T[], size: number): T[][] {
 }
 
 function vodBinds(gameId: string, vods: readonly Vod[]): unknown[] {
-  return vods.flatMap((v, i) => [gameId, youtubeVideoId(v.url) as string, v.url, v.title, v.date, i]);
+  return vods.flatMap((v, i) => [gameId, youtubeVideoId(v.url) as string, v.url, v.title, v.date, i, v.highlightStart ?? null]);
 }
 
-const VOD_INSERT = "INSERT INTO game_vods (game_id, video_id, url, title, date, position)";
-const ROW = "(?, ?, ?, ?, ?, ?)";
+const VOD_INSERT = "INSERT INTO game_vods (game_id, video_id, url, title, date, position, highlight_start)";
+const ROW = "(?, ?, ?, ?, ?, ?, ?)";
 
-/** 다시보기를 16개씩 묶은 INSERT 문장들. guard가 있으면 그 write_token이 DB에 있을 때만 들어간다 */
+/** 다시보기를 VOD_CHUNK개씩 묶은 INSERT 문장들. guard가 있으면 그 write_token이 DB에 있을 때만 들어간다 */
 function vodInserts(db: GamesDb, gameId: string, vods: readonly Vod[], guardToken: string | null): GamesDbStatement[] {
   const binds = vodBinds(gameId, vods);
   return chunks(vods, VOD_CHUNK).map((group, c) => {
     const values = group.map(() => ROW).join(", ");
-    const rows = binds.slice(c * VOD_CHUNK * 6, c * VOD_CHUNK * 6 + group.length * 6);
+    const rows = binds.slice(c * VOD_CHUNK * VOD_BINDS, c * VOD_CHUNK * VOD_BINDS + group.length * VOD_BINDS);
     if (guardToken === null) return db.prepare(`${VOD_INSERT} VALUES ${values}`).bind(...rows);
     return db
       .prepare(
-        `${VOD_INSERT} SELECT column1, column2, column3, column4, column5, column6 FROM (VALUES ${values}) WHERE EXISTS (SELECT 1 FROM games WHERE id = ? AND write_token = ?)`,
+        `${VOD_INSERT} SELECT column1, column2, column3, column4, column5, column6, column7 FROM (VALUES ${values}) WHERE EXISTS (SELECT 1 FROM games WHERE id = ? AND write_token = ?)`,
       )
       .bind(...rows, gameId, guardToken);
   });

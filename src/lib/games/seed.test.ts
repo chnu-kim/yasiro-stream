@@ -181,7 +181,7 @@ describe("exportGames", () => {
     status: "unknown", hidden, version: 7, created_at: 1, updated_at: 2, updated_by_name: "관리자",
   });
   const vod = (game_id: string, video_id: string, date: string, position: number): VodRow => ({
-    game_id, video_id, url: `https://www.youtube.com/watch?v=${video_id}`, title: `t-${video_id}`, date, position,
+    game_id, video_id, url: `https://www.youtube.com/watch?v=${video_id}`, title: `t-${video_id}`, date, position, highlight_start: null,
   });
   const games = [base("a", "에이", 0), base("b", "비", 1)];
   const vods = [vod("a", "AAAAAAAAAAA", "2026-01-02", 1), vod("a", "BBBBBBBBBBB", "2026-01-02", 0), vod("b", "CCCCCCCCCCC", "2026-01-01", 0)];
@@ -214,5 +214,28 @@ describe("exportGames", () => {
   });
   it("throws if rows violate the schema", () => {
     expect(() => exportGames([base("", "x", 0)], [])).toThrow(GamesValidationError);
+  });
+});
+
+describe("buildSeedSql: 하이라이트", () => {
+  it("하이라이트가 없으면 highlight_start 열을 쓰지 않는다(0008과 같은 모양)", () => {
+    const sql = buildSeedSql(tricky);
+    expect(sql).not.toContain("highlight_start");
+    expect(sql).toContain("INSERT OR IGNORE INTO game_vods (game_id, video_id, url, title, date, position) SELECT ");
+  });
+  it("하이라이트가 있는 vod 문장에만 열이 붙고(0 포함), D1 왕복 export가 원본과 같다", () => {
+    const withHl: Game[] = structuredClone(tricky);
+    withHl[0].vods[0].highlightStart = 0;
+    withHl[0].vods[2].highlightStart = 5025;
+    const lines = buildSeedSql(withHl).split("\n").filter((l) => l.startsWith("INSERT OR IGNORE INTO game_vods "));
+    expect(lines.filter((l) => l.includes("highlight_start"))).toHaveLength(2);
+    expect(lines.find((l) => l.includes("BBBBBBBBBBB"))).toContain("(game_id, video_id, url, title, date, position, highlight_start) SELECT ");
+    expect(lines.find((l) => l.includes("BBBBBBBBBBB"))).toMatch(/, 2, 0 WHERE NOT EXISTS/);
+    expect(lines.find((l) => l.includes("CCCCCCCCCCC"))).not.toContain("highlight_start");
+    const d = exec(buildSeedSql(withHl));
+    const { games, vods } = readRows(d);
+    expect(exportGames(games, vods)).toBe(serializeGames(withHl));
+    const snap = d.sqlite.prepare("SELECT after_json FROM game_changes WHERE game_id = 'alpha'").get() as { after_json: string };
+    expect(JSON.parse(snap.after_json).vods.map((v: { highlightStart?: number }) => v.highlightStart ?? null)).toEqual([null, 5025, 0]);
   });
 });

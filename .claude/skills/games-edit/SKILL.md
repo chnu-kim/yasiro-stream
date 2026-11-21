@@ -14,7 +14,8 @@ description: yasiro-stream /games의 운영 D1 게임 기록을 터미널에서 
 
 ## 절차
 
-1. 대상 찾기: `pnpm -s games:edit --find "키워드"` (숨긴 게임 포함, 다시보기 수·version 표시). 이름이 비슷한 항목을 모두 확인한다.
+1. 대상 찾기: `pnpm -s games:edit --find "키워드"` (숨긴 게임 포함, 다시보기 수·하이라이트 수·version 표시). 이름이 비슷한 항목을 모두 확인한다.
+   - 다시보기 목록·하이라이트 보기: `pnpm -s games:edit --vods <id>` (날짜·제목·URL·하이라이트 시작, 없으면 null)
 2. 판단이 갈리면 묻는다(아래 기준). 명확하면 바로 진행한다.
 3. 작업 파일을 scratchpad에 JSON 배열로 쓴다(형식 아래).
 4. 미리보기: `pnpm -s games:edit <ops.json>` → 바뀔 내용 요약을 사용자 요청과 대조한다.
@@ -34,7 +35,9 @@ description: yasiro-stream /games의 운영 D1 게임 기록을 터미널에서 
   { "op": "move-vods", "from": "윷놀이", "to": "netmarble-yutgame", "dates": ["2025-10-07"] },
   { "op": "move-vods", "from": "a", "to": "b", "urls": ["https://youtu.be/…"] },
   { "op": "hide", "id": "…" },
-  { "op": "unhide", "id": "…" }
+  { "op": "unhide", "id": "…" },
+  { "op": "highlight", "id": "…", "url": "https://youtu.be/…", "start": "1:23:45" },
+  { "op": "highlight", "id": "…", "url": "…", "start": null }
 ]
 ```
 
@@ -42,6 +45,8 @@ description: yasiro-stream /games의 운영 D1 게임 기록을 터미널에서 
 - `update.patch.posterUrl`: 포스터만 바꾼다(카테고리 없는 게임에 Steam 라이브러리 캡슐 붙이기 등). `null`은 포스터만 지우고 categoryId는 남긴다. `category`와 같이 주면 posterUrl이 이긴다. 호스트는 `isPosterUrl`(pstatic.net 또는 `shared.akamai.steamstatic.com`·`cdn.cloudflare.steamstatic.com`)만. 요약은 "포스터 바뀜". 치지직 카테고리가 있는 게임은 카테고리 포스터를 그대로 둔다: 코드는 막지 않으므로, 미리보기에 `주의: <id>는 치지직 카테고리(…)가 있어요.` 줄(뒤는 "카테고리 포스터를 덮어써요" 또는 "--apply 전에 확인해 주세요")이 보이면 그 작업을 빼고 다시 미리보기한 뒤 `--apply`한다.
 - Steam 포스터를 운영에 처음 넣을 때는 Steam 호스트를 허용하는 코드가 배포된 뒤에, 그 코드가 머지된 체크아웃에서 실행한다(옛 코드는 그 게임의 수정·export를 거부한다. CLAUDE.md '/games' 포스터 항목).
 - `move-vods`: `dates`·`urls`가 없으면 전부 옮긴다. 대상에 이미 있는 영상은 중복으로 넣지 않는다. `hideFrom`이면 원래 게임을 숨긴다.
+- `highlight`: 그 게임의 다시보기 중 URL(형식 무관, 같은 영상 ID)이 같은 한 편의 하이라이트 시작 시각을 넣거나(`"1:23:45"`·`"83:20"`·`"45"`·`"1h23m45s"`·초 숫자) 지운다(`null`). 24시간 미만. 요약은 '하이라이트 바뀜'. /awards 대결 카드가 이 시각부터 재생한다.
+- `update.patch.vods`·`add.input.vods`의 `highlightStart`는 초 정수. `patch.vods`는 전체 교체라 빠뜨린 하이라이트는 지워진다. 하이라이트만 바꿀 때는 `highlight` op를 쓴다. `move-vods`는 하이라이트를 그대로 옮긴다.
 - 하나라도 실패하면 거기서 멈추고 운영에는 아무것도 적용하지 않는다.
 - 추가할 때 카테고리는 `pnpm -s games:edit --search "한국어 검색어"`로 확인한다(영문 검색은 결과가 없다). `categoryId`와 `posterImageUrl`을 그대로 쓴다. 치지직에 없으면 둘 다 빼고 표본 라벨로 둔다.
 
@@ -52,4 +57,5 @@ description: yasiro-stream /games의 운영 D1 게임 기록을 터미널에서 
 - 영상 일부만 다른 게임이면 `dates`/`urls`로 그 영상만 옮긴다. 옮긴 뒤 원래 게임의 첫 플레이가 남은 영상보다 이르면 사용자에게 확인하고 `update`로 맞춘다.
 - 종겜룰렛(데이) 영상은 실제 플레이한 게임에 넣는다. 게임이 아닌 항목(저챗, 룰렛 자체, 갈틱폰 등)은 넣지 않는다.
 - 다시보기는 유튜브만. `firstPlayed`·정복 여부를 추측하지 않는다. 모르면 `null`·`unknown`.
+- 하이라이트 시각은 사용자가 준 값만 넣는다. 추측하지 않는다.
 - 숨김은 되돌릴 수 있다. 사용자가 "삭제"라고 해도 `hide`로 한다.

@@ -1,6 +1,7 @@
 // 서버: 보이는 게임 → 어워즈 후보(번호 붙은 최소 필드). 부문 후보 거르기는 클라이언트도 쓴다.
 import { sizeOptions } from "./options.ts";
-import { namedYoutubeVod } from "../games/media.ts";
+import { highlightVod, namedYoutubeVod } from "../games/media.ts";
+import { copyVod } from "../games/rows.ts";
 import { filterGames, indexGames } from "../games/query.ts";
 import type { Game } from "../games/types.ts";
 import type { AwardEntry, Division } from "./types.ts";
@@ -24,8 +25,11 @@ export function toAwardEntries(visible: readonly Game[]): AwardEntry[] {
     };
     if (game.originalTitle !== undefined) entry.originalTitle = game.originalTitle;
     if (game.posterUrl !== undefined) entry.posterUrl = game.posterUrl;
-    const named = namedYoutubeVod(game);
-    if (named !== null) entry.vods = [named.vod];
+    // 현장 사진(namedYoutubeVod)과 하이라이트(highlightVod) 편만 보낸다. 원래 순서(날짜순)를 유지하고 같은 편이면 하나만.
+    // 두 편을 포함하고 순서가 같은 부분집합이라 각 "첫 편"이 바뀌지 않는다(AwardEntry.vods 불변식)
+    const named = namedYoutubeVod(game)?.vod;
+    const clip = highlightVod(game)?.vod;
+    entry.vods = game.vods.filter((v) => v === named || v === clip).map(copyVod);
     return entry;
   });
 }

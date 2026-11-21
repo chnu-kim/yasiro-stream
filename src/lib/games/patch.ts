@@ -2,6 +2,7 @@
 import { diffGames, FIELD_LABEL, FIELD_ORDER } from "./diff.ts";
 import { formatDate } from "./query.ts";
 import { CHZZK_VOD_MESSAGE, GAME_STATUSES, isChzzkPosterUrl, isChzzkUrl, isValidIsoDate, validateCandidate } from "./schema.ts";
+import { formatTimecode, parseTimecode } from "./timecode.ts";
 import type {
   CategoryLink,
   Game,
@@ -13,8 +14,8 @@ import type {
   FormFieldKey,
   FormFix,
   FormIssue,
+  FormVod,
   ValidationIssue,
-  Vod,
 } from "./types.ts";
 
 /** 새 게임을 검증할 때 쓰는 자리표시 id. 서버가 실제 id를 할당하므로 id 이슈는 버린다 */
@@ -34,7 +35,12 @@ export function gameToForm(game: Game | null): GameForm {
     firstPlayed: game.firstPlayed ?? "",
     undated: game.firstPlayed === null,
     status: game.status,
-    vods: game.vods.map((v) => ({ title: v.title, url: v.url, date: v.date })),
+    vods: game.vods.map((v) => ({
+      title: v.title,
+      url: v.url,
+      date: v.date,
+      highlight: v.highlightStart === undefined ? "" : formatTimecode(v.highlightStart),
+    })),
   };
   // 카테고리 밖 포스터(Steam)는 따로 들고 있어야 저장·카테고리 변경 때 지워지지 않는다
   if (game.posterUrl !== undefined && categoryPoster === null) form.posterUrl = game.posterUrl;
@@ -60,8 +66,21 @@ export function formToRaw(id: string, form: GameForm): Record<string, unknown> {
   if (posterUrl !== null) raw.posterUrl = posterUrl;
   raw.firstPlayed = form.undated ? null : form.firstPlayed;
   raw.status = form.status;
-  raw.vods = form.vods.map((v) => ({ title: v.title.trim(), url: v.url.trim(), date: v.date }));
+  raw.vods = form.vods.map((v) => {
+    const out: Record<string, unknown> = { title: v.title.trim(), url: v.url.trim(), date: v.date };
+    // 못 읽은 원문은 문자열 그대로 넣어 schema가 vods[i].highlightStart 이슈를 내게 한다
+    const h = v.highlight.trim();
+    if (h !== "") out.highlightStart = parseTimecode(h) ?? h;
+    return out;
+  });
   return raw;
+}
+
+/** 하이라이트 입력 표시 정규화(onBlur): 읽을 수 있으면 "H:MM:SS"/"M:SS", 빈 값이면 "", 못 읽으면 원문 그대로 */
+export function normalizeHighlight(raw: string): string {
+  if (raw.trim() === "") return "";
+  const sec = parseTimecode(raw);
+  return sec === null ? raw : formatTimecode(sec);
 }
 
 /** 검증을 통과한 폼 → 게임 추가 입력 */
@@ -146,12 +165,12 @@ export function issuesHeadline(issues: readonly FormIssue[]): string {
   return `고칠 곳이 ${issues.length}개 있어요`;
 }
 
-const VOD_PATH = /^vods\[(\d+)\]\.(title|url|date)$/;
-const VOD_PART_RANK = { title: 0, url: 1, date: 2 } as const;
+const VOD_PATH = /^vods\[(\d+)\]\.(title|url|date|highlightStart)$/;
+const VOD_PART_RANK = { title: 0, url: 1, date: 2, highlight: 3 } as const;
 
 function fieldRank(field: FormFieldKey): number {
-  const m = /^vods\.(\d+)\.(title|url|date)$/.exec(field);
-  if (m !== null) return FIELD_ORDER.indexOf("vods") * 1000 + 1 + Number(m[1]) * 3 + VOD_PART_RANK[m[2] as keyof typeof VOD_PART_RANK];
+  const m = /^vods\.(\d+)\.(title|url|date|highlight)$/.exec(field);
+  if (m !== null) return FIELD_ORDER.indexOf("vods") * 1000 + 1 + Number(m[1]) * 4 + VOD_PART_RANK[m[2] as keyof typeof VOD_PART_RANK];
   return FIELD_ORDER.indexOf(field as GameField) * 1000;
 }
 
@@ -184,6 +203,9 @@ function toFormIssue(issue: ValidationIssue, form: GameForm): FormIssue {
   const m = VOD_PATH.exec(path);
   if (m === null) return { field: "name", label: "기록", message };
   const i = Number(m[1]);
+  if (m[2] === "highlightStart") {
+    return { field: `vods.${i}.highlight`, label: "하이라이트 시작", message: "1:23:45처럼 24시간 안의 시각을 넣어 주세요." };
+  }
   const part = m[2] as "title" | "url" | "date";
   const field = `vods.${i}.${part}` as FormFieldKey;
   if (part === "title") return { field, label: "다시보기 제목", message: "제목을 1~200자로 넣어 주세요." };
@@ -245,12 +267,14 @@ function parseCategory(v: unknown): CategoryLink | null | undefined {
   return { categoryId: v.categoryId, posterUrl: v.posterUrl };
 }
 
-function parseVods(v: unknown): Vod[] | null {
+function parseVods(v: unknown): FormVod[] | null {
   if (!Array.isArray(v)) return null;
-  const out: Vod[] = [];
+  const out: FormVod[] = [];
   for (const x of v) {
     if (!isObj(x) || !isStr(x.title) || !isStr(x.url) || !isStr(x.date)) return null;
-    out.push({ title: x.title, url: x.url, date: x.date });
+    // highlight가 없는 옛 초안(PR2 이전)은 ""로 채운다
+    if (!(x.highlight === undefined || isStr(x.highlight))) return null;
+    out.push({ title: x.title, url: x.url, date: x.date, highlight: x.highlight ?? "" });
   }
   return out;
 }

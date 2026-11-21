@@ -116,3 +116,30 @@ describe("conflictMessage", () => {
     expect(conflictMessage({ updatedByName: "시스템", updatedAt: at })).toContain("시스템이 방금");
   });
 });
+
+describe("하이라이트 요약", () => {
+  const H = (v: typeof V1, h: number) => ({ ...v, highlightStart: h });
+  it("vodsKey가 하이라이트 차이를 잡는다(0 ↔ 없음 포함)", () => {
+    expect(diffGames(game({ vods: [V1] }), game({ vods: [H(V1, 0)] }))).toEqual(["vods"]);
+    expect(diffGames(game({ vods: [H(V1, 5)] }), game({ vods: [H(V1, 5)] }))).toEqual([]);
+  });
+  it("넣음·고침·지움은 '하이라이트 바뀜'", () => {
+    expect(changeSummary("update", game({ vods: [V1] }), game({ vods: [H(V1, 0)] }))).toBe("하이라이트 바뀜");
+    expect(changeSummary("update", game({ vods: [H(V1, 1)] }), game({ vods: [H(V1, 2)] }))).toBe("하이라이트 바뀜");
+    expect(changeSummary("update", game({ vods: [H(V1, 1)] }), game({ vods: [V1] }))).toBe("하이라이트 바뀜");
+  });
+  it("1편 추가 + 다른 편 하이라이트", () => {
+    expect(changeSummary("update", game({ vods: [V1] }), game({ vods: [H(V1, 60), V2] }))).toBe("다시보기 1편 추가·하이라이트 바뀜");
+  });
+  it("제목/날짜 수정 + 하이라이트", () => {
+    expect(changeSummary("update", game({ vods: [V1] }), game({ vods: [{ ...H(V1, 60), title: "새" }] }))).toBe("다시보기 정보 수정·하이라이트 바뀜");
+    expect(changeSummary("update", game({ vods: [V1] }), game({ vods: [{ ...V1, date: "2026-10-05" }] }))).toBe("다시보기 정보 수정");
+  });
+  it("하이라이트 붙은 채로 1편 추가는 '추가'만", () => {
+    expect(changeSummary("update", game({ vods: [V1] }), game({ vods: [V1, H(V2, 30)] }))).toBe("다시보기 1편 추가");
+  });
+  it("같은 날짜끼리 순서만 바뀌면 '다시보기 정보 수정'", () => {
+    const A = { ...V1, date: "2026-10-02" };
+    expect(changeSummary("update", game({ vods: [A, V2] }), game({ vods: [V2, A] }))).toBe("다시보기 정보 수정");
+  });
+});

@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   fieldPhoto,
   firstYoutubeVod,
+  highlightVod,
   namedYoutubeVod,
   normalizeForMatch,
   titleNamesGame,
@@ -213,5 +214,25 @@ describe("fieldPhoto", () => {
 
   it("포스터도 다시보기도 없으면 null", () => {
     expect(fieldPhoto(g([]))).toBeNull();
+  });
+});
+
+describe("highlightVod", () => {
+  const hl = (v: Vod, h: number): Vod => ({ ...v, highlightStart: h });
+  it("시각이 적힌 영상이 없으면 null", () => {
+    expect(highlightVod(g([]))).toBeNull();
+    expect(highlightVod(g([vod("AAAAAAAAAAA", "2026-11-01")]))).toBeNull();
+  });
+  it("한 편만 있으면 그 편", () => {
+    const v = hl(vod("AAAAAAAAAAA", "2026-11-01"), 90);
+    expect(highlightVod(g([vod("BBBBBBBBBBB", "2026-10-01"), v]))).toEqual({ vod: v, videoId: "AAAAAAAAAAA", startSec: 90 });
+  });
+  it("여러 편이면 날짜순 첫 편, 0초도 하이라이트", () => {
+    const first = hl(vod("AAAAAAAAAAA", "2026-11-01"), 0);
+    expect(highlightVod(g([first, hl(vod("BBBBBBBBBBB", "2026-11-02"), 5)]))).toEqual({ vod: first, videoId: "AAAAAAAAAAA", startSec: 0 });
+  });
+  it("제목이 다른 게임이어도(제목 대조 없음) 고르고, 유튜브가 아닌 주소는 건너뛴다", () => {
+    const other = hl(vod("AAAAAAAAAAA", "2026-11-02", "다른 게임 하고 저챗"), 60);
+    expect(highlightVod(g([hl(bad, 10), other]))?.videoId).toBe("AAAAAAAAAAA");
   });
 });

@@ -186,12 +186,29 @@ describe("parseGameInput", () => {
     ["vod 키 부족", { ...valid, vods: [{ title: "a", url: "b" }] }],
     ["vod 키 초과", { ...valid, vods: [{ title: "a", url: "b", date: "c", id: "d" }] }],
     ["vod 타입 틀림", { ...valid, vods: [{ title: 1, url: "b", date: "c" }] }],
+    ["vod 키 5개", { ...valid, vods: [{ title: "a", url: "b", date: "c", highlightStart: 1, id: "d" }] }],
+    ["vod 키 4개(highlightStart 아님)", { ...valid, vods: [{ title: "a", url: "b", date: "c", highlight: 1 }] }],
+    ["highlightStart 문자열", { ...valid, vods: [{ title: "a", url: "b", date: "c", highlightStart: "1:00" }] }],
+    ["highlightStart null", { ...valid, vods: [{ title: "a", url: "b", date: "c", highlightStart: null }] }],
     ["originalTitle 숫자", { ...valid, originalTitle: 1 }],
     ["originalTitle null", { ...valid, originalTitle: null }],
     ["categoryId 숫자", { ...valid, categoryId: 1 }],
     ["posterUrl null", { ...valid, posterUrl: null }],
   ])("거부: %s", (_label, body) => {
     expect(parseGameInput(body)).toBeNull();
+  });
+});
+
+describe("highlightStart 모양", () => {
+  const base = { name: "a", firstPlayed: null, status: "unknown" };
+  it("parseGameInput·parseGamePatch가 숫자 highlightStart를 싣는다(정수·범위는 repo가 본다)", () => {
+    const vods = [{ title: "t", url: "u", date: "d", highlightStart: 0 }, { title: "t2", url: "u2", date: "d", highlightStart: 1.5 }, { title: "t3", url: "u3", date: "d" }];
+    expect(parseGameInput({ ...base, vods })?.vods).toEqual(vods);
+    expect(parseGamePatch({ vods })?.vods).toEqual(vods);
+    expect(parseGamePatch({ vods })?.vods?.[2]).not.toHaveProperty("highlightStart");
+  });
+  it("문자열이면 null", () => {
+    expect(parseGamePatch({ vods: [{ title: "t", url: "u", date: "d", highlightStart: "90" }] })).toBeNull();
   });
 });
 

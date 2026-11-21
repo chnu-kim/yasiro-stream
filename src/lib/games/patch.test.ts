@@ -13,6 +13,7 @@ import {
   gameToForm,
   issuesHeadline,
   issuesToFormIssues,
+  normalizeHighlight,
   parseDraft,
   serializeDraft,
   unlinkKeepsPoster,
@@ -25,6 +26,9 @@ import type { Game, GameForm } from "./types.ts";
 const POSTER = "https://ssl.pstatic.net/static/nng/glive/category/a.png";
 const V1 = { title: "첫 번째", url: "https://www.youtube.com/watch?v=aaaaaaaaaaa", date: "2026-10-10" };
 const V2 = { title: "두 번째", url: "https://youtu.be/bbbbbbbbbbb", date: "2026-10-15" };
+/** 폼 다시보기 행(하이라이트 원문 "") */
+const F1 = { ...V1, highlight: "" };
+const F2 = { ...V2, highlight: "" };
 
 const base: Game = {
   id: "stellar-blade",
@@ -55,7 +59,7 @@ describe("gameToForm", () => {
       firstPlayed: "2026-10-10",
       undated: false,
       status: "unknown",
-      vods: [V1, V2],
+      vods: [F1, F2],
     });
   });
   it("카테고리만 있고 포스터 없음 / 날짜 없음", () => {
@@ -74,7 +78,7 @@ describe("gameToForm", () => {
 
 describe("formToRaw / formToInput", () => {
   it("trim, 원제 공백만이면 생략, undated는 null", () => {
-    const raw = formToRaw("x", form({ name: "  이름  ", originalTitle: "   ", undated: true, category: null, vods: [{ ...V1, title: " t ", url: " " + V1.url }] }));
+    const raw = formToRaw("x", form({ name: "  이름  ", originalTitle: "   ", undated: true, category: null, vods: [{ ...F1, title: " t ", url: " " + V1.url }] }));
     expect(raw).toEqual({ id: "x", name: "이름", firstPlayed: null, status: "unknown", vods: [{ title: "t", url: V1.url, date: "2026-10-10" }] });
     expect("originalTitle" in raw).toBe(false);
     expect("categoryId" in raw).toBe(false);
@@ -102,7 +106,7 @@ describe("formToPatch", () => {
   it("필드별 변경", () => {
     const patch = formToPatch(
       base,
-      form({ name: "새 이름", originalTitle: "", firstPlayed: "2026-10-01", status: "clear", vods: [V2] }),
+      form({ name: "새 이름", originalTitle: "", firstPlayed: "2026-10-01", status: "clear", vods: [F2] }),
     );
     expect(patch).toEqual({ name: "새 이름", originalTitle: null, firstPlayed: "2026-10-01", status: "clear", vods: [V2] });
   });
@@ -125,7 +129,7 @@ describe("formToPatch", () => {
 describe("changedFields / changedLabels", () => {
   it("수정 모드는 diff", () => {
     expect(changedFields(base, gameToForm(base))).toEqual([]);
-    expect(changedFields(base, form({ status: "clear", vods: [V1] }))).toEqual(["status", "vods"]);
+    expect(changedFields(base, form({ status: "clear", vods: [F1] }))).toEqual(["status", "vods"]);
   });
   it("추가 모드는 비어 있지 않은 필드", () => {
     expect(changedFields(null, gameToForm(null))).toEqual([]);
@@ -154,22 +158,22 @@ describe("validateForm", () => {
     expect(validateForm(form({ originalTitle: "a".repeat(201) }), [], base.id)[0].message).toBe("원제는 200자까지 넣을 수 있어요.");
   });
   it("치지직 링크는 정확한 문구", () => {
-    const issues = validateForm(form({ vods: [{ ...V1, url: "https://chzzk.naver.com/video/123" }] }), [], base.id);
+    const issues = validateForm(form({ vods: [{ ...F1, url: "https://chzzk.naver.com/video/123" }] }), [], base.id);
     expect(issues).toEqual([{ field: "vods.0.url", label: "다시보기 링크", message: CHZZK_VOD_MESSAGE }]);
   });
   it("유튜브가 아닌 링크 / 중복 영상", () => {
-    const bad = validateForm(form({ vods: [{ ...V1, url: "https://example.com/x" }] }), [], base.id);
+    const bad = validateForm(form({ vods: [{ ...F1, url: "https://example.com/x" }] }), [], base.id);
     expect(bad[0].message).toBe("유튜브 영상 링크(youtube.com/watch?v=… 또는 youtu.be/…)를 넣어 주세요.");
-    const dup = validateForm(form({ vods: [V1, { ...V2, url: V1.url }] }), [], base.id);
+    const dup = validateForm(form({ vods: [F1, { ...F2, url: V1.url }] }), [], base.id);
     expect(dup).toEqual([{ field: "vods.1.url", label: "다시보기 링크", message: "같은 영상이 이미 있어요." }]);
   });
   it("다시보기 제목", () => {
-    expect(validateForm(form({ vods: [{ ...V1, title: " " }] }), [], base.id)).toEqual([
+    expect(validateForm(form({ vods: [{ ...F1, title: " " }] }), [], base.id)).toEqual([
       { field: "vods.0.title", label: "다시보기 제목", message: "제목을 1~200자로 넣어 주세요." },
     ]);
   });
   it("날짜가 첫 플레이보다 빠르면 fix", () => {
-    const issues = validateForm(form({ firstPlayed: "2026-10-12", vods: [V1, V2] }), [], base.id);
+    const issues = validateForm(form({ firstPlayed: "2026-10-12", vods: [F1, F2] }), [], base.id);
     expect(issues).toEqual([
       {
         field: "vods.0.date",
@@ -180,7 +184,7 @@ describe("validateForm", () => {
     ]);
   });
   it("날짜 형식 오류", () => {
-    expect(validateForm(form({ vods: [{ ...V1, date: "" }] }), [], base.id)[0]).toEqual({
+    expect(validateForm(form({ vods: [{ ...F1, date: "" }] }), [], base.id)[0]).toEqual({
       field: "vods.0.date",
       label: "다시보기 날짜",
       message: "날짜를 2026.10.25 형식으로 넣어 주세요.",
@@ -201,7 +205,7 @@ describe("validateForm", () => {
   });
   it("첫 플레이·정복 여부·여러 이슈는 FIELD_ORDER 순", () => {
     const issues = validateForm(
-      form({ name: "", firstPlayed: "", status: "nope" as never, vods: [{ ...V2, url: "x" }, { ...V1, title: "" }] }),
+      form({ name: "", firstPlayed: "", status: "nope" as never, vods: [{ ...F2, url: "x" }, { ...F1, title: "" }] }),
       [],
       base.id,
     );
@@ -247,7 +251,7 @@ describe("suggestFirstPlayed / applyFix", () => {
     expect(suggestFirstPlayed(form())).toBeNull();
   });
   it("가장 이른 날짜", () => {
-    const f = form({ firstPlayed: "2026-12-01", vods: [V2, V1, { ...V1, date: "bad" }] });
+    const f = form({ firstPlayed: "2026-12-01", vods: [F2, F1, { ...F1, date: "bad" }] });
     expect(suggestFirstPlayed(f)).toBe("2026-10-10");
   });
   it("applyFix는 날짜를 넣고 undated를 푼다", () => {
@@ -370,5 +374,60 @@ describe("카테고리 없는 포스터(Steam)", () => {
       expect(f.category).toEqual({ categoryId: base.categoryId, posterUrl: POSTER });
       expect("posterUrl" in f).toBe(false);
     });
+  });
+});
+
+describe("하이라이트 시작", () => {
+  const hgame: Game = { ...base, vods: [{ ...V1, highlightStart: 5025 }, { ...V2, highlightStart: 0 }] };
+  it("gameToForm: 초 → 사람용 시각, 없으면 \"\"", () => {
+    expect(gameToForm(hgame).vods.map((v) => v.highlight)).toEqual(["1:23:45", "0:00"]);
+    expect(gameToForm(base).vods.map((v) => v.highlight)).toEqual(["", ""]);
+  });
+  it("formToRaw: \"\"는 키 없음, 읽으면 초, 못 읽으면 원문 그대로", () => {
+    const raw = formToRaw("x", form({ vods: [{ ...F1, highlight: "  " }, { ...F2, highlight: " 83:20 " }] }));
+    const vods = raw.vods as Record<string, unknown>[];
+    expect("highlightStart" in vods[0]).toBe(false);
+    expect(vods[1].highlightStart).toBe(5000);
+    const bad = formToRaw("x", form({ vods: [{ ...F1, highlight: "abc" }] }));
+    expect((bad.vods as Record<string, unknown>[])[0].highlightStart).toBe("abc");
+  });
+  it("validateForm: 잘못된 시각은 vods.N.highlight 이슈", () => {
+    expect(validateForm(form({ vods: [F1, { ...F2, highlight: "25:00:00" }] }), [], base.id)).toEqual([
+      { field: "vods.1.highlight", label: "하이라이트 시작", message: "1:23:45처럼 24시간 안의 시각을 넣어 주세요." },
+    ]);
+    expect(validateForm(form({ vods: [{ ...F1, highlight: "1:23:45" }] }), [], base.id)).toEqual([]);
+  });
+  it("issuesToFormIssues: highlight는 같은 행 date 뒤, 다음 행 title 앞", () => {
+    const out = issuesToFormIssues(
+      [
+        { path: "vods[1].title", message: "x" },
+        { path: "vods[0].highlightStart", message: "x" },
+        { path: "vods[0].date", message: "x" },
+      ],
+      form(),
+    );
+    expect(out.map((i) => i.field)).toEqual(["vods.0.date", "vods.0.highlight", "vods.1.title"]);
+  });
+  it("formToPatch: 하이라이트만 바꾸면 { vods }", () => {
+    const patch = formToPatch(base, form({ vods: [{ ...F1, highlight: "1:00" }, F2] }));
+    expect(patch).toEqual({ vods: [{ ...V1, highlightStart: 60 }, V2] });
+    expect(formToPatch(hgame, gameToForm(hgame))).toEqual({});
+    expect(changedFields(hgame, { ...gameToForm(hgame), vods: gameToForm(hgame).vods.map((v) => ({ ...v, highlight: "" })) })).toEqual(["vods"]);
+  });
+  it("normalizeHighlight: 읽으면 정규화, 빈 값은 \"\", 못 읽으면 원문", () => {
+    expect(normalizeHighlight("83:20")).toBe("1:23:20");
+    expect(normalizeHighlight(" 90s ")).toBe("1:30");
+    expect(normalizeHighlight("   ")).toBe("");
+    expect(normalizeHighlight("abc")).toBe("abc");
+  });
+  it("parseDraft: 옛 초안(highlight 없음)은 \"\"로 채우고, 숫자면 버린다", () => {
+    const store = { form: gameToForm(hgame), baseVersion: 1, savedAt: 1 };
+    expect(parseDraft(serializeDraft(store))).toEqual(store);
+    const old = JSON.parse(serializeDraft(store));
+    for (const v of old.form.vods) delete v.highlight;
+    expect(parseDraft(JSON.stringify(old))?.form.vods.map((v) => v.highlight)).toEqual(["", ""]);
+    const broken = JSON.parse(serializeDraft(store));
+    broken.form.vods[0].highlight = 5025;
+    expect(parseDraft(JSON.stringify(broken))).toBeNull();
   });
 });
