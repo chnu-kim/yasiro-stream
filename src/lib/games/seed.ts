@@ -46,14 +46,17 @@ function gameStatements(raw: Game): string[] {
     ])});`,
   ];
   g.vods.forEach((v, i) => {
+    // highlight_start(0012)는 값이 있을 때만 쓴다: 하이라이트 없는 입력의 출력이 0008과 바이트 단위로 같다
+    const hl = v.highlightStart !== undefined;
     out.push(
-      `INSERT OR IGNORE INTO game_vods (game_id, video_id, url, title, date, position) SELECT ${values([
+      `INSERT OR IGNORE INTO game_vods (game_id, video_id, url, title, date, position${hl ? ", highlight_start" : ""}) SELECT ${values([
         g.id,
         youtubeVideoId(v.url) as string, // parseGames가 유튜브 URL임을 보장
         v.url,
         v.title,
         v.date,
         i,
+        ...(hl ? [v.highlightStart as number] : []),
       ])} WHERE NOT EXISTS (SELECT 1 FROM game_changes WHERE id = ${sqlString(importId)});`,
     );
   });

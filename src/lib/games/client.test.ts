@@ -128,6 +128,7 @@ describe("fixLabel / issueLinkLabel", () => {
   });
   it("다시보기 이슈는 번째를 덧붙인다", () => {
     expect(issueLinkLabel({ field: "vods.2.date", label: "다시보기 날짜", message: "x" })).toBe("다시보기 날짜 (3번째)");
+    expect(issueLinkLabel({ field: "vods.1.highlight", label: "하이라이트 시작", message: "x" })).toBe("하이라이트 시작 (2번째)");
     expect(issueLinkLabel({ field: "name", label: "이름", message: "x" })).toBe("이름");
     expect(issueLinkLabel({ field: "vods", label: "다시보기", message: "x" })).toBe("다시보기");
   });

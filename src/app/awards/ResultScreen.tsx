@@ -75,7 +75,9 @@ export default function ResultScreen({
 
 // 순위 행의 작은 썸네일. 64px 폭에서는 표본 라벨 글자가 잘리므로 그림만(포스터·현장 사진) 꽉 채우고, 없으면 발자국 타일
 function RankThumb({ entry }: { entry: AwardEntry }) {
-  const media = cardMedia(entry);
+  const m = cardMedia(entry);
+  // 결과 화면은 재생하지 않는다. clip이면 그 정지 그림(포스터 → 현장 사진 → 표본)을 쓴다
+  const media = m.kind === 'clip' ? m.still : m;
   const [failed, setFailed] = useState(false);
   const url = media.kind === 'specimen' || failed ? null : media.url;
   return (

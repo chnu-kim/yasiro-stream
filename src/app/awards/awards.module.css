@@ -216,15 +216,20 @@
 }
 
 .card {
+  position: relative;
+}
+
+.pick {
   all: unset;
   display: block;
   box-sizing: border-box;
+  width: 100%;
   cursor: pointer;
   border-radius: var(--radius-md);
   -webkit-tap-highlight-color: transparent;
 }
 
-.card:focus-visible {
+.pick:focus-visible {
   outline: 2px solid var(--focus);
   outline-offset: 6px;
 }
@@ -243,9 +248,95 @@
     filter var(--dur-fast) ease;
 }
 
-.card:hover .cardCover {
+.pick:hover .cardCover {
   transform: translateY(-2px);
   filter: drop-shadow(0 8px 12px rgba(40, 25, 10, 0.18));
+}
+
+.play {
+  position: absolute;
+  top: var(--space-2);
+  left: var(--space-2);
+  z-index: var(--z-raised);
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  height: 36px;
+  padding: 0 var(--space-3);
+  background: var(--btn-primary-bg);
+  color: var(--btn-primary-fg);
+  border: 0;
+  border-radius: var(--radius-pill);
+  box-shadow: var(--shadow-sm);
+  font-size: var(--fs-sm);
+  font-weight: 600;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  animation: fadeUp var(--dur-base) var(--ease-out) both;
+}
+
+.play:hover {
+  background: var(--btn-primary-bg-hover);
+}
+
+.play:focus-visible,
+.playerClose:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+}
+
+.play[aria-pressed='true'] {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+}
+
+.player {
+  max-width: 760px;
+  margin: var(--space-6) auto 0;
+}
+
+.playerHead {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  margin-bottom: var(--space-2);
+  font-size: var(--fs-sm);
+  color: var(--text-dim);
+}
+
+.playerTitle {
+  word-break: keep-all;
+  overflow-wrap: anywhere;
+}
+
+.playerName {
+  color: var(--text);
+  font-weight: 600;
+}
+
+.playerClose {
+  flex: none;
+  width: var(--tap);
+  height: var(--tap);
+  display: grid;
+  place-items: center;
+  background: transparent;
+  border: 0;
+  border-radius: var(--radius-sm);
+  color: var(--text-dim);
+  cursor: pointer;
+}
+
+.playerClose:hover {
+  color: var(--text);
+}
+
+.playerFrame {
+  aspect-ratio: 16 / 9;
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  background: var(--tile);
 }
 
 .cardName {
@@ -377,6 +468,17 @@
 @media (max-width: 640px) {
   .versus {
     gap: var(--space-3);
+  }
+
+  .play {
+    width: 44px;
+    height: 44px;
+    padding: 0;
+    justify-content: center;
+  }
+
+  .playText {
+    display: none;
   }
 
   .cardName {

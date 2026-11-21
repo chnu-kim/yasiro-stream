@@ -76,6 +76,29 @@ beforeEach(() => {
 
 afterEach(() => d1.close());
 
+describe("하이라이트 시작 PATCH", () => {
+  const SID = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
+  it("넣으면 200·응답에 반영, 범위 밖이면 422", async () => {
+    const created = await read(await handleCreateGame(req("POST", "/api/games", SID, { input: INPUT }), deps()));
+    const id: string = created.body.game.id;
+    const vods = [{ ...INPUT.vods[0], highlightStart: 5025 }];
+    const ok = await read(await handleUpdateGame(req("PATCH", `/api/games/${id}`, SID, { expectedVersion: 1, patch: { vods } }), deps(), id));
+    expect(ok.status).toBe(200);
+    expect(ok.body.game.vods[0].highlightStart).toBe(5025);
+    const changes = await read(await handleListChanges(req("GET", `/api/games/${id}/changes`, SID), deps(), id));
+    expect(changes.body.changes[0].summary).toBe("하이라이트 바뀜");
+    const bad = await read(
+      await handleUpdateGame(req("PATCH", `/api/games/${id}`, SID, { expectedVersion: 2, patch: { vods: [{ ...INPUT.vods[0], highlightStart: 86400 }] } }), deps(), id),
+    );
+    expect(bad.status).toBe(422);
+    expect(bad.body.issues).toEqual([{ path: "vods[0].highlightStart", message: expect.any(String) }]);
+    const shape = await read(
+      await handleUpdateGame(req("PATCH", `/api/games/${id}`, SID, { expectedVersion: 2, patch: { vods: [{ ...INPUT.vods[0], highlightStart: "1:00" }] } }), deps(), id),
+    );
+    expect(shape.status).toBe(400);
+  });
+});
+
 describe("API 전 과정과 익명 규칙", () => {
   it("관리자(실명 채널) 세션으로 추가 → 수정 → 충돌 → 숨김 → 기록 → 목록, 실명·ID가 어디에도 없다", async () => {
     const created = await read(await handleCreateGame(req("POST", "/api/games", "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", { input: INPUT }), deps()));

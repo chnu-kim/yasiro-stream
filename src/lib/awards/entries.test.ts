@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { AWARDS_YEAR, DEFAULT_THIRD_PLACE, defaultDivision, divisionAvailable, divisionEntries, DIVISION_LABEL, DIVISIONS, toAwardEntries } from "./entries.ts";
-import { fieldPhoto } from "../games/media.ts";
+import { fieldPhoto, highlightVod } from "../games/media.ts";
 import { indexGames } from "../games/query.ts";
 import type { Game, GameRecord, Vod } from "../games/types.ts";
 
@@ -100,6 +100,45 @@ describe("toAwardEntries", () => {
     expect(entries.get("c")!.vods).toEqual([cases[2].vods[0]]);
     expect(entries.get("d")!.vods).toEqual([]);
     for (const game of cases) expect(fieldPhoto(entries.get(game.id)!)).toEqual(fieldPhoto(game));
+  });
+});
+
+describe("toAwardEntries: 하이라이트 영상", () => {
+  const hl = (v: Vod, h: number): Vod => ({ ...v, highlightStart: h });
+  const cases: Game[] = [
+    // named(B)와 하이라이트(D)가 다른 편: 날짜순으로 둘 다, 나머지는 빠진다
+    g("a", "2026-01-01", {
+      vods: [
+        vod("AAAAAAAAAAA", "2026-01-01", "다른 게임 하고 게임a 했어요"),
+        vod("BBBBBBBBBBB", "2026-01-02", "게임a 했어요"),
+        vod("CCCCCCCCCCC", "2026-01-03", "게임a 했어요 2"),
+        hl(vod("DDDDDDDDDDD", "2026-01-04", "종겜룰렛데이 했어요"), 600),
+        hl(vod("EEEEEEEEEEE", "2026-01-05", "게임a 했어요 3"), 30),
+      ],
+    }),
+    // 하이라이트가 named보다 앞: 순서 유지
+    g("b", "2026-01-01", {
+      vods: [hl(vod("FFFFFFFFFFF", "2026-01-01", "다른 게임 하고 게임b"), 0), vod("GGGGGGGGGGG", "2026-01-02", "게임b 했어요")],
+    }),
+    // 같은 편이면 하나만
+    g("c", "2026-01-01", { vods: [vod("HHHHHHHHHHH", "2026-01-01", "저챗"), hl(vod("IIIIIIIIIII", "2026-01-02", "게임c 했어요"), 5)] }),
+    // 하이라이트만(named 없음), 포스터 있음
+    g("d", "2026-01-01", { posterUrl: "https://nng-phinf.pstatic.net/x.png", vods: [hl(vod("JJJJJJJJJJJ", "2026-01-01", "저챗"), 9)] }),
+  ];
+  const entries = new Map(toAwardEntries(cases).map((e) => [e.id, e]));
+  it("vods = named 편과 하이라이트 편(날짜순, 같은 편이면 하나), 다른 편은 빠진다", () => {
+    expect(entries.get("a")!.vods).toEqual([cases[0].vods[1], cases[0].vods[3]]);
+    expect(entries.get("b")!.vods).toEqual([cases[1].vods[0], cases[1].vods[1]]);
+    expect(entries.get("c")!.vods).toEqual([cases[2].vods[1]]);
+    expect(entries.get("d")!.vods).toEqual([cases[3].vods[0]]);
+    expect(entries.get("a")!.vods[1]).not.toBe(cases[0].vods[3]);
+  });
+  it("불변식: fieldPhoto·highlightVod가 원본과 같다", () => {
+    for (const game of cases) {
+      const e = entries.get(game.id)!;
+      expect(fieldPhoto(e)).toEqual(fieldPhoto(game));
+      expect(highlightVod(e)).toEqual(highlightVod(game));
+    }
   });
 });
 

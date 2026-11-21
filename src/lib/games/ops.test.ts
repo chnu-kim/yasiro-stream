@@ -2,7 +2,7 @@ import { afterEach, describe, expect, it } from "vitest";
 import { createGame, getGame, listChanges } from "./repo.ts";
 import { FAKE_ADMIN_ID, createGamesTestDb, type TestD1 } from "./test-d1.ts";
 import { YASIRO_CHANNEL_ID } from "./admin.ts";
-import { changeIdsOf, opsActor, parseOps, recordingDb, runOps, sqlLiteral } from "./ops.ts";
+import { changeIdsOf, opsActor, parseOps, recordingDb, runOps, sqlLiteral, type GameOp } from "./ops.ts";
 import type { GameInput, WriteContext } from "./types.ts";
 
 let d1: TestD1;
@@ -99,6 +99,9 @@ describe("parseOps", () => {
       { op: "move-vods", from: "a", to: "b", urls: ["https://youtu.be/abcdefghijk"] },
       { op: "hide", id: "a" },
       { op: "unhide", id: "a" },
+      { op: "highlight", id: "a", url: "https://youtu.be/abcdefghijk", start: "1:23:45" },
+      { op: "highlight", id: "a", url: "https://youtu.be/abcdefghijk", start: 5025 },
+      { op: "highlight", id: "a", url: "https://youtu.be/abcdefghijk", start: null },
     ];
     expect(parseOps(ops)).toEqual({ ok: true, ops });
   });
@@ -116,6 +119,10 @@ describe("parseOps", () => {
     [[{ op: "move-vods", from: "a", to: "b", dates: [], urls: [] }], "1번 작업: dates와 urls는 함께 쓸 수 없어요."],
     [[{ op: "move-vods", from: "a", to: "b", hideFrom: "yes" }], "1번 작업: hideFrom은 true/false예요."],
     [[{ op: "hide", id: "a" }, { op: "hide", id: "" }], "2번 작업: id가 필요해요."],
+    [[{ op: "highlight", url: "u", start: 1 }], "1번 작업: id가 필요해요."],
+    [[{ op: "highlight", id: "a", start: 1 }], "1번 작업: url이 필요해요."],
+    [[{ op: "highlight", id: "a", url: "u" }], '1번 작업: start는 "1:23:45" 같은 시각·초·null이어야 해요.'],
+    [[{ op: "highlight", id: "a", url: "u", start: true }], '1번 작업: start는 "1:23:45" 같은 시각·초·null이어야 해요.'],
   ])("잘못된 작업 %j → %s", (raw, error) => {
     expect(parseOps(raw)).toEqual({ ok: false, error });
   });
@@ -273,5 +280,71 @@ describe("changeIdsOf", () => {
   });
   it("game_changes가 아닌 문장은 무시한다", () => {
     expect(changeIdsOf(["UPDATE games SET hidden = 1;", "INSERT INTO game_vods (game_id) VALUES ('a');"])).toEqual([]);
+  });
+});
+
+describe("runOps highlight", () => {
+  const A = "aaaaaaaaaaa";
+  const B = "bbbbbbbbbbb";
+  async function setup() {
+    d1 = createGamesTestDb();
+    await seed({ name: "에이", firstPlayed: "2026-01-01", status: "clear", vods: [vod(A, "2026-01-01"), { ...vod(B, "2026-01-02"), highlightStart: 30 }] });
+  }
+  const errorOf = async (op: GameOp) => {
+    const r = await runOps(d1.db, [op], ctx());
+    return r.ok ? null : r.error;
+  };
+  const vodsOf = async () => (await getGame(d1.db, "에이", { includeHidden: true }))?.vods.map((v) => v.highlightStart ?? null);
+
+  it("문자열 시각을 넣는다(URL 형식이 달라도 같은 영상), 다른 편은 그대로", async () => {
+    await setup();
+    const out = await runOps(d1.db, [{ op: "highlight", id: "에이", url: `https://youtu.be/${A}`, start: "1:23:45" }], ctx());
+    expect(out).toEqual({ ok: true, lines: ["하이라이트 에이 · 하이라이트 바뀜", `  ${A} 1:23:45부터`] });
+    expect(await vodsOf()).toEqual([5025, 30]);
+  });
+  it("숫자(0 포함)를 넣는다", async () => {
+    await setup();
+    const out = await runOps(d1.db, [{ op: "highlight", id: "에이", url: `https://www.youtube.com/watch?v=${A}`, start: 0 }], ctx());
+    expect(out.lines).toEqual(["하이라이트 에이 · 하이라이트 바뀜", `  ${A} 0:00부터`]);
+    expect(await vodsOf()).toEqual([0, 30]);
+  });
+  it("null은 지운다", async () => {
+    await setup();
+    const out = await runOps(d1.db, [{ op: "highlight", id: "에이", url: `https://youtu.be/${B}`, start: null }], ctx());
+    expect(out.lines).toEqual(["하이라이트 에이 · 하이라이트 바뀜", `  ${B} 하이라이트 지움`]);
+    expect(await vodsOf()).toEqual([null, null]);
+  });
+  it("같은 값이면 '변화 없음'", async () => {
+    await setup();
+    const out = await runOps(d1.db, [{ op: "highlight", id: "에이", url: `https://youtu.be/${B}`, start: "0:30" }], ctx());
+    expect(out.lines).toEqual(["하이라이트 에이 · 변화 없음", `  ${B} 0:30부터`]);
+  });
+  it("읽을 수 없는 시각·없는 URL·없는 게임·범위 밖 숫자는 실패", async () => {
+    await setup();
+    expect(await runOps(d1.db, [{ op: "highlight", id: "에이", url: `https://youtu.be/${A}`, start: "25:00:00" }], ctx())).toEqual({
+      ok: false,
+      lines: [],
+      error: "1번 작업(하이라이트 에이): 하이라이트 시각을 읽지 못했어요: 25:00:00",
+    });
+    for (const url of ["https://youtu.be/ccccccccccc", "not a url"]) {
+      expect(await errorOf({ op: "highlight", id: "에이", url, start: 1 })).toBe("1번 작업(하이라이트 에이): 그 다시보기가 없어요.");
+    }
+    expect(await errorOf({ op: "highlight", id: "없음", url: `https://youtu.be/${A}`, start: 1 })).toBe("1번 작업(하이라이트 없음): 게임이 없어요.");
+    expect(await errorOf({ op: "highlight", id: "에이", url: `https://youtu.be/${A}`, start: 86400 })).toBe(
+      "1번 작업(하이라이트 에이): 검증 실패 · vods[0].highlightStart",
+    );
+    expect(await vodsOf()).toEqual([null, 30]);
+  });
+  it("move-vods는 하이라이트를 그대로 옮기고 남긴다", async () => {
+    await setup();
+    await seed({ name: "비", firstPlayed: "2025-01-01", status: "clear", vods: [{ ...vod("ddddddddddd", "2025-01-01"), highlightStart: 7 }] });
+    const out = await runOps(d1.db, [{ op: "move-vods", from: "에이", to: "비", urls: [`https://youtu.be/${B}`] }], ctx());
+    expect(out.ok).toBe(true);
+    expect((await getGame(d1.db, "비", { includeHidden: true }))?.vods.map((v) => v.highlightStart)).toEqual([7, 30]);
+  });
+  it("update.patch.vods는 전체 교체라 적지 않은 하이라이트는 지워진다(문서화된 동작)", async () => {
+    await setup();
+    await runOps(d1.db, [{ op: "update", id: "에이", patch: { vods: [vod(A, "2026-01-01"), vod(B, "2026-01-02")] } }], ctx());
+    expect(await vodsOf()).toEqual([null, null]);
   });
 });

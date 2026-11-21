@@ -3,8 +3,10 @@
 // 변경 기록(game_changes, 수정자 '관리자')이 사이트에서 저장한 것과 같게 남는다.
 import { YASIRO_CHANNEL_ID, actorNameFor, parseAdminIds } from "./admin.ts";
 import { createGame, getGame, listChanges, setHidden, updateGame } from "./repo.ts";
+import { copyVod } from "./rows.ts";
 import { isChzzkPosterUrl, youtubeVideoId } from "./schema.ts";
 import { sqlValue } from "./seed.ts";
+import { formatTimecode, parseTimecode } from "./timecode.ts";
 import type { Actor, GameInput, GamePatch, GamesDb, GamesDbStatement, Vod, WriteContext, WriteResult } from "./types.ts";
 
 export type GameOp =
@@ -13,7 +15,9 @@ export type GameOp =
   /** from의 다시보기를 to로 옮긴다. dates·urls가 없으면 전부. hideFrom이면 옮긴 뒤 from을 숨긴다 */
   | { op: "move-vods"; from: string; to: string; dates?: string[]; urls?: string[]; hideFrom?: boolean }
   | { op: "hide"; id: string }
-  | { op: "unhide"; id: string };
+  | { op: "unhide"; id: string }
+  /** 그 게임의 다시보기 중 url(형식 무관, 같은 영상 ID) 한 편의 하이라이트 시작. 문자열은 parseTimecode, 숫자는 초, null은 지움 */
+  | { op: "highlight"; id: string; url: string; start: string | number | null };
 
 export type OpsResult = { ok: true; lines: string[] } | { ok: false; lines: string[]; error: string };
 
@@ -83,7 +87,7 @@ export function opsActor(raw: string | undefined): Actor {
   return { channelId: id, name: actorNameFor(id) };
 }
 
-const OPS = new Set(["add", "update", "move-vods", "hide", "unhide"]);
+const OPS = new Set(["add", "update", "move-vods", "hide", "unhide", "highlight"]);
 
 function isObject(v: unknown): v is Record<string, unknown> {
   return typeof v === "object" && v !== null && !Array.isArray(v);
@@ -112,6 +116,10 @@ function opError(o: unknown): string | null {
   }
   if (!nonEmpty(o.id)) return "id가 필요해요.";
   if (o.op === "update" && !isObject(o.patch)) return "patch가 필요해요.";
+  if (o.op === "highlight") {
+    if (!nonEmpty(o.url)) return "url이 필요해요.";
+    if (!(o.start === null || typeof o.start === "string" || typeof o.start === "number")) return 'start는 "1:23:45" 같은 시각·초·null이어야 해요.';
+  }
   return null;
 }
 
@@ -137,10 +145,6 @@ function failure(r: Exclude<WriteResult, { ok: true }>): OpFailure {
   return new OpFailure(r.reason === "invalid" ? `검증 실패 · ${r.issues.map((i) => i.path).join(", ")}` : REASON[r.reason]);
 }
 
-function strip(v: Vod): Vod {
-  return { title: v.title, url: v.url, date: v.date };
-}
-
 async function summaryOf(db: GamesDb, r: WriteResult): Promise<string> {
   if (!r.ok) throw failure(r);
   if (!r.changed) return "변화 없음";
@@ -164,11 +168,34 @@ async function moveVods(db: GamesDb, op: Extract<GameOp, { op: "move-vods" }>, c
   const pickedIds = new Set(picked.map((v) => youtubeVideoId(v.url)));
   const dstIds = new Set(dst.vods.map((v) => youtubeVideoId(v.url)));
   lines.push(`다시보기 ${picked.length}편 ${src.id} → ${dst.id}`);
-  const added = await updateGame(db, dst.id, { vods: [...dst.vods, ...picked.filter((v) => !dstIds.has(youtubeVideoId(v.url)))].map(strip) }, dst.version, ctx);
+  const added = await updateGame(db, dst.id, { vods: [...dst.vods, ...picked.filter((v) => !dstIds.has(youtubeVideoId(v.url)))].map(copyVod) }, dst.version, ctx);
   lines.push(`  ${dst.id} · ${await summaryOf(db, added)}`);
-  const removed = await updateGame(db, src.id, { vods: src.vods.filter((v) => !pickedIds.has(youtubeVideoId(v.url))).map(strip) }, src.version, ctx);
+  const removed = await updateGame(db, src.id, { vods: src.vods.filter((v) => !pickedIds.has(youtubeVideoId(v.url))).map(copyVod) }, src.version, ctx);
   lines.push(`  ${src.id} · ${await summaryOf(db, removed)}`);
   if (op.hideFrom === true) lines.push(`  ${src.id} · ${await summaryOf(db, await setHidden(db, src.id, true, ctx))}`);
+}
+
+async function highlight(db: GamesDb, op: Extract<GameOp, { op: "highlight" }>, ctx: WriteContext, lines: string[]) {
+  const game = await mustGet(db, op.id);
+  const videoId = youtubeVideoId(op.url);
+  const target = videoId === null ? undefined : game.vods.find((v) => youtubeVideoId(v.url) === videoId);
+  if (target === undefined) throw new OpFailure("그 다시보기가 없어요.");
+  let sec: number | null;
+  if (typeof op.start === "string") {
+    sec = parseTimecode(op.start);
+    if (sec === null) throw new OpFailure(`하이라이트 시각을 읽지 못했어요: ${op.start}`);
+  } else {
+    sec = op.start; // 숫자 검증(정수·범위)은 updateGame(validateCandidate)이 한다
+  }
+  const vods: Vod[] = game.vods.map((v) => {
+    const copy = copyVod(v);
+    if (v !== target) return copy;
+    delete copy.highlightStart;
+    if (sec !== null) copy.highlightStart = sec;
+    return copy;
+  });
+  lines.push(`하이라이트 ${op.id} · ${await summaryOf(db, await updateGame(db, op.id, { vods }, game.version, ctx))}`);
+  lines.push(sec === null ? `  ${videoId} 하이라이트 지움` : `  ${videoId} ${formatTimecode(sec)}부터`);
 }
 
 function labelOf(op: GameOp): string {
@@ -183,6 +210,8 @@ function labelOf(op: GameOp): string {
       return `숨김 ${op.id}`;
     case "unhide":
       return `보이기 ${op.id}`;
+    case "highlight":
+      return `하이라이트 ${op.id}`;
   }
 }
 
@@ -206,6 +235,8 @@ async function runOne(db: GamesDb, op: GameOp, ctx: WriteContext, lines: string[
     }
     case "move-vods":
       return moveVods(db, op, ctx, lines);
+    case "highlight":
+      return highlight(db, op, ctx, lines);
     case "hide":
     case "unhide":
       lines.push(`${labelOf(op)} · ${await summaryOf(db, await setHidden(db, op.id, op.op === "hide", ctx))}`);

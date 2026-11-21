@@ -1,6 +1,7 @@
 // 얇은 CLI. 운영 D1의 /games 기록을 터미널에서 고친다. 로직은 src/lib/games/ops.ts(+ repo.ts).
 // 사용:
 //   pnpm games:edit --find "키워드"          운영 D1에서 게임 찾기(이름·원제·id, 숨긴 게임 포함)
+//   pnpm games:edit --vods <id>             운영 D1에서 그 게임의 다시보기 목록·하이라이트 시작 보기
 //   pnpm games:edit --search "검색어"        치지직 카테고리 검색(추가할 때 categoryId·posterUrl 확인)
 //   pnpm games:edit <ops.json>               미리보기: 운영 사본에 적용해 보고 바뀔 내용·SQL만 보여 준다
 //   pnpm games:edit <ops.json> --apply       운영 D1에 적용하고, 변경 기록이 모두 들어갔는지 확인한다
@@ -14,9 +15,10 @@ import { searchCategories } from "../src/lib/chzzk-category.ts";
 import { changeIdsOf, opsActor, parseOps, recordingDb, runOps } from "../src/lib/games/ops.ts";
 import { sqlString } from "../src/lib/games/seed.ts";
 import { createGamesTestDb } from "../src/lib/games/test-d1.ts";
+import { formatTimecode } from "../src/lib/games/timecode.ts";
 
 const USAGE = [
-  "사용: pnpm games:edit --find <키워드> | --search <검색어> | <ops.json> [--apply]",
+  "사용: pnpm games:edit --find <키워드> | --vods <id> | --search <검색어> | <ops.json> [--apply]",
   "  ops.json 형식은 .claude/skills/games-edit/SKILL.md 참고",
 ].join("\n");
 
@@ -65,9 +67,18 @@ if (rest[0] === "--find") {
   if (rest[1] === undefined || rest.length > 2) fail(USAGE);
   const like = sqlString(`%${rest[1]}%`);
   const rows = query<Record<string, unknown>>(
-    `SELECT id, name, original_title, category_id, status, first_played, hidden, version, (SELECT count(*) FROM game_vods v WHERE v.game_id = g.id) AS vods FROM games g WHERE name LIKE ${like} OR original_title LIKE ${like} OR id LIKE ${like} OR category_id LIKE ${like} ORDER BY first_played`,
+    `SELECT id, name, original_title, category_id, status, first_played, hidden, version, (SELECT count(*) FROM game_vods v WHERE v.game_id = g.id) AS vods, (SELECT count(*) FROM game_vods v WHERE v.game_id = g.id AND v.highlight_start IS NOT NULL) AS highlights FROM games g WHERE name LIKE ${like} OR original_title LIKE ${like} OR id LIKE ${like} OR category_id LIKE ${like} ORDER BY first_played`,
   );
   for (const r of rows) console.log(JSON.stringify(r));
+  if (rows.length === 0) console.log("없음");
+} else if (rest[0] === "--vods") {
+  if (rest[1] === undefined || rest.length > 2) fail(USAGE);
+  const rows = query<{ date: string; title: string; url: string; highlight_start: number | null }>(
+    `SELECT date, title, url, highlight_start FROM game_vods WHERE game_id = ${sqlString(rest[1])} ORDER BY date, position`,
+  );
+  for (const r of rows) {
+    console.log(JSON.stringify({ date: r.date, title: r.title, url: r.url, highlight: r.highlight_start === null ? null : formatTimecode(r.highlight_start) }));
+  }
   if (rows.length === 0) console.log("없음");
 } else if (rest[0] === "--search") {
   if (rest[1] === undefined || rest.length > 2) fail(USAGE);

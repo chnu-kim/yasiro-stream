@@ -18,7 +18,9 @@ export interface AwardEntry {
   posterUrl?: string;
   firstPlayed: string | null;
   status: GameStatus;
-  /** namedYoutubeVod가 고른 한 편만(없으면 []). fieldPhoto(entry) === fieldPhoto(원본 게임)이 성립한다 */
+  /** namedYoutubeVod가 고른 편과 highlightVod가 고른 편만(날짜순, 같은 편이면 하나, 없으면 []).
+   *  fieldPhoto(entry) === fieldPhoto(원본 게임), highlightVod(entry) === highlightVod(원본 게임)이 성립한다.
+   *  다른 편의 highlightStart는 보내지 않는다 */
   vods: Vod[];
   ordinal: number;
   no: string;

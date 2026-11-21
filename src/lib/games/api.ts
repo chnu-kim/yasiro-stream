@@ -79,14 +79,22 @@ function onlyKeys(o: Obj, allowed: readonly string[]): boolean {
   return Object.keys(o).every((k) => allowed.includes(k));
 }
 
+const VOD_KEYS = ["title", "url", "date", "highlightStart"];
+
 function parseVods(v: unknown): Vod[] | null {
   if (!Array.isArray(v)) return null;
   const out: Vod[] = [];
   for (const item of v) {
-    if (!isObj(item) || Object.keys(item).length !== 3) return null;
-    const { title, url, date } = item;
+    if (!isObj(item) || !onlyKeys(item, VOD_KEYS)) return null;
+    const { title, url, date, highlightStart } = item;
     if (typeof title !== "string" || typeof url !== "string" || typeof date !== "string") return null;
-    out.push({ title, url, date });
+    const vod: Vod = { title, url, date };
+    // 정수 여부·범위는 repo의 validateCandidate가 422로 본다
+    if ("highlightStart" in item) {
+      if (typeof highlightStart !== "number") return null;
+      vod.highlightStart = highlightStart;
+    }
+    out.push(vod);
   }
   return out;
 }

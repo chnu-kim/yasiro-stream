@@ -113,18 +113,22 @@ export function createTestD1(): TestD1 {
   return { db, sqlite, batchCalls: () => batches, close: () => sqlite.close() };
 }
 
-/** migrations/ 의 파일을 주어진 순서대로 적용한다. 기본: games(0007) + auth_sessions(0009). 레거시 테이블(0001·0002, 0011에서 DROP)과 시드는 명시해서 넣는다 */
+/** 운영 스키마와 같은 테이블 구성: games(0007) + auth_sessions(0009) + game_vods.highlight_start(0012) */
+const DEFAULT_MIGRATIONS = ["0007_games.sql", "0009_auth_sessions.sql", "0012_vod_highlight_start.sql"] as const;
+
+/** migrations/ 의 파일을 주어진 순서대로 적용한다. 기본: DEFAULT_MIGRATIONS(0007 + 0009 + 0012). 레거시 테이블(0001·0002, 0011에서 DROP)과 시드는 명시해서 넣는다 */
 export function applyMigrations(
   d1: TestD1,
-  files: readonly string[] = ["0007_games.sql", "0009_auth_sessions.sql"],
+  files: readonly string[] = DEFAULT_MIGRATIONS,
 ): void {
   for (const f of files) d1.sqlite.exec(readFileSync(new URL(f, MIGRATIONS_DIR), "utf8"));
 }
 
-/** 0007 + 0009가 적용된 새 DB(운영 스키마와 같은 테이블 구성). extra는 그 뒤에 이어서 적용한다 */
+/** DEFAULT_MIGRATIONS(0007 + 0009 + 0012)가 적용된 새 DB(운영 스키마와 같은 테이블 구성). extra는 그 뒤에 이어서 적용한다
+ *  (0008 시드는 열 이름을 명시하므로 0012 뒤에 적용해도 된다) */
 export function createGamesTestDb(extra: readonly string[] = []): TestD1 {
   const d1 = createTestD1();
-  applyMigrations(d1, ["0007_games.sql", "0009_auth_sessions.sql", ...extra]);
+  applyMigrations(d1, [...DEFAULT_MIGRATIONS, ...extra]);
   return d1;
 }
 

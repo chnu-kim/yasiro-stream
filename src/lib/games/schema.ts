@@ -3,6 +3,13 @@ import type { Game, GameStatus, ValidationIssue, ValidationResult, Vod } from ".
 export const ID_PATTERN = /^[\p{Ll}\p{Lo}\p{Nd}]+(?:-[\p{Ll}\p{Lo}\p{Nd}]+)*$/u;
 export const NAME_MAX = 100;
 export const TITLE_MAX = 200;
+/** 하이라이트 시작 시각(초)의 상한. 24시간 미만. migrations/0012 CHECK와 같다 */
+export const HIGHLIGHT_MAX = 86399;
+
+/** 다시보기 하이라이트 시작 시각(초): 0 이상 HIGHLIGHT_MAX 이하 정수 */
+export function isHighlightStart(v: unknown): v is number {
+  return typeof v === "number" && Number.isSafeInteger(v) && v >= 0 && v <= HIGHLIGHT_MAX;
+}
 
 export function isValidIsoDate(s: unknown): s is string {
   if (typeof s !== "string" || !/^\d{4}-\d{2}-\d{2}$/.test(s)) return false;
@@ -53,7 +60,7 @@ export function isChzzkUrl(raw: unknown): boolean {
 }
 
 const GAME_KEYS = new Set(["id", "name", "originalTitle", "categoryId", "posterUrl", "firstPlayed", "status", "vods"]);
-const VOD_KEYS = new Set(["title", "url", "date"]);
+const VOD_KEYS = new Set(["title", "url", "date", "highlightStart"]);
 /** 정복 여부 값. 이 순서가 필터 탭 순서다 */
 export const GAME_STATUSES: readonly GameStatus[] = ["clear", "fail", "endless", "unknown"];
 const STATUSES: readonly string[] = GAME_STATUSES;
@@ -173,7 +180,14 @@ function validateGame(raw: unknown, i: number, issues: ValidationIssue[]): Game 
       const date = rv.date;
       if (!isValidIsoDate(date)) add(`${vat}.date`, "YYYY-MM-DD 형식의 실제 날짜여야 합니다");
       else if (isValidIsoDate(firstPlayed) && date < firstPlayed) add(`${vat}.date`, `첫 플레이 날짜(${firstPlayed})보다 이릅니다`);
-      if (title !== null && vid !== null && isValidIsoDate(date)) vods.push({ title, url, date });
+      const hasHighlight = "highlightStart" in rv;
+      const highlightOk = !hasHighlight || isHighlightStart(rv.highlightStart);
+      if (!highlightOk) add(`${vat}.highlightStart`, `0 이상 ${HIGHLIGHT_MAX} 이하의 정수(초)여야 합니다 (없으면 키를 생략)`);
+      if (title !== null && vid !== null && isValidIsoDate(date) && highlightOk) {
+        const v: Vod = { title, url, date };
+        if (hasHighlight) v.highlightStart = rv.highlightStart as number;
+        vods.push(v);
+      }
     });
   }
 
@@ -270,7 +284,12 @@ export function serializeGames(games: readonly Game[]): string {
     o.status = g.status;
     o.vods = [...g.vods]
       .sort((x, y) => (x.date < y.date ? -1 : x.date > y.date ? 1 : 0))
-      .map((v) => ({ title: v.title, url: v.url, date: v.date }));
+      .map((v) => {
+        const vo: Record<string, unknown> = { title: v.title, url: v.url, date: v.date };
+        // 없으면 키를 생략한다: 하이라이트가 없는 기록의 출력(시드·export 해시)이 바이트 단위로 같다
+        if (v.highlightStart !== undefined) vo.highlightStart = v.highlightStart;
+        return vo;
+      });
     return o;
   });
   return JSON.stringify(out, null, 2) + "\n";

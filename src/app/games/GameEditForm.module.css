@@ -146,6 +146,7 @@
 
 .input:focus-visible,
 .vodDate:focus-visible,
+.vodHl:focus-visible,
 .check:has(input:focus-visible),
 .seg:has(input:focus-visible),
 .outline:focus-visible,
@@ -163,7 +164,8 @@
 }
 
 .input[aria-invalid='true'],
-.vodDate[aria-invalid='true'] {
+.vodDate[aria-invalid='true'],
+.vodHl[aria-invalid='true'] {
   border: 2px solid var(--stamp);
 }
 
@@ -403,12 +405,14 @@
 .vodMeta {
   display: flex;
   align-items: center;
+  flex-wrap: wrap;
   gap: 6px;
   font-size: var(--fs-sm);
   color: var(--text-dim);
 }
 
-.vodDate {
+.vodDate,
+.vodHl {
   height: 32px;
   padding: 0 6px;
   background: transparent;
@@ -420,7 +424,20 @@
   color: var(--text-dim);
 }
 
-.vodDate:hover {
+.vodHl {
+  width: 9ch;
+  font-variant-numeric: tabular-nums;
+  /* 날짜와 달리 비어 있는 칸이 많아, 입력칸이 보이게 점선 테두리를 두고 placeholder를 값과 구별되게 흐리게 한다 */
+  border: 1px dashed var(--border-strong);
+}
+
+.vodHl::placeholder {
+  color: var(--text-dim);
+  opacity: 0.45;
+}
+
+.vodDate:hover,
+.vodHl:hover {
   border-color: var(--border-strong);
 }
 

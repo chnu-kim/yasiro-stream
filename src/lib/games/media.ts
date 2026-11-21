@@ -16,6 +16,17 @@ export function firstYoutubeVod(game: Pick<Game, "vods">): { vod: Vod; videoId: 
   return null;
 }
 
+/** 하이라이트 시작 시각이 적힌 첫 유튜브 다시보기(vods는 날짜 오름차순이라 날짜순 첫 편). 제목 대조 없이 관리자 값을 믿는다
+ *  (그래서 여러 게임 방송이어도 고른다). 없으면 null. /awards 대결 카드의 재생 소스(awards/media.ts cardMedia) */
+export function highlightVod(game: Pick<Game, "vods">): { vod: Vod; videoId: string; startSec: number } | null {
+  for (const vod of game.vods) {
+    if (vod.highlightStart === undefined) continue;
+    const videoId = youtubeVideoId(vod.url);
+    if (videoId !== null) return { vod, videoId, startSec: vod.highlightStart };
+  }
+  return null;
+}
+
 const WORD_CHAR = /[\p{L}\p{N}]/u;
 const STARTS_WITH_WORD = /^[\p{L}\p{N}]/u;
 

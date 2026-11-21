@@ -13,6 +13,21 @@ describe("test-d1", () => {
     expect(names).not.toContain("sessions");
     expect(names).not.toContain("guestbook");
   });
+  it("기본 스키마에 0012 game_vods.highlight_start가 있고 CHECK가 동작한다", async () => {
+    const d = createGamesTestDb();
+    const cols = d.sqlite.prepare("PRAGMA table_info(game_vods)").all().map((r) => r.name);
+    expect(cols).toContain("highlight_start");
+    await d.db.prepare(insertGame).bind("a", "가").run();
+    const ins = (vid: string, h: unknown) =>
+      d.db
+        .prepare("INSERT INTO game_vods (game_id, video_id, url, title, date, position, highlight_start) VALUES ('a', ?, ?, 't', '2026-01-01', 0, ?)")
+        .bind(vid, `https://youtu.be/${vid}`, h)
+        .run();
+    for (const [i, h] of [null, 0, 86399].entries()) await ins(`ok${String(i).padStart(9, "0")}`, h);
+    for (const [i, h] of [86400, -1, 1.5, "x"].entries()) await expect(ins(`no${String(i).padStart(9, "0")}`, h), String(h)).rejects.toThrow(/CHECK/);
+    const stored = d.sqlite.prepare("SELECT highlight_start h, typeof(highlight_start) t FROM game_vods ORDER BY video_id").all();
+    expect(stored).toEqual([{ h: null, t: "null" }, { h: 0, t: "integer" }, { h: 86399, t: "integer" }]);
+  });
   it("first/all/run behave like D1 and return plain objects", async () => {
     const d = createGamesTestDb();
     const r = await d.db.prepare(insertGame).bind("a", "가").run();

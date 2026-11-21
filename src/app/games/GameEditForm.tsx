@@ -3,7 +3,7 @@
 import { useEffect, useId, useRef, useState, type MutableRefObject } from 'react';
 import { Plus, Trash2 } from 'lucide-react';
 import { classifyFailure, errorMessage, fixLabel, issueLinkLabel, loginHref, type WriteFailure } from '@/lib/games/client';
-import { sortVods } from '@/lib/games/rows';
+import { sortByDate } from '@/lib/games/rows';
 import {
   applyFix,
   changedFields,
@@ -15,6 +15,7 @@ import {
   formToPatch,
   gameToForm,
   issuesHeadline,
+  normalizeHighlight,
   validateForm,
 } from '@/lib/games/patch';
 import { CHZZK_VOD_MESSAGE, isChzzkUrl, isValidIsoDate, youtubeVideoId } from '@/lib/games/schema';
@@ -267,8 +268,8 @@ export default function GameEditForm({
 
   const commitVod = () => {
     if (add.kind !== 'ready' || !isValidIsoDate(add.date)) return;
-    const vod = { title: add.meta.title, url: add.meta.url, date: add.date };
-    patchForm({ vods: sortVods([...form.vods, vod]) });
+    const vod = { title: add.meta.title, url: add.meta.url, date: add.date, highlight: '' };
+    patchForm({ vods: sortByDate([...form.vods, vod]) });
     setAdd({ kind: 'idle' });
     setAddUrl('');
     setNotice(`다시보기를 넣었어요. 저장하면 반영돼요.`);
@@ -285,6 +286,9 @@ export default function GameEditForm({
 
   const setVodDate = (i: number, date: string) =>
     patchForm({ vods: form.vods.map((v, j) => (j === i ? { ...v, date } : v)) });
+
+  const setVodHighlight = (i: number, highlight: string) =>
+    patchForm({ vods: form.vods.map((v, j) => (j === i ? { ...v, highlight } : v)) });
 
   const no = initialBase?.no ?? '—';
   const posterUrl = formPosterUrl(form);
@@ -529,7 +533,7 @@ export default function GameEditForm({
             {form.vods.length > 0 && (
               <ul className={styles.vodList}>
                 {form.vods.map((v, i) => {
-                  const rowKeys: FormFieldKey[] = [`vods.${i}.title`, `vods.${i}.url`, `vods.${i}.date`];
+                  const rowKeys: FormFieldKey[] = [`vods.${i}.title`, `vods.${i}.url`, `vods.${i}.date`, `vods.${i}.highlight`];
                   return (
                     <li key={v.url} id={fieldDomId(`vods.${i}.url`)} tabIndex={-1} className={rowKeys.some((k) => err(k)) ? `${styles.vod} ${styles.vodBad}` : styles.vod}>
                       <div className={styles.vodMain}>
@@ -547,7 +551,22 @@ export default function GameEditForm({
                             aria-invalid={err(`vods.${i}.date`) ? true : undefined}
                             aria-describedby={describe(`vods.${i}.date`)}
                             onChange={(e) => setVodDate(i, e.target.value)}
-                            onBlur={() => patchForm({ vods: sortVods(form.vods) })}
+                            onBlur={() => patchForm({ vods: sortByDate(form.vods) })}
+                          />
+                          ·
+                          <label htmlFor={fieldDomId(`vods.${i}.highlight`)}>하이라이트</label>
+                          <input
+                            id={fieldDomId(`vods.${i}.highlight`)}
+                            type="text"
+                            autoComplete="off"
+                            spellCheck={false}
+                            className={styles.vodHl}
+                            value={v.highlight}
+                            placeholder="1:23:45"
+                            aria-invalid={err(`vods.${i}.highlight`) ? true : undefined}
+                            aria-describedby={describe(`vods.${i}.highlight`)}
+                            onChange={(e) => setVodHighlight(i, e.target.value)}
+                            onBlur={() => setVodHighlight(i, normalizeHighlight(v.highlight))}
                           />
                         </span>
                         {rowKeys.map((k) => err(k) && <span key={k}>{errorText(k)}</span>)}
