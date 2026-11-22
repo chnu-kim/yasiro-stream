@@ -2,6 +2,7 @@ import type { Ref } from 'react';
 import Button from '@/components/Button';
 import SectionLabel from '@/components/SectionLabel';
 import { DIVISIONS, DIVISION_LABEL, divisionAvailable } from '@/lib/awards/entries';
+import { DRAW_LOADING_TEXT } from '@/lib/awards/client';
 import { fitText, PAGE_TITLE, sizeLabel, thirdPlaceNote } from '@/lib/awards/labels';
 import { sizeOptions, thirdPlaceAvailable } from '@/lib/awards/options';
 import type { Division, SizeChoice } from '@/lib/awards/types';
@@ -17,7 +18,10 @@ export default function SetupScreen({
   onDivision,
   onSize,
   onThird,
+  drawing,
+  drawError,
   onStart,
+  onRankings,
 }: {
   division: Division;
   counts: Record<Division, number>;
@@ -27,7 +31,12 @@ export default function SetupScreen({
   onDivision: (d: Division) => void;
   onSize: (c: SizeChoice) => void;
   onThird: (on: boolean) => void;
+  /** 대진을 뽑는 요청이 진행 중 */
+  drawing: boolean;
+  /** 뽑기 실패 문구. 없으면 null */
+  drawError: string | null;
   onStart: () => void;
+  onRankings: () => void;
 }) {
   const n = counts[division];
   const options = sizeOptions(n);
@@ -35,7 +44,7 @@ export default function SetupScreen({
   const selected = options.find((o) => o.size === sizeChoice);
   const note = selected === undefined ? null : thirdPlaceNote(selected.size, n);
   const canThird = selected !== undefined && thirdPlaceAvailable(selected.size, n);
-  const canStart = divisionAvailable(n) && selected !== undefined;
+  const canStart = divisionAvailable(n) && selected !== undefined && !drawing;
 
   return (
     <div className={styles.wrap}>
@@ -45,6 +54,7 @@ export default function SetupScreen({
           {PAGE_TITLE}
         </h1>
         <p className={styles.lead}>플레이한 게임으로 하는 토너먼트예요. 두 게임 중 하나를 골라 끝까지 올라가요.</p>
+        <p className={styles.note}>끝까지 마친 대진만 집계에 들어가요.</p>
       </header>
 
       <form
@@ -129,9 +139,17 @@ export default function SetupScreen({
 
         <div className={styles.actions}>
           <Button type="submit" variant="primary" size="lg" disabled={!canStart}>
-            시작하기
+            {drawing ? DRAW_LOADING_TEXT : '시작하기'}
+          </Button>
+          <Button type="button" variant="secondary" size="lg" onClick={onRankings}>
+            순위 보기
           </Button>
         </div>
+        {drawError !== null && (
+          <p role="alert" className={styles.note}>
+            {drawError}
+          </p>
+        )}
       </form>
     </div>
   );

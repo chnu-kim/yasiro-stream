@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
-import { AWARDS_YEAR, DEFAULT_THIRD_PLACE, defaultDivision, divisionAvailable, divisionEntries, DIVISION_LABEL, DIVISIONS, toAwardEntries } from "./entries.ts";
+import { AWARDS_YEAR, DEFAULT_THIRD_PLACE, defaultDivision, divisionAvailable, divisionEntries, DIVISION_LABEL, DIVISIONS, inDivision, toAwardEntries } from "./entries.ts";
 import { fieldPhoto, highlightVod } from "../games/media.ts";
-import { indexGames } from "../games/query.ts";
+import { filterGames, indexGames } from "../games/query.ts";
 import type { Game, GameRecord, Vod } from "../games/types.ts";
 
 const vod = (id: string, date: string, title: string): Vod => ({
@@ -161,6 +161,24 @@ describe("divisionEntries", () => {
     const out = divisionEntries(entries, "2026");
     expect(out.map((e) => e.id)).toEqual(["b", "e", "a"]);
     expect(out.map((e) => e.no)).toEqual(["005", "004", "003"]);
+  });
+});
+
+describe("inDivision", () => {
+  it("alltime은 언제나 참, 2026은 첫 플레이 연도가 2026일 때만", () => {
+    for (const d of [null, "2025-12-31", "2026-01-01", "2027-01-01"]) expect(inDivision(d, "alltime")).toBe(true);
+    expect(inDivision(null, "2026")).toBe(false);
+    expect(inDivision("2025-12-31", "2026")).toBe(false);
+    expect(inDivision("2026-01-01", "2026")).toBe(true);
+    expect(inDivision("2026-12-31", "2026")).toBe(true);
+    expect(inDivision("2027-01-01", "2026")).toBe(false);
+  });
+
+  it("divisionEntries(2026)는 /games 연도 필터(filterGames year=AWARDS_YEAR)와 같은 집합·순서다", () => {
+    const entries = toAwardEntries([g("n", null), g("p", "2025-12-31"), g("q", "2026-01-01"), g("r", "2027-03-03"), g("s", "2026-12-31")]);
+    const viaFilter = filterGames(entries, { q: "", status: "all", year: AWARDS_YEAR }).map((e) => e.id);
+    expect(divisionEntries(entries, "2026").map((e) => e.id)).toEqual(viaFilter);
+    expect(viaFilter.sort()).toEqual(["q", "s"]);
   });
 });
 

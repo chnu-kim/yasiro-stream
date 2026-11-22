@@ -214,13 +214,13 @@ describe("0011_drop_legacy_tables", () => {
     applyMigrations(d, ["0001_sessions.sql", "0002_guestbook.sql"]);
     d.sqlite.exec("INSERT INTO guestbook (id, message, channel_id, channel_name) VALUES ('g1', '안녕', 'c', '표시이름')");
     d.sqlite.exec("INSERT INTO sessions (id, channel_id, channel_name, access_token, refresh_token, expires_at) VALUES ('old', 'c', 'n', 'at', 'rt', 1)");
-    expect(tables(d)).toEqual(["auth_sessions", "game_changes", "game_vods", "games", "guestbook", "sessions"]);
+    expect(tables(d)).toEqual(["auth_sessions", "award_limits", "award_runs", "award_tally", "game_changes", "game_vods", "games", "guestbook", "sessions"]);
 
     applyMigrations(d, ["0011_drop_legacy_tables.sql"]);
-    expect(tables(d)).toEqual(["auth_sessions", "game_changes", "game_vods", "games"]);
+    expect(tables(d)).toEqual(["auth_sessions", "award_limits", "award_runs", "award_tally", "game_changes", "game_vods", "games"]);
     expect(hashes(d)).toHaveLength(2);
 
     applyMigrations(d, ["0011_drop_legacy_tables.sql"]);
-    expect(tables(d)).toEqual(["auth_sessions", "game_changes", "game_vods", "games"]);
+    expect(tables(d)).toEqual(["auth_sessions", "award_limits", "award_runs", "award_tally", "game_changes", "game_vods", "games"]);
   });
 });

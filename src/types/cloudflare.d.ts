@@ -31,4 +31,7 @@ interface CloudflareEnv {
   /** /games 관리자 채널 ID 허용 목록(쉼표 구분). Worker secret — 저장소(공개)에 값을 커밋하지 않는다.
    *  없으면 야시로 채널만 관리자. 로컬은 .dev.vars(1Password 마운트)에 사람이 추가한다 */
   ADMIN_CHANNEL_IDS?: string;
+  /** /awards 대진 서명·제출 제한 IP 해시용 비밀(32자 이상, openssl rand -hex 32). Worker secret — 값을 커밋하지 않는다.
+   *  없으면 draw·submit이 503. 로컬은 preview에 --var AWARDS_SECRET:<값> */
+  AWARDS_SECRET?: string;
 }
