@@ -1,3 +1,5 @@
+'use client';
+
 import { useState } from 'react';
 import PawMark from '@/components/PawMark';
 import { cardMedia } from '@/lib/awards/media';

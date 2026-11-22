@@ -2,7 +2,7 @@ import type { Ref } from 'react';
 import Button from '@/components/Button';
 import SectionLabel from '@/components/SectionLabel';
 import TapeStrip from '@/components/TapeStrip';
-import { DIVISION_LABEL } from '@/lib/awards/entries';
+import { DIVISION_LABEL, rankingsHref } from '@/lib/awards/entries';
 import { placementLabel, resultSummary } from '@/lib/awards/labels';
 import { placements, totalMatches } from '@/lib/awards/tournament';
 import type { AwardEntry, TournamentState } from '@/lib/awards/types';
@@ -11,7 +11,7 @@ import Poster from '../games/Poster';
 import RankThumb from './RankThumb';
 import styles from './awards.module.css';
 
-// 결과 화면: 우승 큰 카드 + 나머지 순위 기록지 행 + 집계 제출 상태 한 줄.
+// 결과 화면: 우승 큰 카드 + 나머지 순위 기록지 행 + 집계 제출 상태 한 줄. 제출이 끝나면 그 부문 순위 페이지로 가는 링크.
 export default function ResultScreen({
   run,
   byId,
@@ -79,6 +79,11 @@ export default function ResultScreen({
         <Button variant="primary" size="lg" onClick={onRestart}>
           다시 하기
         </Button>
+        {submit?.kind === 'done' && (
+          <Button href={rankingsHref(run.division)} variant="secondary" size="lg">
+            순위 보기
+          </Button>
+        )}
       </div>
     </div>
   );

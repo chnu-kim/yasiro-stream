@@ -31,5 +31,4 @@ export const awardsApi = {
   draw: (division: Division, size: number, thirdPlace: boolean) => call('POST', '/api/awards/draw', { division, size, thirdPlace }),
   submit: (division: Division, token: string, picks: readonly string[]) =>
     call('POST', `/api/awards/submit?division=${encodeURIComponent(division)}`, { token, picks }),
-  rankings: (division: Division) => call('GET', `/api/awards/rankings?division=${encodeURIComponent(division)}`),
 };

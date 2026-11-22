@@ -1,11 +1,10 @@
-// 화면 흐름(설정 → 대결 → 결과, 설정 → 순위)의 순수 리듀서. 컴포넌트는 이 함수만 부른다. DOM·Math.random 없음(rng 주입).
+// 화면 흐름(설정 → 대결 → 결과. 순위는 /awards/rankings 페이지)의 순수 리듀서. 컴포넌트는 이 함수만 부른다. DOM·Math.random 없음(rng 주입).
 import { drawBracket } from "./draw.ts";
 import { isComplete, pick, startTournament, undo } from "./tournament.ts";
 import type { Division, SizeChoice, TournamentState } from "./types.ts";
 
 export type Screen =
   | { kind: "setup" }
-  | { kind: "rankings" }
   | { kind: "play"; run: TournamentState; token: string }
   | { kind: "result"; run: TournamentState; token: string };
 
@@ -13,8 +12,7 @@ export type Action =
   | { type: "start"; run: TournamentState; token: string }
   | { type: "pick"; winnerId: string; expectedIndex: number }
   | { type: "undo" }
-  | { type: "restart" }
-  | { type: "showRankings" };
+  | { type: "restart" };
 
 export const INITIAL_SCREEN: Screen = { kind: "setup" };
 
@@ -32,8 +30,6 @@ export function reduce(screen: Screen, action: Action): Screen {
       return { kind: "play", run: action.run, token: action.token };
     case "restart":
       return screen.kind === "setup" ? screen : { kind: "setup" };
-    case "showRankings":
-      return screen.kind === "setup" ? { kind: "rankings" } : screen;
     case "pick": {
       if (screen.kind !== "play") return screen;
       const run = pick(screen.run, action.winnerId, action.expectedIndex);

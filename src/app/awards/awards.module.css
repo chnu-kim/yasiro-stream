@@ -512,17 +512,41 @@
 
 .rankDivision {
   margin: var(--space-6) 0 0;
-  padding: 0;
-  border: 0;
-  min-width: 0;
 }
 
-.rankFail {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  gap: var(--space-3);
-  margin-top: var(--space-5);
+.rankDivision ul {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+/* 부문 전환 링크. 설정 화면 라디오 글자(.choiceText)와 같은 글꼴·밑줄, 지금 부문은 놋쇠 밑줄 */
+.divisionLink {
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--tap);
+  color: var(--text);
+  font-family: var(--font-display);
+  font-weight: 400;
+  font-size: var(--fs-xl);
+  line-height: 1.2;
+  text-decoration: underline 2px transparent;
+  text-underline-offset: 6px;
+  transition: text-decoration-color var(--dur-fast);
+}
+
+.divisionLink:hover {
+  text-decoration-color: var(--text-dim);
+}
+
+.divisionLink[aria-current='page'] {
+  text-decoration-color: var(--brass);
+}
+
+.divisionLink:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+  border-radius: var(--radius-sm);
 }
 
 .rankSection {

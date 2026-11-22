@@ -2,12 +2,10 @@ import { describe, expect, it } from "vitest";
 import {
   canRetrySubmit,
   classifyDraw,
-  classifyRankings,
   classifySubmit,
   drawFailureMessage,
   emptyRankingText,
   rankingStatsText,
-  rankingsFailureMessage,
   RANKINGS_FAILURE_TEXT,
   runsSummaryText,
   submitStatusText,
@@ -108,37 +106,8 @@ describe("classifySubmit", () => {
   });
 });
 
-describe("classifyRankings", () => {
-  const row = { id: "a", appearances: 3, championships: 1, wins: 3, losses: 1 };
-  const ok = { division: "2026", runs: 4, minMatches: 10, byChampionships: [row], byWinRate: [] };
-  it("200 정상", () => {
-    expect(classifyRankings(200, ok)).toEqual({ ok: true, data: ok });
-  });
-  it("상태 코드별 실패", () => {
-    expect(classifyRankings(0, null)).toEqual({ ok: false, reason: "network" });
-    expect(classifyRankings(401, null)).toEqual({ ok: false, reason: "login" });
-    expect(classifyRankings(403, null)).toEqual({ ok: false, reason: "forbidden" });
-    expect(classifyRankings(500, ok)).toEqual({ ok: false, reason: "unknown" });
-  });
-  it("200이어도 모양이 틀리면 unknown", () => {
-    const bad = [
-      null,
-      [],
-      { ...ok, division: "x" },
-      { ...ok, division: 1 },
-      { ...ok, runs: -1 },
-      { ...ok, minMatches: "10" },
-      { ...ok, byChampionships: "a" },
-      { ...ok, byChampionships: [{ ...row, id: 1 }] },
-      { ...ok, byChampionships: [null] },
-      { ...ok, byWinRate: [{ ...row, wins: 1.5 }] },
-      { ...ok, byWinRate: "a" },
-    ];
-    for (const b of bad) expect(classifyRankings(200, b)).toEqual({ ok: false, reason: "unknown" });
-  });
+describe("순위 문구", () => {
   it("실패 문구", () => {
-    expect(rankingsFailureMessage("login")).toBe("로그인이 만료됐어요. 다시 로그인해 주세요.");
-    for (const r of ["network", "forbidden", "unknown"] as const) expect(rankingsFailureMessage(r)).toBe("순위를 불러오지 못했어요.");
     expect(RANKINGS_FAILURE_TEXT).toBe("순위를 불러오지 못했어요.");
   });
 });
