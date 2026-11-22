@@ -112,5 +112,5 @@ export function classifyFailure(status: number, body: unknown, form: GameForm | 
 }
 
 function emptyForm(): GameForm {
-  return { name: "", originalTitle: "", category: null, firstPlayed: "", undated: false, status: "unknown", vods: [] };
+  return { name: "", originalTitle: "", category: null, firstPlayed: "", undated: false, lastPlayed: "", status: "unknown", vods: [] };
 }

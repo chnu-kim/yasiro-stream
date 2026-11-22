@@ -127,3 +127,16 @@ describe("buildHomeData", () => {
     expect([data.featured?.id, ...data.rows.map((e) => e.id)]).toEqual(["c", "b"]);
   });
 });
+
+describe("buildHomeData: 관리자 보정 마지막 플레이는 싣지 않는다", () => {
+  it("입력에 lastPlayed가 있어도 결과 어디에도 키·값이 없다", () => {
+    const games: Game[] = [
+      { ...g("a", "2026-11-01", [own("a", "aaaaaaaaaaa", "2026-11-01")]), lastPlayed: "2026-12-19" },
+      { ...g("b", "2026-10-01", [own("b", "bbbbbbbbbbb", "2026-10-01")]), lastPlayed: "2026-12-19" },
+    ];
+    const text = JSON.stringify(buildHomeData(games, 4));
+    expect(text).toContain("aaaaaaaaaaa");
+    expect(text).not.toContain("lastPlayed");
+    expect(text).not.toContain("2026-12-19");
+  });
+});

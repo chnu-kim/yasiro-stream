@@ -3,6 +3,8 @@ import { thirdPlaceAvailable } from "./options.ts";
 import type { Placement, Progress, SizeOption } from "./types.ts";
 
 export const PAGE_TITLE = "2026 야시로 게임 어워즈";
+/** /awards/rankings 제목(새 문구, 사용자 확인 전) */
+export const RANKINGS_PAGE_TITLE = "게임 어워즈 집계 순위";
 
 /** "4강", "512강" */
 export function sizeLabel(option: SizeOption): string {

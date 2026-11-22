@@ -8,6 +8,7 @@ import {
   emptyRankingText,
   rankingStatsText,
   rankingsFailureMessage,
+  RANKINGS_FAILURE_TEXT,
   runsSummaryText,
   submitStatusText,
   winRateNote,
@@ -138,6 +139,7 @@ describe("classifyRankings", () => {
   it("실패 문구", () => {
     expect(rankingsFailureMessage("login")).toBe("로그인이 만료됐어요. 다시 로그인해 주세요.");
     for (const r of ["network", "forbidden", "unknown"] as const) expect(rankingsFailureMessage(r)).toBe("순위를 불러오지 못했어요.");
+    expect(RANKINGS_FAILURE_TEXT).toBe("순위를 불러오지 못했어요.");
   });
 });
 

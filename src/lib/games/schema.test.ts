@@ -657,3 +657,39 @@ describe("highlightStart (다시보기 하이라이트 시작, 초)", () => {
     expect(Object.keys(out[0].vods[1])).toEqual(["title", "url", "date"]);
   });
 });
+
+describe("lastPlayed (관리자 보정 마지막 플레이, 0014)", () => {
+  const at = (o: Record<string, unknown>) => ({ ...base(), ...o });
+  it("유효한 값은 그대로 남고, 키가 없으면 결과에도 키가 없다", () => {
+    const [g] = parseGames([at({ firstPlayed: "2025-01-01", lastPlayed: "2026-03-01" })]);
+    expect(g.lastPlayed).toBe("2026-03-01");
+    const [h] = parseGames([at({ firstPlayed: "2025-01-01" })]);
+    expect("lastPlayed" in h).toBe(false);
+  });
+  it("null·실재하지 않는 날짜·공백·숫자는 lastPlayed 이슈", () => {
+    for (const v of [null, "2026-02-30", " 2026-01-01", 20260101, ""]) {
+      const found = issues([at({ lastPlayed: v })]);
+      expect(found.map((i) => i.path), String(v)).toEqual(["[0].lastPlayed"]);
+      expect(found[0].message).toBe("YYYY-MM-DD 형식의 실제 날짜여야 합니다 (없으면 키를 생략)");
+    }
+  });
+  it("첫 플레이보다 이르면 거부, 같으면 통과", () => {
+    const found = issues([at({ firstPlayed: "2026-02-01", lastPlayed: "2026-01-31" })]);
+    expect(found).toEqual([{ path: "[0].lastPlayed", message: "첫 플레이 날짜(2026-02-01)보다 이릅니다" }]);
+    expect(parseGames([at({ firstPlayed: "2026-02-01", lastPlayed: "2026-02-01" })])[0].lastPlayed).toBe("2026-02-01");
+  });
+  it("첫 플레이가 없으면 어떤 유효 날짜든, 최신 다시보기보다 이른 값도 통과", () => {
+    expect(parseGames([at({ firstPlayed: null, lastPlayed: "1999-01-01" })])[0].lastPlayed).toBe("1999-01-01");
+    const g = at({ firstPlayed: "2025-01-01", lastPlayed: "2025-02-01", vods: [vod({ date: "2025-09-01" })] });
+    expect(parseGames([g])[0].lastPlayed).toBe("2025-02-01");
+  });
+  it("validateCandidate 경로는 lastPlayed", () => {
+    const c = at({ id: "c", firstPlayed: "2026-02-01", lastPlayed: "2026-01-01" });
+    expect(validateCandidate([], c).map((i) => i.path)).toEqual(["lastPlayed"]);
+  });
+  it("serializeGames: firstPlayed → lastPlayed → status 순서, 없으면 생략", () => {
+    const out = JSON.parse(serializeGames([G({ id: "a", firstPlayed: "2025-01-01", lastPlayed: "2026-01-01" }), G({ id: "b" })]));
+    expect(Object.keys(out[0])).toEqual(["id", "name", "firstPlayed", "lastPlayed", "status", "vods"]);
+    expect(Object.keys(out[1])).toEqual(["id", "name", "firstPlayed", "status", "vods"]);
+  });
+});

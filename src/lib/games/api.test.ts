@@ -212,6 +212,18 @@ describe("highlightStart 모양", () => {
   });
 });
 
+describe("lastPlayed 모양", () => {
+  const base = { name: "a", firstPlayed: null, status: "unknown", vods: [] };
+  it("parseGameInput은 문자열만, parseGamePatch는 문자열·null을 싣는다(형식은 repo가 본다)", () => {
+    expect(parseGameInput({ ...base, lastPlayed: "2026-01-01" })?.lastPlayed).toBe("2026-01-01");
+    expect(parseGameInput({ ...base, lastPlayed: null })).toBeNull();
+    expect(parseGameInput({ ...base, lastPlayed: 1 })).toBeNull();
+    expect(parseGamePatch({ lastPlayed: "x" })).toEqual({ lastPlayed: "x" });
+    expect(parseGamePatch({ lastPlayed: null })).toEqual({ lastPlayed: null });
+    expect(parseGamePatch({ lastPlayed: 1 })).toBeNull();
+  });
+});
+
 describe("parseGamePatch", () => {
   it("빈 patch를 허용한다", () => {
     expect(parseGamePatch({})).toEqual({});

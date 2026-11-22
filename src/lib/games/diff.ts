@@ -10,11 +10,12 @@ export const FIELD_LABEL: Readonly<Record<GameField, string>> = {
   originalTitle: "원제",
   category: "치지직 카테고리",
   firstPlayed: "첫 플레이",
+  lastPlayed: "마지막 플레이",
   status: "정복 여부",
   vods: "다시보기",
 };
 
-export const FIELD_ORDER: readonly GameField[] = ["name", "originalTitle", "category", "firstPlayed", "status", "vods"];
+export const FIELD_ORDER: readonly GameField[] = ["name", "originalTitle", "category", "firstPlayed", "lastPlayed", "status", "vods"];
 
 const SUMMARY_MAX = 300;
 
@@ -27,6 +28,7 @@ const DIFFERS: Readonly<Record<GameField, (a: Game, b: Game) => boolean>> = {
   originalTitle: (a, b) => a.originalTitle !== b.originalTitle,
   category: (a, b) => a.categoryId !== b.categoryId || a.posterUrl !== b.posterUrl,
   firstPlayed: (a, b) => a.firstPlayed !== b.firstPlayed,
+  lastPlayed: (a, b) => (a.lastPlayed ?? null) !== (b.lastPlayed ?? null),
   status: (a, b) => a.status !== b.status,
   vods: (a, b) => vodsKey(a) !== vodsKey(b),
 };
@@ -73,6 +75,8 @@ const PIECE: Readonly<Record<GameField, (a: Game, b: Game) => string>> = {
   originalTitle: (a, b) => `원제 ${a.originalTitle ?? "없음"} → ${b.originalTitle ?? "없음"}`,
   category: categoryPiece,
   firstPlayed: (a, b) => `첫 플레이 ${formatDate(a.firstPlayed)} → ${formatDate(b.firstPlayed)}`,
+  // 관리자 보정값이라 값을 적지 않는다(변경 기록은 관리자만 보지만 요약 문구는 스펙대로)
+  lastPlayed: () => "마지막 플레이 바뀜",
   status: (a, b) => `정복 여부 ${STATUS_FILTER_LABEL[a.status]} → ${STATUS_FILTER_LABEL[b.status]}`,
   vods: vodsPiece,
 };

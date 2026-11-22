@@ -12,7 +12,8 @@ function game(over: Partial<Game> = {}): Game {
 
 describe("FIELD_ORDER / FIELD_LABEL", () => {
   it("순서와 라벨", () => {
-    expect(FIELD_ORDER).toEqual(["name", "originalTitle", "category", "firstPlayed", "status", "vods"]);
+    expect(FIELD_ORDER).toEqual(["name", "originalTitle", "category", "firstPlayed", "lastPlayed", "status", "vods"]);
+    expect(FIELD_LABEL.lastPlayed).toBe("마지막 플레이");
     expect(FIELD_LABEL.status).toBe("정복 여부");
     expect(FIELD_LABEL.category).toBe("치지직 카테고리");
     expect(FIELD_LABEL.vods).toBe("다시보기");
@@ -141,5 +142,20 @@ describe("하이라이트 요약", () => {
   it("같은 날짜끼리 순서만 바뀌면 '다시보기 정보 수정'", () => {
     const A = { ...V1, date: "2026-10-02" };
     expect(changeSummary("update", game({ vods: [A, V2] }), game({ vods: [V2, A] }))).toBe("다시보기 정보 수정");
+  });
+});
+
+describe("마지막 플레이 요약", () => {
+  it("diffGames: 넣기·바꾸기·지우기는 lastPlayed, 같으면 없음", () => {
+    expect(diffGames(game(), game({ lastPlayed: "2026-11-01" }))).toEqual(["lastPlayed"]);
+    expect(diffGames(game({ lastPlayed: "2026-11-01" }), game({ lastPlayed: "2026-11-02" }))).toEqual(["lastPlayed"]);
+    expect(diffGames(game({ lastPlayed: "2026-11-01" }), game())).toEqual(["lastPlayed"]);
+    expect(diffGames(game({ lastPlayed: "2026-11-01" }), game({ lastPlayed: "2026-11-01" }))).toEqual([]);
+  });
+  it("changeSummary: 첫 플레이와 정복 여부 사이에 '마지막 플레이 바뀜'(값은 적지 않는다)", () => {
+    const s = changeSummary("update", game(), game({ status: "clear", lastPlayed: "2026-11-01" }));
+    expect(s).toBe("마지막 플레이 바뀜, 정복 여부 모름 → 정복");
+    expect(s).not.toContain("2026");
+    expect(changeSummary("update", game({ lastPlayed: "2026-11-01" }), game())).toBe("마지막 플레이 바뀜");
   });
 });

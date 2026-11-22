@@ -1,7 +1,8 @@
-// 서버: 보이는 게임 → 어워즈 후보(번호 붙은 최소 필드). 부문 후보 거르기는 클라이언트도 쓴다.
+// 서버: 보이는 게임 → 어워즈 후보(번호 붙은 최소 필드)와 부문 소속. 클라이언트는 서버가 계산한 소속(divisions)으로만 거른다.
 import { sizeOptions } from "./options.ts";
 import { highlightVod, namedYoutubeVod } from "../games/media.ts";
 import { copyVod } from "../games/rows.ts";
+import { playedInYear, type PlayedDates } from "../games/played.ts";
 import { indexGames } from "../games/query.ts";
 import type { Game } from "../games/types.ts";
 import type { AwardEntry, Division } from "./types.ts";
@@ -22,6 +23,8 @@ export function toAwardEntries(visible: readonly Game[]): AwardEntry[] {
       vods: [],
       ordinal: game.ordinal,
       no: game.no,
+      // vods를 자르기 전에 원본 게임(전체 다시보기·lastPlayed)으로 계산한다
+      divisions: gameDivisions(game),
     };
     if (game.originalTitle !== undefined) entry.originalTitle = game.originalTitle;
     if (game.posterUrl !== undefined) entry.posterUrl = game.posterUrl;
@@ -34,15 +37,31 @@ export function toAwardEntries(visible: readonly Game[]): AwardEntry[] {
   });
 }
 
-/** 부문 술어(서버 후보·순위와 클라이언트 후보 공용). alltime = 언제나, 2026 = 첫 플레이 연도가 AWARDS_YEAR
- *  (/games 연도 필터 filterGames year와 같은 기준, null이면 빠진다) */
-export function inDivision(firstPlayed: string | null, division: Division): boolean {
-  return division === "alltime" || firstPlayed?.slice(0, 4) === AWARDS_YEAR;
+/** 서버 전용 부문 술어. alltime = 언제나, 2026 = 그 해에 한 게임(played.ts playedInYear: 가장 이른 알려진 날짜 ~ lastPlayedOf 구간이
+ *  AWARDS_YEAR와 겹친다. 첫 플레이 2026 규칙의 상위 집합). 전체 다시보기·lastPlayed가 있는 게임(Game/GameRecord)에만 쓴다.
+ *  AwardEntry는 vods가 잘려 있어 구조적으로 대입되더라도 틀린 답이 나온다 → 클라이언트는 divisionEntries(e.divisions) */
+export function gameInDivision(game: PlayedDates, division: Division): boolean {
+  return division === "alltime" || playedInYear(game, AWARDS_YEAR);
 }
 
-/** 부문 후보(새 배열, 순서 유지) */
+/** 그 게임이 속한 부문(DIVISIONS 순서) */
+export function gameDivisions(game: PlayedDates): Division[] {
+  return DIVISIONS.filter((d) => gameInDivision(game, d));
+}
+
+/** 부문 후보(새 배열, 순서 유지). 서버가 계산한 entry.divisions만 본다 */
 export function divisionEntries(entries: readonly AwardEntry[], division: Division): AwardEntry[] {
-  return entries.filter((e) => inDivision(e.firstPlayed, division));
+  return entries.filter((e) => e.divisions.includes(division));
+}
+
+/** 순위 페이지 ?division= → 부문. DIVISIONS에 있으면 그 값, 아니면(없음·배열·잘못된 값) "2026" */
+export function parseDivisionQuery(raw: string | string[] | undefined): Division {
+  return DIVISIONS.find((d) => d === raw) ?? "2026";
+}
+
+/** 순위 페이지 링크 */
+export function rankingsHref(division: Division): string {
+  return `/awards/rankings?division=${encodeURIComponent(division)}`;
 }
 
 /** 부문을 시작할 수 있는가 = 보이는 강이 하나라도 있다(가장 작은 4강에 후보 3개 이상) */

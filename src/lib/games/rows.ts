@@ -1,9 +1,10 @@
 // D1 행 ↔ 도메인 레코드 변환. repo.ts(조회)와 seed.ts(export·시드)가 같이 쓴다. 로직은 매핑만.
 import type { Game, GameRecord, GameRow, GameSnapshot, Vod, VodRow } from "./types.ts";
 
-/** games SELECT 열. write_token·updated_by_channel_id는 넣지 않는다(응답으로 새지 않게) */
+/** games SELECT 열. write_token·updated_by_channel_id는 넣지 않는다(응답으로 새지 않게).
+ *  last_played는 0014(원격에 0014가 적용된 뒤에만 이 코드를 배포한다) */
 export const GAME_COLUMNS =
-  "id, name, original_title, category_id, poster_url, first_played, status, hidden, version, created_at, updated_at, updated_by_name";
+  "id, name, original_title, category_id, poster_url, first_played, status, hidden, version, created_at, updated_at, updated_by_name, last_played";
 
 /** game_vods SELECT 열. highlight_start는 0012(원격에 0012가 적용된 뒤에만 이 코드를 배포한다) */
 export const VOD_COLUMNS = "game_id, video_id, url, title, date, position, highlight_start";
@@ -67,6 +68,7 @@ export function rowToRecord(row: GameRow, vods: readonly VodRow[]): GameRecord {
   if (row.original_title !== null) record.originalTitle = row.original_title;
   if (row.category_id !== null) record.categoryId = row.category_id;
   if (row.poster_url !== null) record.posterUrl = row.poster_url;
+  if (row.last_played !== null) record.lastPlayed = row.last_played;
   return record;
 }
 
@@ -76,12 +78,21 @@ export function rowsToRecords(games: readonly GameRow[], vods: readonly VodRow[]
   return games.map((g) => rowToRecord(g, byGame.get(g.id) ?? []));
 }
 
-/** 방문자용: 관리 메타(hidden·version·수정자 등)를 뺀 Game 사본. JSON 키 순서가 필요하면 serializeGames를 쓴다 */
+/** 도메인 사본: 관리 메타(hidden·version·수정자 등)를 뺀 Game. 관리자 보정값 lastPlayed는 담는다(applyPatch·스냅샷·export용).
+ *  방문자 응답·props에는 toPublicGame을 쓴다. JSON 키 순서가 필요하면 serializeGames를 쓴다 */
 export function toGame(g: Game): Game {
   const out: Game = { id: g.id, name: g.name, firstPlayed: g.firstPlayed, status: g.status, vods: g.vods.map(copyVod) };
   if (g.originalTitle !== undefined) out.originalTitle = g.originalTitle;
   if (g.categoryId !== undefined) out.categoryId = g.categoryId;
   if (g.posterUrl !== undefined) out.posterUrl = g.posterUrl;
+  if (g.lastPlayed !== undefined) out.lastPlayed = g.lastPlayed;
+  return out;
+}
+
+/** 방문자용: toGame에서 관리자 보정값(lastPlayed)까지 뺀 사본. /games 비관리자 응답·props 전용(홈·/awards는 각자 필드를 골라 옮긴다) */
+export function toPublicGame(g: Game): Game {
+  const out = toGame(g);
+  delete out.lastPlayed;
   return out;
 }
 

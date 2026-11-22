@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { fitText, matchAnnouncement, placementLabel, progressLabel, resultSummary, sizeLabel, thirdPlaceNote } from "./labels.ts";
+import { fitText, PAGE_TITLE, RANKINGS_PAGE_TITLE, matchAnnouncement, placementLabel, progressLabel, resultSummary, sizeLabel, thirdPlaceNote } from "./labels.ts";
 import { sizeOptions } from "./options.ts";
 import type { Placement, Progress } from "./types.ts";
 
@@ -43,5 +43,12 @@ describe("placementLabel", () => {
   it("순위 이름", () => {
     const ranks: Placement["rank"][] = ["champion", "runnerUp", "third", "fourth", "jointThird"];
     expect(ranks.map(placementLabel)).toEqual(["우승", "준우승", "3위", "4위", "공동 3위"]);
+  });
+});
+
+describe("페이지 제목", () => {
+  it("어워즈·순위 페이지", () => {
+    expect(PAGE_TITLE).toBe("2026 야시로 게임 어워즈");
+    expect(RANKINGS_PAGE_TITLE).toBe("게임 어워즈 집계 순위");
   });
 });

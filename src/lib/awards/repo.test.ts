@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { createGamesTestDb, type TestD1 } from "../games/test-d1.ts";
 import type { GamesDb } from "../games/types.ts";
+import { listGames } from "../games/repo.ts";
 import { loadDivisionCandidates, loadRankingRows, readLimitCount, recordRun, tallyRows, type RecordRunInput } from "./repo.ts";
 import { DRAW_TTL_SECONDS } from "./token.ts";
 import type { Bracket } from "./types.ts";
@@ -136,32 +137,48 @@ describe("recordRun", () => {
 });
 
 describe("loadDivisionCandidates / loadRankingRows", () => {
-  const game = (id: string, firstPlayed: string | null, hidden = 0) =>
-    d1.sqlite.prepare("INSERT INTO games (id, name, first_played, hidden) VALUES (?, ?, ?, ?)").run(id, `게임${id}`, firstPlayed, hidden);
+  const game = (id: string, firstPlayed: string | null, hidden = 0, lastPlayed: string | null = null) =>
+    d1.sqlite.prepare("INSERT INTO games (id, name, first_played, hidden, last_played) VALUES (?, ?, ?, ?, ?)").run(id, `게임${id}`, firstPlayed, hidden, lastPlayed);
+  let vodN = 0;
+  const vodOf = (gameId: string, date: string) => {
+    const vid = `v${String(++vodN).padStart(10, "0")}`;
+    d1.sqlite
+      .prepare("INSERT INTO game_vods (game_id, video_id, url, title, date, position) VALUES (?, ?, ?, 't', ?, 0)")
+      .run(gameId, vid, `https://www.youtube.com/watch?v=${vid}`, date);
+  };
+  const visible = () => listGames(d1.db, { includeHidden: false });
 
-  it("후보: 숨기지 않은 게임, 2026은 첫 플레이 2026만", async () => {
+  it("후보: 숨기지 않은 게임, 2026은 2026년에 한 게임(첫 플레이·다시보기·보정값)", async () => {
     game("a", "2026-01-01");
     game("b", "2025-12-31");
     game("c", null);
     game("h", "2026-05-05", 1);
-    expect((await loadDivisionCandidates(d1.db, "alltime")).sort()).toEqual(["a", "b", "c"]);
-    expect(await loadDivisionCandidates(d1.db, "2026")).toEqual(["a"]);
+    game("lol", "2025-10-01");
+    vodOf("lol", "2026-02-01");
+    game("nd", null);
+    vodOf("nd", "2026-04-04");
+    game("fix", "2024-01-01", 0, "2026-01-01");
+    expect((await loadDivisionCandidates(d1.db, "alltime")).sort()).toEqual(["a", "b", "c", "fix", "lol", "nd"]);
+    expect((await loadDivisionCandidates(d1.db, "2026")).sort()).toEqual(["a", "fix", "lol", "nd"]);
   });
 
-  it("순위 행: games JOIN hidden=0, 부문 술어, runs는 그 부문 판 수", async () => {
+  it("순위 행: 보이는 게임 중 부문 술어, 숨김 제외, runs는 그 부문 판 수", async () => {
     game("a", "2026-01-01");
     game("b", "2025-12-31");
     game("h", "2026-05-05", 1);
     await recordRun(d1.db, input(1, { claims: { ...input(1).claims, bracket: { size: 4, slots: ["a", "b", "h", "zz"] } }, tally: { a: { wins: 2, losses: 0 } } }));
     await recordRun(d1.db, input(2, { claims: { ...input(2).claims, division: "2026", bracket: { size: 4, slots: ["a", "b", "h", null] } } }));
-    const alltime = await loadRankingRows(d1.db, "alltime");
+    const alltime = await loadRankingRows(d1.db, "alltime", await visible());
     expect(alltime.runs).toBe(1);
     expect(alltime.rows.sort((x, y) => (x.id < y.id ? -1 : 1))).toEqual([
       { id: "a", appearances: 1, championships: 1, wins: 2, losses: 0 },
       { id: "b", appearances: 1, championships: 0, wins: 0, losses: 0 },
     ]);
-    const y2026 = await loadRankingRows(d1.db, "2026");
+    const y2026 = await loadRankingRows(d1.db, "2026", await visible());
     expect(y2026).toEqual({ runs: 1, rows: [{ id: "a", appearances: 1, championships: 1, wins: 2, losses: 0 }] });
-    expect(await loadRankingRows(createGamesTestDb().db, "alltime")).toEqual({ runs: 0, rows: [] });
+    // 2025년에 처음 했어도 2026 다시보기가 생기면 2026 순위에 든다(쌓인 집계 행은 그대로)
+    vodOf("b", "2026-03-03");
+    expect((await loadRankingRows(d1.db, "2026", await visible())).rows.map((r) => r.id).sort()).toEqual(["a", "b"]);
+    expect(await loadRankingRows(createGamesTestDb().db, "alltime", [])).toEqual({ runs: 0, rows: [] });
   });
 });

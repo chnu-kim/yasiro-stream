@@ -17,6 +17,8 @@ import {
   parseDraft,
   serializeDraft,
   unlinkKeepsPoster,
+  autoLastPlayed,
+  lastPlayedHint,
   suggestFirstPlayed,
   validateForm,
 } from "./patch.ts";
@@ -49,7 +51,7 @@ function form(over: Partial<GameForm> = {}): GameForm {
 
 describe("gameToForm", () => {
   it("null은 빈 폼", () => {
-    expect(gameToForm(null)).toEqual({ name: "", originalTitle: "", category: null, firstPlayed: "", undated: false, status: "unknown", vods: [] });
+    expect(gameToForm(null)).toEqual({ name: "", originalTitle: "", category: null, firstPlayed: "", undated: false, lastPlayed: "", status: "unknown", vods: [] });
   });
   it("전체 필드", () => {
     expect(gameToForm(base)).toEqual({
@@ -58,6 +60,7 @@ describe("gameToForm", () => {
       category: { categoryId: "Stellar_Blade", posterUrl: POSTER },
       firstPlayed: "2026-10-10",
       undated: false,
+      lastPlayed: "",
       status: "unknown",
       vods: [F1, F2],
     });
@@ -429,5 +432,71 @@ describe("하이라이트 시작", () => {
     const broken = JSON.parse(serializeDraft(store));
     broken.form.vods[0].highlight = 5025;
     expect(parseDraft(JSON.stringify(broken))).toBeNull();
+  });
+});
+
+describe("마지막 플레이(보정값)", () => {
+  // base: firstPlayed 2026-10-10, 다시보기 2026-10-10·2026-10-15
+  it("gameToForm: 저장값을 열고, 없으면 \"\"", () => {
+    expect(gameToForm({ ...base, lastPlayed: "2026-11-01" }).lastPlayed).toBe("2026-11-01");
+    expect(gameToForm(base).lastPlayed).toBe("");
+  });
+  it("formToRaw: 비우면 키 없음, 값은 원문 그대로", () => {
+    expect("lastPlayed" in formToRaw("x", form())).toBe(false);
+    expect(formToRaw("x", form({ lastPlayed: "2026-11-01" })).lastPlayed).toBe("2026-11-01");
+    expect(formToRaw("x", form({ lastPlayed: "2026-1" })).lastPlayed).toBe("2026-1");
+    expect(formToInput(form({ lastPlayed: "2026-11-01" })).lastPlayed).toBe("2026-11-01");
+  });
+  it("formToPatch: 넣기·바꾸기는 값, 비우기는 null, 그대로면 키 없음", () => {
+    expect(formToPatch(base, form({ lastPlayed: "2026-11-01" }))).toEqual({ lastPlayed: "2026-11-01" });
+    const saved = { ...base, lastPlayed: "2026-11-01" };
+    expect(formToPatch(saved, { ...gameToForm(saved), lastPlayed: "" })).toEqual({ lastPlayed: null });
+    expect(formToPatch(saved, gameToForm(saved))).toEqual({});
+  });
+  it("changedFields(추가): 값이 있으면 lastPlayed", () => {
+    expect(changedFields(null, { ...gameToForm(null), lastPlayed: "2026-11-01" })).toEqual(["lastPlayed"]);
+    expect(changedLabels(["lastPlayed"])).toEqual(["마지막 플레이"]);
+  });
+  it("validateForm: 첫 플레이보다 이르면, 형식이 틀리면 마지막 플레이 이슈", () => {
+    const early = validateForm(form({ lastPlayed: "2026-10-01" }), [other], base.id);
+    expect(early).toEqual([{ field: "lastPlayed", label: "마지막 플레이", message: "첫 플레이(2026.10.10)보다 빨라요." }]);
+    const bad = validateForm(form({ lastPlayed: "2026-13-01" }), [other], base.id);
+    expect(bad).toEqual([{ field: "lastPlayed", label: "마지막 플레이", message: "날짜를 2026.10.25 형식으로 넣거나 비워 두세요." }]);
+    expect(validateForm(form({ lastPlayed: "2026-10-12" }), [other], base.id)).toEqual([]);
+  });
+  it("issuesToFormIssues: 첫 플레이 다음, 정복 여부 앞 순서", () => {
+    const issues = issuesToFormIssues(
+      [
+        { path: "status", message: "x" },
+        { path: "lastPlayed", message: "x" },
+        { path: "firstPlayed", message: "x" },
+      ],
+      form(),
+    );
+    expect(issues.map((i) => i.field)).toEqual(["firstPlayed", "lastPlayed", "status"]);
+  });
+  it("autoLastPlayed: 유효한 첫 플레이·다시보기 날짜의 최댓값(보정값은 보지 않는다)", () => {
+    expect(autoLastPlayed(form({ lastPlayed: "2027-01-01" }))).toBe("2026-10-15");
+    expect(autoLastPlayed(form({ vods: [] }))).toBe("2026-10-10");
+    expect(autoLastPlayed(form({ vods: [], undated: true }))).toBeNull();
+    expect(autoLastPlayed(form({ vods: [{ ...F2, date: "2026-1" }], firstPlayed: "2026-10" }))).toBeNull();
+    expect(autoLastPlayed(gameToForm(null))).toBeNull();
+  });
+  it("lastPlayedHint: 각 분기", () => {
+    expect(lastPlayedHint(gameToForm(null))).toBe("비워 두면 첫 플레이·다시보기 날짜로 정해요.");
+    expect(lastPlayedHint(form())).toBe("비워 두면 다시보기 기준 2026.10.15");
+    expect(lastPlayedHint(form({ vods: [] }))).toBe("비워 두면 첫 플레이 기준 2026.10.10");
+    expect(lastPlayedHint(form({ lastPlayed: "2026-10-12" }))).toBe("다시보기 기준 2026.10.15가 더 늦어 그 날을 써요.");
+    expect(lastPlayedHint(form({ lastPlayed: "2026-11-01" }))).toBe("자동 계산은 2026.10.15예요.");
+    expect(lastPlayedHint(form({ lastPlayed: "2026-1" }))).toBe("자동 계산은 2026.10.15예요.");
+  });
+  it("draft: 왕복하고, lastPlayed가 없는 옛 초안은 \"\", 문자열이 아니면 null", () => {
+    const store = { form: form({ lastPlayed: "2026-11-01" }), baseVersion: 3, savedAt: 1 };
+    expect(parseDraft(serializeDraft(store))).toEqual(store);
+    const old = JSON.parse(serializeDraft(store));
+    delete old.form.lastPlayed;
+    expect(parseDraft(JSON.stringify(old))?.form.lastPlayed).toBe("");
+    old.form.lastPlayed = 1;
+    expect(parseDraft(JSON.stringify(old))).toBeNull();
   });
 });

@@ -1,5 +1,6 @@
 // 수정 모드 폼 로직(클라이언트). 서버(repo.ts)와 같은 validateCandidate·diffGames를 쓴다. 순수 함수.
 import { diffGames, FIELD_LABEL, FIELD_ORDER } from "./diff.ts";
+import { lastPlayedOf } from "./played.ts";
 import { formatDate } from "./query.ts";
 import { CHZZK_VOD_MESSAGE, GAME_STATUSES, isChzzkPosterUrl, isChzzkUrl, isValidIsoDate, validateCandidate } from "./schema.ts";
 import { formatTimecode, parseTimecode } from "./timecode.ts";
@@ -23,7 +24,7 @@ const NEW_ID = "new-game";
 
 export function gameToForm(game: Game | null): GameForm {
   if (game === null) {
-    return { name: "", originalTitle: "", category: null, firstPlayed: "", undated: false, status: "unknown", vods: [] };
+    return { name: "", originalTitle: "", category: null, firstPlayed: "", undated: false, lastPlayed: "", status: "unknown", vods: [] };
   }
   // 포스터가 치지직 카테고리 포스터(pstatic.net)면 카테고리 쪽에, 아니면(Steam 캡슐) 카테고리 밖 포스터로 연다.
   // 카테고리 C + Steam 포스터를 C의 포스터로 열면, 포스터 없는 카테고리로 바꿀 때 Steam 포스터가 지워진다
@@ -34,6 +35,7 @@ export function gameToForm(game: Game | null): GameForm {
     category: game.categoryId === undefined ? null : { categoryId: game.categoryId, posterUrl: categoryPoster },
     firstPlayed: game.firstPlayed ?? "",
     undated: game.firstPlayed === null,
+    lastPlayed: game.lastPlayed ?? "",
     status: game.status,
     vods: game.vods.map((v) => ({
       title: v.title,
@@ -65,6 +67,8 @@ export function formToRaw(id: string, form: GameForm): Record<string, unknown> {
   const posterUrl = formPosterUrl(form);
   if (posterUrl !== null) raw.posterUrl = posterUrl;
   raw.firstPlayed = form.undated ? null : form.firstPlayed;
+  // 원문 그대로 넣어 형식이 틀리면 schema가 lastPlayed 이슈를 내게 한다. "" = 보정 없음(키 생략)
+  if (form.lastPlayed !== "") raw.lastPlayed = form.lastPlayed;
   raw.status = form.status;
   raw.vods = form.vods.map((v) => {
     const out: Record<string, unknown> = { title: v.title.trim(), url: v.url.trim(), date: v.date };
@@ -114,6 +118,9 @@ export function formToPatch(base: Game, form: GameForm): GamePatch {
       case "firstPlayed":
         patch.firstPlayed = raw.firstPlayed;
         break;
+      case "lastPlayed":
+        patch.lastPlayed = raw.lastPlayed ?? null;
+        break;
       case "status":
         patch.status = raw.status;
         break;
@@ -133,6 +140,7 @@ export function changedFields(base: Game | null, form: GameForm): GameField[] {
     originalTitle: form.originalTitle.trim() !== "",
     category: form.category !== null,
     firstPlayed: form.undated || form.firstPlayed !== "",
+    lastPlayed: form.lastPlayed !== "",
     status: form.status !== "unknown",
     vods: form.vods.length > 0,
   };
@@ -151,6 +159,29 @@ export function suggestFirstPlayed(form: GameForm): string | null {
     if (isValidIsoDate(v.date) && v.date < form.firstPlayed && (earliest === null || v.date < earliest)) earliest = v.date;
   }
   return earliest;
+}
+
+/** 보정값 없이 폼의 첫 플레이(날짜 기록 없음이 아니고 유효할 때) + 유효한 다시보기 날짜로 계산한 자동 마지막 플레이 */
+export function autoLastPlayed(form: GameForm): string | null {
+  return lastPlayedOf(autoDates(form));
+}
+
+function autoDates(form: GameForm): { firstPlayed: string | null; vods: { date: string }[] } {
+  return {
+    firstPlayed: !form.undated && isValidIsoDate(form.firstPlayed) ? form.firstPlayed : null,
+    vods: form.vods.filter((v) => isValidIsoDate(v.date)),
+  };
+}
+
+/** 마지막 플레이 칸 아래 힌트(aria-describedby). 입력이 바뀌면 바로 다시 계산된다.
+ *  input[type=date]는 placeholder를 무시하므로 자동값은 이 문구로만 보인다 */
+export function lastPlayedHint(form: GameForm): string {
+  const auto = autoLastPlayed(form);
+  if (auto === null) return "비워 두면 첫 플레이·다시보기 날짜로 정해요.";
+  const basis = autoDates(form).vods.some((v) => v.date === auto) ? "다시보기" : "첫 플레이";
+  if (form.lastPlayed === "") return `비워 두면 ${basis} 기준 ${formatDate(auto)}`;
+  if (isValidIsoDate(form.lastPlayed) && form.lastPlayed < auto) return `${basis} 기준 ${formatDate(auto)}가 더 늦어 그 날을 써요.`;
+  return `자동 계산은 ${formatDate(auto)}예요.`;
 }
 
 export function applyFix(form: GameForm, fix: FormFix): GameForm {
@@ -195,6 +226,12 @@ function toFormIssue(issue: ValidationIssue, form: GameForm): FormIssue {
       return { field: "category", label: "치지직 카테고리", message: "포스터 주소가 올바르지 않아요. 카테고리를 다시 골라 주세요." };
     case "firstPlayed":
       return { field: "firstPlayed", label: "첫 플레이", message: "날짜를 넣거나 '날짜 기록 없음'을 골라 주세요." };
+    case "lastPlayed":
+      return {
+        field: "lastPlayed",
+        label: "마지막 플레이",
+        message: message.includes("보다 이릅니다") ? `첫 플레이(${formatDate(form.firstPlayed)})보다 빨라요.` : "날짜를 2026.10.25 형식으로 넣거나 비워 두세요.",
+      };
     case "status":
       return { field: "status", label: "정복 여부", message: "정복 여부를 골라 주세요." };
     case "vods":
@@ -298,6 +335,7 @@ export function parseDraft(raw: string | null): GameDraftStore | null {
     !isStr(f.originalTitle) ||
     !isStr(f.firstPlayed) ||
     typeof f.undated !== "boolean" ||
+    !(f.lastPlayed === undefined || isStr(f.lastPlayed)) ||
     category === undefined ||
     !(f.posterUrl === undefined || isStr(f.posterUrl)) ||
     vods === null ||
@@ -315,6 +353,8 @@ export function parseDraft(raw: string | null): GameDraftStore | null {
       ...(isStr(f.posterUrl) ? { posterUrl: f.posterUrl } : {}),
       firstPlayed: f.firstPlayed,
       undated: f.undated,
+      // lastPlayed가 없는 옛 초안(0014 이전)은 ""(보정 없음)로 채운다
+      lastPlayed: isStr(f.lastPlayed) ? f.lastPlayed : "",
       status,
       vods,
     },

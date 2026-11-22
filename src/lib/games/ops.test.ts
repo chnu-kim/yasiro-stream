@@ -268,6 +268,28 @@ describe("runOps", () => {
   });
 });
 
+describe("runOps lastPlayed", () => {
+  it("update patch.lastPlayed: 넣기·지우기, 요약은 '마지막 플레이 바뀜'", async () => {
+    d1 = createGamesTestDb();
+    await seed({ name: "에이", firstPlayed: "2026-01-01", status: "clear", vods: [] });
+    const c = ctx();
+    const rec = recordingDb(d1.db);
+    expect(await runOps(rec.db, [{ op: "update", id: "에이", patch: { lastPlayed: "2026-05-01" } }], c)).toEqual({
+      ok: true,
+      lines: ["수정 에이 · 마지막 플레이 바뀜"],
+    });
+    expect(rec.writes().join("\n")).toContain("last_played = '2026-05-01'");
+    expect(await getGame(d1.db, "에이", { includeHidden: true })).toMatchObject({ lastPlayed: "2026-05-01", version: 2 });
+    const rec2 = recordingDb(d1.db);
+    expect(await runOps(rec2.db, [{ op: "update", id: "에이", patch: { lastPlayed: null } }], c)).toEqual({
+      ok: true,
+      lines: ["수정 에이 · 마지막 플레이 바뀜"],
+    });
+    expect(rec2.writes().join("\n")).toContain("last_played = NULL");
+    expect(await getGame(d1.db, "에이", { includeHidden: true })).not.toHaveProperty("lastPlayed");
+  });
+});
+
 describe("changeIdsOf", () => {
   it("기록된 쓰기에서 game_changes id를 뽑는다(원격 적용 확인용)", async () => {
     d1 = createGamesTestDb();

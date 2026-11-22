@@ -174,8 +174,11 @@ export function classifyRankings(status: number, body: unknown): RankingsOutcome
   return { ok: false, reason: "unknown" };
 }
 
+/** 순위를 읽지 못했을 때(/awards/rankings 서버 렌더에서 rankings null, 0013 미적용 등) */
+export const RANKINGS_FAILURE_TEXT = "순위를 불러오지 못했어요.";
+
 export function rankingsFailureMessage(reason: "network" | "login" | "forbidden" | "unknown"): string {
-  return reason === "login" ? "로그인이 만료됐어요. 다시 로그인해 주세요." : "순위를 불러오지 못했어요.";
+  return reason === "login" ? "로그인이 만료됐어요. 다시 로그인해 주세요." : RANKINGS_FAILURE_TEXT;
 }
 
 /** "75%"(반올림). 0판이면 "—" */

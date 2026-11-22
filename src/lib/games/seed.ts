@@ -31,14 +31,17 @@ const values = (vs: ReadonlyArray<string | number | null>) => vs.map(sqlValue).j
 function gameStatements(raw: Game): string[] {
   const g: Game = { ...raw, vods: sortVods(raw.vods) }; // 스냅샷·다시보기 모두 date 오름차순(안정)
   const importId = `import-${g.id}`;
+  // last_played(0014)는 값이 있을 때만 쓴다: 보정값 없는 입력의 출력이 0008과 바이트 단위로 같다
+  const lp = g.lastPlayed !== undefined;
   const out = [
-    `INSERT OR IGNORE INTO games (id, name, original_title, category_id, poster_url, first_played, status, hidden, version, updated_by_name) VALUES (${values([
+    `INSERT OR IGNORE INTO games (id, name, original_title, category_id, poster_url, first_played${lp ? ", last_played" : ""}, status, hidden, version, updated_by_name) VALUES (${values([
       g.id,
       g.name,
       g.originalTitle ?? null,
       g.categoryId ?? null,
       g.posterUrl ?? null,
       g.firstPlayed,
+      ...(lp ? [g.lastPlayed as string] : []),
       g.status,
       0,
       1,
@@ -82,7 +85,8 @@ export function buildSeedSql(input: unknown): string {
   return [HEADER, ...games.flatMap(gameStatements)].join("\n") + "\n";
 }
 
-/** D1 행을 games.json 형식 문자열로. hidden이 opts.hidden(기본 false)과 같은 게임만, 수정자·버전 등 관리 메타 없이 */
+/** D1 행을 games.json 형식 문자열로. hidden이 opts.hidden(기본 false)과 같은 게임만, 수정자·버전 등 관리 메타 없이.
+ *  관리자 보정 lastPlayed는 백업이라 담는다(toGame, 없으면 생략) */
 export function exportGames(games: readonly GameRow[], vods: readonly VodRow[], opts?: { hidden?: boolean }): string {
   const wanted = opts?.hidden ?? false;
   return serializeGames(

@@ -1,10 +1,11 @@
 // award_* 테이블(0013) 읽기·쓰기. 제출 하나는 db.batch 한 번(원자적)이다.
 // 익명: 제출자 channel_id·채널 이름·IP 원문은 받지도 쓰지도 않는다(제한 키는 HMAC 해시만).
-import { inDivision } from "./entries.ts";
+import { gameInDivision } from "./entries.ts";
 import { SUBMIT_LIMIT_PER_DAY } from "./limit.ts";
 import type { TallyRow } from "./rankings.ts";
 import type { DrawClaims } from "./token.ts";
-import type { GamesDb } from "../games/types.ts";
+import { listGames } from "../games/repo.ts";
+import type { Game, GamesDb } from "../games/types.ts";
 import type { Bracket, Division, GameRecordTally } from "./types.ts";
 
 export interface RecordRunInput {
@@ -107,28 +108,22 @@ export async function readLimitCount(db: GamesDb, day: number, keyHash: string, 
   return row?.count ?? 0;
 }
 
-/** 부문 후보 id(숨기지 않은 게임 + inDivision). 순서는 drawBracket이 정렬하므로 상관없다 */
+/** 부문 후보 id(숨기지 않은 게임 + gameInDivision). 다시보기 날짜가 필요해 listGames(게임 + 다시보기)를 읽고 같은 순수 함수로 거른다.
+ *  순서는 drawBracket이 정렬하므로 상관없다 */
 export async function loadDivisionCandidates(db: GamesDb, division: Division): Promise<string[]> {
-  const { results } = await db.prepare("SELECT id, first_played FROM games WHERE hidden = 0").all<{ id: string; first_played: string | null }>();
-  return results.filter((r) => inDivision(r.first_played, division)).map((r) => r.id);
+  return (await listGames(db, { includeHidden: false })).filter((g) => gameInDivision(g, division)).map((g) => g.id);
 }
 
-/** 순위 행: games JOIN hidden = 0, 그리고 지금 inDivision인 게임만. runs는 그 부문 제출 판 수 */
-export async function loadRankingRows(db: GamesDb, division: Division): Promise<{ runs: number; rows: TallyRow[] }> {
+/** 순위 행: visible(listGames includeHidden:false, 숨긴 게임은 여기 없어 빠진다) 중 지금 gameInDivision인 게임만.
+ *  runs는 그 부문 제출 판 수 */
+export async function loadRankingRows(db: GamesDb, division: Division, visible: readonly Game[]): Promise<{ runs: number; rows: TallyRow[] }> {
   const [runs, rows] = await db.batch([
     db.prepare("SELECT count(*) AS runs FROM award_runs WHERE division = ?").bind(division),
-    db
-      .prepare(
-        `SELECT t.game_id AS id, t.appearances, t.championships, t.wins, t.losses, g.first_played
-FROM award_tally t JOIN games g ON g.id = t.game_id
-WHERE t.division = ? AND g.hidden = 0`,
-      )
-      .bind(division),
+    db.prepare("SELECT game_id AS id, appearances, championships, wins, losses FROM award_tally WHERE division = ?").bind(division),
   ]);
+  const eligible = new Set(visible.filter((g) => gameInDivision(g, division)).map((g) => g.id));
   return {
     runs: (runs.results[0] as { runs: number }).runs,
-    rows: (rows.results as (TallyRow & { first_played: string | null })[])
-      .filter((r) => inDivision(r.first_played, division))
-      .map(({ id, appearances, championships, wins, losses }) => ({ id, appearances, championships, wins, losses })),
+    rows: (rows.results as TallyRow[]).filter((r) => eligible.has(r.id)),
   };
 }

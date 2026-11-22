@@ -6,7 +6,7 @@ import { applyMigrations, createGamesTestDb, createTestD1, FAKE_ADMIN_ID, findSt
 const insertGame = "INSERT INTO games (id, name) VALUES (?, ?)";
 
 describe("test-d1", () => {
-  it("applies 0007 + 0009 + 0012 + 0013 and exposes the games, session and award tables (no legacy tables)", () => {
+  it("applies 0007 + 0009 + 0012 + 0013 + 0014 and exposes the games, session and award tables (no legacy tables)", () => {
     const d = createGamesTestDb();
     const names = d.sqlite.prepare("SELECT name FROM sqlite_master WHERE type='table' ORDER BY name").all().map((r) => r.name);
     expect(names).toEqual(expect.arrayContaining(["game_changes", "game_vods", "games", "auth_sessions", "award_runs", "award_tally", "award_limits"]));
@@ -27,6 +27,17 @@ describe("test-d1", () => {
     for (const [i, h] of [86400, -1, 1.5, "x"].entries()) await expect(ins(`no${String(i).padStart(9, "0")}`, h), String(h)).rejects.toThrow(/CHECK/);
     const stored = d.sqlite.prepare("SELECT highlight_start h, typeof(highlight_start) t FROM game_vods ORDER BY video_id").all();
     expect(stored).toEqual([{ h: null, t: "null" }, { h: 0, t: "integer" }, { h: 86399, t: "integer" }]);
+  });
+  it("기본 스키마에 0014 games.last_played가 있고 CHECK가 YYYY-MM-DD 문자열 또는 NULL만 받는다", async () => {
+    const d = createGamesTestDb();
+    const cols = d.sqlite.prepare("PRAGMA table_info(games)").all().map((r) => r.name);
+    expect(cols).toContain("last_played");
+    const ins = (id: string, v: unknown) => d.db.prepare("INSERT INTO games (id, name, last_played) VALUES (?, '가', ?)").bind(id, v).run();
+    await ins("a", null);
+    await ins("b", "2026-01-01");
+    for (const [i, v] of ["2026-1-01", 20260101, "x", "2026-01-01 "].entries()) await expect(ins(`no${i}`, v), String(v)).rejects.toThrow(/CHECK/);
+    const stored = d.sqlite.prepare("SELECT id, last_played v FROM games ORDER BY id").all();
+    expect(stored).toEqual([{ id: "a", v: null }, { id: "b", v: "2026-01-01" }]);
   });
   it("first/all/run behave like D1 and return plain objects", async () => {
     const d = createGamesTestDb();

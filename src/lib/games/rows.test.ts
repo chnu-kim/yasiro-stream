@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { copyVod, rowsToRecords, rowToRecord, sortByDate, sortVods, toGame, toSnapshot, VOD_COLUMNS } from "./rows.ts";
+import { copyVod, rowsToRecords, rowToRecord, sortByDate, sortVods, toGame, toPublicGame, toSnapshot, GAME_COLUMNS, VOD_COLUMNS } from "./rows.ts";
 import type { GameRow, VodRow } from "./types.ts";
 
 const row = (over: Partial<GameRow> = {}): GameRow => ({
@@ -9,6 +9,7 @@ const row = (over: Partial<GameRow> = {}): GameRow => ({
   category_id: null,
   poster_url: null,
   first_played: null,
+  last_played: null,
   status: "unknown",
   hidden: 0,
   version: 1,
@@ -136,5 +137,24 @@ describe("하이라이트(highlight_start)", () => {
     const rec = rowToRecord(row(), [{ ...vod("a", 1, "2026-01-01", 0), highlight_start: 90 }]);
     expect(toGame(rec).vods[0].highlightStart).toBe(90);
     expect(JSON.parse(JSON.stringify(toSnapshot(rec, false))).vods[0].highlightStart).toBe(90);
+  });
+});
+
+describe("마지막 플레이 보정값(last_played, 0014)", () => {
+  it("GAME_COLUMNS가 last_played를 SELECT한다", () => {
+    expect(GAME_COLUMNS.split(", ")).toContain("last_played");
+  });
+  it("rowToRecord: NULL이면 키가 없고, 값이 있으면 lastPlayed", () => {
+    expect("lastPlayed" in rowToRecord(row(), [])).toBe(false);
+    expect(rowToRecord(row({ first_played: "2025-01-01", last_played: "2026-02-02" }), []).lastPlayed).toBe("2026-02-02");
+  });
+  it("toGame·toSnapshot은 담고, toPublicGame은 빼며 원본을 바꾸지 않는다", () => {
+    const rec = rowToRecord(row({ last_played: "2026-02-02" }), []);
+    expect(toGame(rec).lastPlayed).toBe("2026-02-02");
+    expect(toSnapshot(rec, false).lastPlayed).toBe("2026-02-02");
+    const pub = toPublicGame(rec);
+    expect("lastPlayed" in pub).toBe(false);
+    expect(pub).toEqual({ id: "a", name: "가", firstPlayed: null, status: "unknown", vods: [] });
+    expect(rec.lastPlayed).toBe("2026-02-02");
   });
 });
