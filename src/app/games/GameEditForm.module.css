@@ -231,9 +231,19 @@
 }
 
 .factLabel {
-  width: 72px;
+  /* "마지막 플레이"가 한 줄에 들어가는 폭 */
+  width: 96px;
+  white-space: nowrap;
   padding: 0;
   font-size: var(--fs-sm);
+  color: var(--text-dim);
+}
+
+/* 칸 아래 안내(마지막 플레이 자동 계산값). 라벨 폭(96px) + 간격(12px)만큼 들여 입력칸과 줄을 맞춘다 */
+.factHint {
+  margin: -8px 0 0 108px;
+  font-size: 13px;
+  line-height: 1.5;
   color: var(--text-dim);
 }
 
@@ -813,6 +823,10 @@
     flex: 1 1 100%;
     height: 48px;
     font-size: 16px;
+  }
+
+  .factHint {
+    margin: -4px 0 0;
   }
 
   .factLabel {

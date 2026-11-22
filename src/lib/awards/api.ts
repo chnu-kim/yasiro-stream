@@ -4,19 +4,18 @@
 import { getSessionActor, parseAdminIds } from "../games/admin.ts";
 import { readJsonBody } from "../games/api.ts";
 import { listGames } from "../games/repo.ts";
-import { toGame } from "../games/rows.ts";
 import { checkSameOrigin } from "../http.ts";
-import { DIVISIONS } from "./entries.ts";
+import { DIVISIONS, toAwardEntries } from "./entries.ts";
 import { newRun } from "./flow.ts";
 import { deriveAwardKeys } from "./keys.ts";
 import { ipBucket, kstDay, limitKeyHash, secondsUntilNextKstDay, SUBMIT_LIMIT_PER_DAY } from "./limit.ts";
 import { SIZE_LADDER, sizeEnabled } from "./options.ts";
-import { rankTally } from "./rankings.ts";
+import { rankTally, type Rankings } from "./rankings.ts";
 import { loadDivisionCandidates, loadRankingRows, readLimitCount, recordRun } from "./repo.ts";
 import { DRAW_TTL_SECONDS, signDraw, verifyDraw, type DrawClaims } from "./token.ts";
 import { MAX_PICKS, verifyRun } from "./verify.ts";
-import type { Game, GamesDb, SessionState } from "../games/types.ts";
-import type { Division } from "./types.ts";
+import type { GameRecord, GamesDb, SessionState } from "../games/types.ts";
+import type { AwardEntry, Division } from "./types.ts";
 
 /** 공개 전환은 이 값 하나. 지금은 관리자만(페이지·draw·submit·rankings 모두 awardsGate를 거친다) */
 export const AWARDS_PUBLIC = false;
@@ -268,20 +267,52 @@ export function handleRankings(req: Request, deps: AwardsDeps): Promise<Response
     if (denied !== null) return denied;
     const division = parseDivision(new URL(req.url).searchParams.get("division"));
     if (division === null) return badRequest();
-    const { runs, rows } = await loadRankingRows(deps.db, division);
+    const visible = await listGames(deps.db, { includeHidden: false });
+    const { runs, rows } = await loadRankingRows(deps.db, division, visible);
     return respond(200, { division, ...rankTally(runs, rows) });
   });
 }
 
-/** /awards 서버 컴포넌트용. 순위는 읽지 않는다(0013이 없어도 페이지는 열린다) */
-export type AwardsPageResult = { kind: "ok"; games: Game[] } | { kind: "denied" } | { kind: "error" };
+/** /awards 서버 컴포넌트용. 순위는 읽지 않는다(0013이 없어도 페이지는 열린다).
+ *  부문 소속은 여기서 전체 게임(lastPlayed·전체 다시보기 포함)으로 계산해 entry.divisions에 넣고, 직렬화되는 것은 entries뿐이다 */
+export type AwardsPageResult = { kind: "ok"; entries: AwardEntry[] } | { kind: "denied" } | { kind: "error" };
 
 export async function loadAwardsPage(deps: AwardsDeps, cookieHeader: string | null): Promise<AwardsPageResult> {
   try {
     if (awardsAccess(await sessionOf(deps, cookieHeader)) !== "ok") return { kind: "denied" };
-    return { kind: "ok", games: (await listGames(deps.db, { includeHidden: false })).map(toGame) };
+    return { kind: "ok", entries: toAwardEntries(await listGames(deps.db, { includeHidden: false })) };
   } catch (error) {
     unexpected(deps, error);
     return { kind: "error" };
   }
+}
+
+/** /awards/rankings 서버 컴포넌트용. rankings null = 순위를 읽지 못함(0013 미적용 등, 페이지는 열고 실패 문구를 보인다).
+ *  entries = 순위(우승·승률 목록)에 든 게임만(번호는 전체 목록 기준) */
+export type AwardsRankingsPageResult =
+  | { kind: "ok"; division: Division; rankings: Rankings | null; entries: AwardEntry[] }
+  | { kind: "denied" }
+  | { kind: "error" };
+
+export async function loadAwardsRankingsPage(deps: AwardsDeps, cookieHeader: string | null, division: Division): Promise<AwardsRankingsPageResult> {
+  let visible: GameRecord[];
+  try {
+    if (awardsAccess(await sessionOf(deps, cookieHeader)) !== "ok") return { kind: "denied" };
+    visible = await listGames(deps.db, { includeHidden: false });
+  } catch (error) {
+    unexpected(deps, error);
+    return { kind: "error" };
+  }
+  let rankings: Rankings | null;
+  try {
+    const { runs, rows } = await loadRankingRows(deps.db, division, visible);
+    rankings = rankTally(runs, rows);
+  } catch (error) {
+    unexpected(deps, error);
+    rankings = null;
+  }
+  const ranked = new Set(rankings === null ? [] : [...rankings.byChampionships, ...rankings.byWinRate].map((r) => r.id));
+  // 번호(no)는 전체 목록 기준이라 거르기 전에 만든다
+  const entries = toAwardEntries(visible).filter((e) => ranked.has(e.id));
+  return { kind: "ok", division, rankings, entries };
 }

@@ -15,6 +15,7 @@ import {
   formToPatch,
   gameToForm,
   issuesHeadline,
+  lastPlayedHint,
   normalizeHighlight,
   validateForm,
 } from '@/lib/games/patch';
@@ -506,6 +507,37 @@ export default function GameEditForm({
               </label>
             </div>
             {errorText('firstPlayed')}
+            {/* 마지막 플레이 보정값(관리자 전용, 공개 화면에는 보이지 않는다). 비우면 첫 플레이·다시보기 날짜로 자동 계산 */}
+            <div className={styles.factRow}>
+              <label htmlFor={fieldDomId('lastPlayed')} className={styles.factLabel}>마지막 플레이</label>
+              <input
+                id={fieldDomId('lastPlayed')}
+                type="date"
+                className={styles.input}
+                value={form.lastPlayed}
+                min={!form.undated && isValidIsoDate(form.firstPlayed) ? form.firstPlayed : undefined}
+                aria-invalid={err('lastPlayed') ? true : undefined}
+                aria-describedby={describe('lastPlayed', `${uid}-last-hint`)}
+                onChange={(e) => patchForm({ lastPlayed: e.target.value })}
+              />
+              {form.lastPlayed !== '' && (
+                <button
+                  type="button"
+                  className={styles.unlink}
+                  onClick={() => {
+                    patchForm({ lastPlayed: '' });
+                    setNotice('마지막 플레이를 비웠어요. 자동 계산값을 써요.');
+                    requestFocus(fieldDomId('lastPlayed'));
+                  }}
+                >
+                  비우기
+                </button>
+              )}
+            </div>
+            <p id={`${uid}-last-hint`} className={styles.factHint}>
+              {lastPlayedHint(form)}
+            </p>
+            {errorText('lastPlayed')}
             <fieldset id={fieldDomId('status')} tabIndex={-1} className={styles.statusSet}>
               <legend className={styles.factLabel}>정복 여부</legend>
               <div className={styles.segment}>

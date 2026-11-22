@@ -9,14 +9,13 @@ import { focusHeadingAfter, INITIAL_SCREEN, inProgress, reduce } from '@/lib/awa
 import type { AwardEntry, Division, SizeChoice } from '@/lib/awards/types';
 import { awardsApi } from './awardsApi';
 import MatchScreen from './MatchScreen';
-import RankingsScreen from './RankingsScreen';
 import ResultScreen from './ResultScreen';
 import SetupScreen from './SetupScreen';
 import styles from './awards.module.css';
 
-// 화면 상태(setup | rankings | play | result)는 lib/awards/flow의 리듀서가 정한다. 설정 값은 화면과 따로 들고 있어
+// 화면 상태(setup | play | result)는 lib/awards/flow의 리듀서가 정한다. 설정 값은 화면과 따로 들고 있어
 // "다시 하기"로 돌아와도 이전 선택이 남는다. 대진은 서버가 뽑아 서명해 주고(/api/awards/draw),
-// 결과 화면에 들어가면 그 판을 자동으로 제출한다(/api/awards/submit).
+// 결과 화면에 들어가면 그 판을 자동으로 제출한다(/api/awards/submit). 집계 순위는 따로 된 페이지(/awards/rankings)다.
 export default function AwardsApp({ entries }: { entries: AwardEntry[] }) {
   const [screen, dispatch] = useReducer(reduce, INITIAL_SCREEN);
   const counts = useMemo(
@@ -105,16 +104,7 @@ export default function AwardsApp({ entries }: { entries: AwardEntry[] }) {
         drawing={draw.kind === 'loading'}
         drawError={draw.kind === 'failed' ? drawFailureMessage(draw.reason) : null}
         onStart={start}
-        onRankings={() => dispatch({ type: 'showRankings' })}
       />
-    );
-  }
-  if (screen.kind === 'rankings') {
-    return (
-      <>
-        <h1 className={styles.srOnly}>{PAGE_TITLE}</h1>
-        <RankingsScreen initialDivision={division} byId={byId} headingRef={headingRef} onBack={restart} />
-      </>
     );
   }
   if (screen.kind === 'play') {

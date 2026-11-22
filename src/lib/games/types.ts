@@ -41,6 +41,9 @@ export interface Game {
   posterUrl?: string;
   /** 첫 플레이 날짜 YYYY-MM-DD. null = 날짜 기록 없음 */
   firstPlayed: string | null;
+  /** 관리자 보정 마지막 플레이 YYYY-MM-DD(≥ firstPlayed, 0014). 없으면 키를 두지 않는다(null 금지).
+   *  실제 값은 played.ts lastPlayedOf. 방문자에게 보내지 않는다(rows.ts toPublicGame) */
+  lastPlayed?: string;
   status: GameStatus;
   /** 날짜 오름차순(serializeGames가 정렬). 빈 배열 가능 */
   vods: Vod[];
@@ -176,6 +179,8 @@ export interface GameRow {
   category_id: string | null;
   poster_url: string | null;
   first_played: string | null;
+  /** 관리자 보정 마지막 플레이(0014). NULL = 보정 없음 */
+  last_played: string | null;
   status: GameStatus;
   hidden: 0 | 1;
   version: number;
@@ -263,6 +268,7 @@ export interface GameInput {
   categoryId?: string;
   posterUrl?: string;
   firstPlayed: string | null;
+  lastPlayed?: string;
   status: GameStatus;
   vods: Vod[];
 }
@@ -283,13 +289,15 @@ export interface GamePatch {
    *  category와 함께 오면 category를 먼저 적용하고 그 위에 posterUrl을 덮어쓴다(posterUrl이 이긴다) */
   posterUrl?: string | null;
   firstPlayed?: string | null;
+  /** null = 보정 지우기(자동 계산으로) */
+  lastPlayed?: string | null;
   status?: GameStatus;
   /** 전체 교체. 순서는 서버가 날짜 오름차순으로 정렬 */
   vods?: Vod[];
 }
 
 /** diff·요약·"바뀐 항목" 라벨의 단위 */
-export type GameField = "name" | "originalTitle" | "category" | "firstPlayed" | "status" | "vods";
+export type GameField = "name" | "originalTitle" | "category" | "firstPlayed" | "lastPlayed" | "status" | "vods";
 
 // ---------- repo.ts 결과 ----------
 
@@ -334,6 +342,8 @@ export interface GameForm {
   firstPlayed: string;
   /** "날짜 기록 없음" 체크. true면 firstPlayed는 무시하고 null로 저장 */
   undated: boolean;
+  /** YYYY-MM-DD 또는 "" (= 보정 없음, 자동 계산) */
+  lastPlayed: string;
   status: GameStatus;
   vods: FormVod[];
 }
@@ -344,6 +354,7 @@ export type FormFieldKey =
   | "originalTitle"
   | "category"
   | "firstPlayed"
+  | "lastPlayed"
   | "status"
   | "vods"
   | `vods.${number}.title`

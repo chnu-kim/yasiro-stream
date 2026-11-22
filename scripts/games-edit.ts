@@ -67,7 +67,7 @@ if (rest[0] === "--find") {
   if (rest[1] === undefined || rest.length > 2) fail(USAGE);
   const like = sqlString(`%${rest[1]}%`);
   const rows = query<Record<string, unknown>>(
-    `SELECT id, name, original_title, category_id, status, first_played, hidden, version, (SELECT count(*) FROM game_vods v WHERE v.game_id = g.id) AS vods, (SELECT count(*) FROM game_vods v WHERE v.game_id = g.id AND v.highlight_start IS NOT NULL) AS highlights FROM games g WHERE name LIKE ${like} OR original_title LIKE ${like} OR id LIKE ${like} OR category_id LIKE ${like} ORDER BY first_played`,
+    `SELECT id, name, original_title, category_id, status, first_played, last_played, hidden, version, (SELECT count(*) FROM game_vods v WHERE v.game_id = g.id) AS vods, (SELECT count(*) FROM game_vods v WHERE v.game_id = g.id AND v.highlight_start IS NOT NULL) AS highlights FROM games g WHERE name LIKE ${like} OR original_title LIKE ${like} OR id LIKE ${like} OR category_id LIKE ${like} ORDER BY first_played`,
   );
   for (const r of rows) console.log(JSON.stringify(r));
   if (rows.length === 0) console.log("없음");

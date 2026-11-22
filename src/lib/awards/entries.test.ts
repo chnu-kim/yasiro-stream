@@ -1,7 +1,20 @@
 import { describe, expect, it } from "vitest";
-import { AWARDS_YEAR, DEFAULT_THIRD_PLACE, defaultDivision, divisionAvailable, divisionEntries, DIVISION_LABEL, DIVISIONS, inDivision, toAwardEntries } from "./entries.ts";
+import {
+  AWARDS_YEAR,
+  DEFAULT_THIRD_PLACE,
+  defaultDivision,
+  divisionAvailable,
+  divisionEntries,
+  DIVISION_LABEL,
+  DIVISIONS,
+  gameDivisions,
+  gameInDivision,
+  parseDivisionQuery,
+  rankingsHref,
+  toAwardEntries,
+} from "./entries.ts";
 import { fieldPhoto, highlightVod } from "../games/media.ts";
-import { filterGames, indexGames } from "../games/query.ts";
+import { indexGames } from "../games/query.ts";
 import type { Game, GameRecord, Vod } from "../games/types.ts";
 
 const vod = (id: string, date: string, title: string): Vod => ({
@@ -54,7 +67,7 @@ describe("toAwardEntries", () => {
     };
     const [e] = toAwardEntries([rec]);
     expect(Object.keys(e).sort()).toEqual(
-      ["firstPlayed", "id", "name", "no", "ordinal", "originalTitle", "posterUrl", "status", "vods"].sort(),
+      ["divisions", "firstPlayed", "id", "name", "no", "ordinal", "originalTitle", "posterUrl", "status", "vods"].sort(),
     );
     expect(e).toEqual({
       id: "a",
@@ -66,7 +79,23 @@ describe("toAwardEntries", () => {
       vods: [],
       ordinal: 1,
       no: "001",
+      divisions: ["alltime", "2026"],
     });
+  });
+
+  it("관리자 보정 lastPlayed는 entry에 없고, 소속 계산에만 쓴다", () => {
+    const [e] = toAwardEntries([g("a", "2024-01-01", { lastPlayed: "2026-12-19" })]);
+    expect("lastPlayed" in e).toBe(false);
+    expect(JSON.stringify(e)).not.toContain("2026-12-19");
+    expect(e.divisions).toEqual(["alltime", "2026"]);
+  });
+
+  it("소속은 잘리기 전 전체 다시보기로 계산한다(현장 사진 편이 2025여도 2026 다시보기가 있으면 2026)", () => {
+    const [e] = toAwardEntries([
+      g("a", "2025-10-01", { vods: [vod("AAAAAAAAAAA", "2025-10-01", "게임a 했어요"), vod("BBBBBBBBBBB", "2026-02-01", "종겜룰렛데이 했어요")] }),
+    ]);
+    expect(e.vods.map((v) => v.date)).toEqual(["2025-10-01"]);
+    expect(e.divisions).toEqual(["alltime", "2026"]);
   });
 
   it("originalTitle·posterUrl이 없으면 키도 없다", () => {
@@ -157,28 +186,58 @@ describe("divisionEntries", () => {
     expect(out).not.toBe(entries);
   });
 
-  it("2026: 2026-로 시작하는 날짜만, null 제외, 번호는 전체 기준", () => {
+  it("2026: 첫 플레이 2026(경계 포함)만, null·2025 제외, 번호는 전체 기준", () => {
     const out = divisionEntries(entries, "2026");
     expect(out.map((e) => e.id)).toEqual(["b", "e", "a"]);
     expect(out.map((e) => e.no)).toEqual(["005", "004", "003"]);
   });
+
+  it("entry의 firstPlayed가 아니라 divisions만 본다", () => {
+    const [a] = toAwardEntries([g("a", "2026-03-01")]);
+    expect(divisionEntries([{ ...a, divisions: ["alltime"] }], "2026")).toEqual([]);
+    expect(divisionEntries([{ ...a, firstPlayed: null, divisions: ["alltime", "2026"] }], "2026")).toHaveLength(1);
+  });
 });
 
-describe("inDivision", () => {
-  it("alltime은 언제나 참, 2026은 첫 플레이 연도가 2026일 때만", () => {
-    for (const d of [null, "2025-12-31", "2026-01-01", "2027-01-01"]) expect(inDivision(d, "alltime")).toBe(true);
-    expect(inDivision(null, "2026")).toBe(false);
-    expect(inDivision("2025-12-31", "2026")).toBe(false);
-    expect(inDivision("2026-01-01", "2026")).toBe(true);
-    expect(inDivision("2026-12-31", "2026")).toBe(true);
-    expect(inDivision("2027-01-01", "2026")).toBe(false);
+describe("gameInDivision / gameDivisions", () => {
+  it("alltime은 언제나 참(날짜가 없어도)", () => {
+    for (const d of [null, "2025-12-31", "2026-01-01", "2027-01-01"]) expect(gameInDivision(g("x", d), "alltime")).toBe(true);
   });
+  it("2026 = 2026년에 한 게임: 첫 플레이·다시보기·보정값 구간이 2026과 겹친다", () => {
+    const cases: [Game, boolean][] = [
+      [g("n", null), false],
+      [g("p", "2025-12-31"), false],
+      [g("q", "2026-01-01"), true],
+      [g("s", "2026-12-31"), true],
+      [g("r", "2027-01-01"), false],
+      // 2025년에 처음 했지만 2026에도 한 게임(스펠렁키 2·리그 오브 레전드 유형)
+      [g("lol", "2025-10-01", { vods: [vod("AAAAAAAAAAA", "2025-10-01", "t"), vod("BBBBBBBBBBB", "2026-02-01", "t")] }), true],
+      [g("old", "2025-10-01", { vods: [vod("CCCCCCCCCCC", "2025-12-31", "t")] }), false],
+      // 첫 플레이 기록이 없어도 2026 다시보기가 있으면 든다
+      [g("nodate", null, { vods: [vod("DDDDDDDDDDD", "2026-04-04", "t")] }), true],
+      [g("fix", "2024-01-01", { lastPlayed: "2026-01-01" }), true],
+    ];
+    for (const [game, want] of cases) {
+      expect(gameInDivision(game, "2026"), game.id).toBe(want);
+      expect(gameDivisions(game), game.id).toEqual(want ? ["alltime", "2026"] : ["alltime"]);
+    }
+  });
+  it("첫 플레이가 2026이면 언제나 2026 부문(옛 규칙의 상위 집합이라 쌓인 집계가 빠지지 않는다)", () => {
+    for (const d of ["2026-01-01", "2026-06-15", "2026-12-31"]) {
+      expect(gameInDivision(g("x", d, { vods: [vod("AAAAAAAAAAA", "2027-01-01", "t")] }), "2026")).toBe(true);
+    }
+  });
+});
 
-  it("divisionEntries(2026)는 /games 연도 필터(filterGames year=AWARDS_YEAR)와 같은 집합·순서다", () => {
-    const entries = toAwardEntries([g("n", null), g("p", "2025-12-31"), g("q", "2026-01-01"), g("r", "2027-03-03"), g("s", "2026-12-31")]);
-    const viaFilter = filterGames(entries, { q: "", status: "all", year: AWARDS_YEAR }).map((e) => e.id);
-    expect(divisionEntries(entries, "2026").map((e) => e.id)).toEqual(viaFilter);
-    expect(viaFilter.sort()).toEqual(["q", "s"]);
+describe("parseDivisionQuery / rankingsHref", () => {
+  it("알려진 부문만, 그 밖은 2026", () => {
+    expect(parseDivisionQuery("alltime")).toBe("alltime");
+    expect(parseDivisionQuery("2026")).toBe("2026");
+    for (const v of [undefined, "", "2025", "ALLTIME", ["alltime"], ["alltime", "2026"]]) expect(parseDivisionQuery(v), String(v)).toBe("2026");
+  });
+  it("순위 페이지 링크", () => {
+    expect(rankingsHref("alltime")).toBe("/awards/rankings?division=alltime");
+    expect(rankingsHref("2026")).toBe("/awards/rankings?division=2026");
   });
 });
 

@@ -177,7 +177,7 @@ describe("buildSeedSql", () => {
 
 describe("exportGames", () => {
   const base = (id: string, name: string, hidden: 0 | 1): GameRow => ({
-    id, name, original_title: null, category_id: null, poster_url: null, first_played: "2026-01-01",
+    id, name, original_title: null, category_id: null, poster_url: null, first_played: "2026-01-01", last_played: null,
     status: "unknown", hidden, version: 7, created_at: 1, updated_at: 2, updated_by_name: "관리자",
   });
   const vod = (game_id: string, video_id: string, date: string, position: number): VodRow => ({
@@ -237,5 +237,27 @@ describe("buildSeedSql: 하이라이트", () => {
     expect(exportGames(games, vods)).toBe(serializeGames(withHl));
     const snap = d.sqlite.prepare("SELECT after_json FROM game_changes WHERE game_id = 'alpha'").get() as { after_json: string };
     expect(JSON.parse(snap.after_json).vods.map((v: { highlightStart?: number }) => v.highlightStart ?? null)).toEqual([null, 5025, 0]);
+  });
+});
+
+describe("buildSeedSql·exportGames: 마지막 플레이 보정값", () => {
+  it("값이 없으면 last_played 열을 쓰지 않는다(0008과 같은 모양)", () => {
+    const sql = buildSeedSql(tricky);
+    expect(sql).not.toContain("last_played");
+    expect(sql).toContain("INSERT OR IGNORE INTO games (id, name, original_title, category_id, poster_url, first_played, status, hidden, version, updated_by_name) VALUES (");
+  });
+  it("값이 있는 게임 문장에만 열이 붙고, D1 왕복 export가 원본과 같다(백업에 담긴다)", () => {
+    const withLp: Game[] = structuredClone(tricky);
+    withLp[0].lastPlayed = "2026-11-01";
+    const lines = buildSeedSql(withLp).split("\n").filter((l) => l.startsWith("INSERT OR IGNORE INTO games "));
+    expect(lines.filter((l) => l.includes("last_played"))).toHaveLength(1);
+    const alpha = lines.find((l) => l.includes("'alpha'"));
+    expect(alpha).toContain("first_played, last_played, status");
+    expect(alpha).toContain("'2026-05-02', '2026-11-01', 'clear'");
+    const d = exec(buildSeedSql(withLp));
+    const { games, vods } = readRows(d);
+    const exported = exportGames(games, vods);
+    expect(exported).toBe(serializeGames(withLp));
+    expect((JSON.parse(exported) as Game[]).find((g) => g.id === "alpha")?.lastPlayed).toBe("2026-11-01");
   });
 });

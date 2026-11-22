@@ -1,7 +1,7 @@
 import type { Ref } from 'react';
 import Button from '@/components/Button';
 import SectionLabel from '@/components/SectionLabel';
-import { DIVISIONS, DIVISION_LABEL, divisionAvailable } from '@/lib/awards/entries';
+import { DIVISIONS, DIVISION_LABEL, divisionAvailable, rankingsHref } from '@/lib/awards/entries';
 import { DRAW_LOADING_TEXT } from '@/lib/awards/client';
 import { fitText, PAGE_TITLE, sizeLabel, thirdPlaceNote } from '@/lib/awards/labels';
 import { sizeOptions, thirdPlaceAvailable } from '@/lib/awards/options';
@@ -21,7 +21,6 @@ export default function SetupScreen({
   drawing,
   drawError,
   onStart,
-  onRankings,
 }: {
   division: Division;
   counts: Record<Division, number>;
@@ -36,7 +35,6 @@ export default function SetupScreen({
   /** 뽑기 실패 문구. 없으면 null */
   drawError: string | null;
   onStart: () => void;
-  onRankings: () => void;
 }) {
   const n = counts[division];
   const options = sizeOptions(n);
@@ -141,7 +139,7 @@ export default function SetupScreen({
           <Button type="submit" variant="primary" size="lg" disabled={!canStart}>
             {drawing ? DRAW_LOADING_TEXT : '시작하기'}
           </Button>
-          <Button type="button" variant="secondary" size="lg" onClick={onRankings}>
+          <Button href={rankingsHref(division)} variant="secondary" size="lg">
             순위 보기
           </Button>
         </div>

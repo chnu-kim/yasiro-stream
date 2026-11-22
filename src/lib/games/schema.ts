@@ -59,7 +59,7 @@ export function isChzzkUrl(raw: unknown): boolean {
   return u.hostname === "chzzk.naver.com" || u.hostname.endsWith(".chzzk.naver.com");
 }
 
-const GAME_KEYS = new Set(["id", "name", "originalTitle", "categoryId", "posterUrl", "firstPlayed", "status", "vods"]);
+const GAME_KEYS = new Set(["id", "name", "originalTitle", "categoryId", "posterUrl", "firstPlayed", "lastPlayed", "status", "vods"]);
 const VOD_KEYS = new Set(["title", "url", "date", "highlightStart"]);
 /** 정복 여부 값. 이 순서가 필터 탭 순서다 */
 export const GAME_STATUSES: readonly GameStatus[] = ["clear", "fail", "endless", "unknown"];
@@ -152,6 +152,15 @@ function validateGame(raw: unknown, i: number, issues: ValidationIssue[]): Game 
   const firstPlayed = raw.firstPlayed;
   if (firstPlayed !== null && !isValidIsoDate(firstPlayed)) add("firstPlayed", "YYYY-MM-DD 또는 null이어야 합니다");
 
+  // 관리자 보정 마지막 플레이(0014). 다시보기 날짜보다 이른 값은 허용한다(실제 값은 played.ts lastPlayedOf가 max로 정한다)
+  let lastPlayed: string | undefined;
+  if ("lastPlayed" in raw) {
+    const lp = raw.lastPlayed;
+    if (!isValidIsoDate(lp)) add("lastPlayed", "YYYY-MM-DD 형식의 실제 날짜여야 합니다 (없으면 키를 생략)");
+    else if (isValidIsoDate(firstPlayed) && lp < firstPlayed) add("lastPlayed", `첫 플레이 날짜(${firstPlayed})보다 이릅니다`);
+    else lastPlayed = lp;
+  }
+
   if (typeof raw.status !== "string" || !STATUSES.includes(raw.status)) add("status", `${GAME_STATUSES.join(" | ")} 중 하나여야 합니다`);
 
   const vods: Vod[] = [];
@@ -196,6 +205,7 @@ function validateGame(raw: unknown, i: number, issues: ValidationIssue[]): Game 
   if (originalTitle !== undefined) game.originalTitle = originalTitle;
   if (categoryId !== undefined) game.categoryId = categoryId;
   if (posterUrl !== undefined) game.posterUrl = posterUrl;
+  if (lastPlayed !== undefined) game.lastPlayed = lastPlayed;
   return game;
 }
 
@@ -281,6 +291,8 @@ export function serializeGames(games: readonly Game[]): string {
     if (g.categoryId !== undefined) o.categoryId = g.categoryId;
     if (g.posterUrl !== undefined) o.posterUrl = g.posterUrl;
     o.firstPlayed = g.firstPlayed;
+    // 없으면 키를 생략한다: 보정값이 없는 기록의 출력(시드·export 해시)이 바이트 단위로 같다
+    if (g.lastPlayed !== undefined) o.lastPlayed = g.lastPlayed;
     o.status = g.status;
     o.vods = [...g.vods]
       .sort((x, y) => (x.date < y.date ? -1 : x.date > y.date ? 1 : 0))

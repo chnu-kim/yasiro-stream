@@ -3,7 +3,9 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { YASIRO_CHANNEL_ID } from "../games/admin.ts";
 import { setHidden } from "../games/repo.ts";
 import { createGamesTestDb, FAKE_ADMIN_ID, FAKE_USER_ID, findStringAnywhere, insertSession, type TestD1 } from "../games/test-d1.ts";
-import { handleDraw, handleRankings, handleSubmit, loadAwardsPage, type AwardsDeps } from "./api.ts";
+import { handleDraw, handleRankings, handleSubmit, loadAwardsPage, loadAwardsRankingsPage, type AwardsDeps } from "./api.ts";
+import { DIVISIONS, divisionEntries } from "./entries.ts";
+import { loadDivisionCandidates } from "./repo.ts";
 import { classifySubmit } from "./client.ts";
 import { deriveAwardKeys } from "./keys.ts";
 import { kstDay, SUBMIT_LIMIT_PER_DAY } from "./limit.ts";
@@ -398,10 +400,10 @@ describe("권한·익명", () => {
     d1.sqlite.prepare("UPDATE games SET hidden = 1 WHERE id = 'o01'").run();
     const page = await loadAwardsPage(deps(), `__Host-session=${ADMIN}`);
     expect(page.kind).toBe("ok");
-    const games = page.kind === "ok" ? page.games : [];
-    expect(games).toHaveLength(19);
-    expect(games.map((g) => g.id)).not.toContain("o01");
-    expect(Object.keys(games[0])).not.toEqual(expect.arrayContaining(["hidden", "version", "updatedByName"]));
+    const entries = page.kind === "ok" ? page.entries : [];
+    expect(entries).toHaveLength(19);
+    expect(entries.map((g) => g.id)).not.toContain("o01");
+    for (const k of ["hidden", "version", "updatedByName", "categoryId", "lastPlayed"]) expect(Object.keys(entries[0])).not.toContain(k);
     expect(JSON.stringify(page)).not.toContain(FAKE_ADMIN_ID);
     expect(JSON.stringify(page)).not.toContain(REAL_NAME);
     for (const cookie of [null, `__Host-session=${USER}`, `__Host-session=${EXPIRED}`, `__Host-session=${"e".repeat(64)}`]) {
@@ -413,5 +415,106 @@ describe("권한·익명", () => {
     });
     expect(await loadAwardsPage(deps({ db: { prepare: broken, batch: broken } }), `__Host-session=${ADMIN}`)).toEqual({ kind: "error" });
     expect(logs).toEqual(["awards-api unavailable Error"]);
+  });
+});
+
+describe("2026 부문 = 2026년에 한 게임: 서버·클라이언트 일치, 순위 페이지", () => {
+  /** 다른 어디에도 없는 날짜(새면 바로 보인다) */
+  const UNIQUE = "2026-12-19";
+  let vodN = 0;
+  function fixtures() {
+    d1.sqlite.exec("DELETE FROM games");
+    const ins = d1.sqlite.prepare("INSERT INTO games (id, name, first_played, last_played, hidden) VALUES (?, ?, ?, ?, ?)");
+    const vod = (gameId: string, date: string) => {
+      const vid = `v${String(++vodN).padStart(10, "0")}`;
+      d1.sqlite
+        .prepare("INSERT INTO game_vods (game_id, video_id, url, title, date, position) VALUES (?, ?, ?, '방송', ?, 0)")
+        .run(gameId, vid, `https://www.youtube.com/watch?v=${vid}`, date);
+    };
+    ins.run("a", "에이", "2026-03-01", null, 0);
+    ins.run("b", "비", "2025-10-01", null, 0);
+    vod("b", "2026-02-01");
+    ins.run("c", "씨", "2025-05-01", null, 0);
+    vod("c", "2025-06-01");
+    ins.run("d", "디", null, null, 0);
+    vod("d", "2026-04-04");
+    ins.run("e", "이", null, null, 0);
+    ins.run("f", "에프", "2024-01-01", UNIQUE, 0);
+    ins.run("g", "지", "2026-05-05", null, 1);
+    ins.run("h", "에이치", "2025-12-31", null, 0);
+  }
+
+  /** 2026 4강을 뽑아 winner가 매 판 이기게 끝내고 제출한다(우승 목록에는 우승한 게임만 오른다) */
+  async function submitWon(winner: string) {
+    const r = await draw({ division: "2026", size: 4, thirdPlace: false });
+    let st = r.body.run as TournamentState;
+    for (let m = currentMatch(st); m !== null; m = currentMatch(st)) st = pick(st, m.b === winner ? m.b : m.a, st.picks.length);
+    expect((await submit("2026", { token: r.body.token, picks: st.picks })).status).toBe(200);
+  }
+
+  it("draw 후보 == 페이지 entries의 divisionEntries (부문마다), 2026은 [a, b, d, f]", async () => {
+    fixtures();
+    const page = await loadAwardsPage(deps(), `__Host-session=${ADMIN}`);
+    if (page.kind !== "ok") throw new Error("page");
+    for (const division of DIVISIONS) {
+      const server = (await loadDivisionCandidates(d1.db, division)).sort();
+      const client = divisionEntries(page.entries, division).map((e) => e.id).sort();
+      expect(client, division).toEqual(server);
+    }
+    expect(divisionEntries(page.entries, "2026").map((e) => e.id).sort()).toEqual(["a", "b", "d", "f"]);
+    expect(divisionEntries(page.entries, "alltime").map((e) => e.id).sort()).toEqual(["a", "b", "c", "d", "e", "f", "h"]);
+    const text = JSON.stringify(page);
+    expect(text).not.toContain("lastPlayed");
+    expect(text).not.toContain(UNIQUE);
+
+    // 같은 데이터로 2026 4강을 뽑으면 후보 4개가 모두 들어간다(클라이언트 개수와 같다)
+    const r = await draw({ division: "2026", size: 4, thirdPlace: false });
+    expect(r.status).toBe(200);
+    expect((r.body.run.bracket.slots as string[]).slice().sort()).toEqual(["a", "b", "d", "f"]);
+  });
+
+  it("loadAwardsRankingsPage: 관리자 ok·순위에 든 게임만, 그 밖 denied, 순위를 못 읽으면 rankings null, D1 오류 error", async () => {
+    fixtures();
+    // b: 2025년 첫 플레이 + 2026 다시보기
+    await submitWon("b");
+    const page = await loadAwardsRankingsPage(deps(), `__Host-session=${ADMIN}`, "2026");
+    if (page.kind !== "ok" || page.rankings === null) throw new Error("page");
+    expect(page.division).toBe("2026");
+    expect(page.rankings.runs).toBe(1);
+    const ranked = new Set([...page.rankings.byChampionships, ...page.rankings.byWinRate].map((r) => r.id));
+    expect(new Set(page.entries.map((e) => e.id))).toEqual(ranked);
+    expect([...ranked]).toEqual(["b"]);
+    // 번호는 전체 목록 기준(보이는 7개: a 007, h 006, b 005, …)
+    expect(page.entries.map((e) => [e.id, e.no])).toEqual([["b", "005"]]);
+    const text = JSON.stringify(page);
+    expect(text).not.toContain("lastPlayed");
+    expect(text).not.toContain(UNIQUE);
+    expect(text).not.toContain(FAKE_ADMIN_ID);
+
+    const empty = await loadAwardsRankingsPage(deps(), `__Host-session=${ADMIN}`, "alltime");
+    expect(empty).toMatchObject({ kind: "ok", division: "alltime", rankings: { runs: 0, byChampionships: [], byWinRate: [] }, entries: [] });
+
+    for (const cookie of [null, `__Host-session=${USER}`, `__Host-session=${EXPIRED}`]) {
+      expect(await loadAwardsRankingsPage(deps(), cookie, "2026")).toEqual({ kind: "denied" });
+    }
+
+    for (const t of AWARD_TABLES) d1.sqlite.exec(`DROP TABLE ${t}`);
+    logs = [];
+    const missing = await loadAwardsRankingsPage(deps(), `__Host-session=${ADMIN}`, "2026");
+    expect(missing).toEqual({ kind: "ok", division: "2026", rankings: null, entries: [] });
+    expect(logs).toEqual(["awards-api unavailable Error"]);
+
+    const broken = vi.fn(() => {
+      throw new Error("no such table");
+    });
+    expect(await loadAwardsRankingsPage(deps({ db: { prepare: broken, batch: broken } }), `__Host-session=${ADMIN}`, "2026")).toEqual({ kind: "error" });
+  });
+
+  it("GET /api/awards/rankings도 첫 플레이 없이 2026 다시보기만 있는 게임을 2026 순위에 넣는다", async () => {
+    fixtures();
+    await submitWon("d");
+    const r = await rankings("2026");
+    expect(r.status).toBe(200);
+    expect((r.body.byChampionships as { id: string }[]).map((x) => x.id)).toEqual(["d"]);
   });
 });

@@ -1,10 +1,10 @@
 // /api/awards 응답 해석과 화면 문구(클라이언트). 순수 함수만. fetch는 src/app/awards/awardsApi.ts가 맡는다.
 import { DIVISIONS } from "./entries.ts";
 import { SUBMIT_LIMIT_PER_DAY } from "./limit.ts";
-import { MIN_DECIDED_MATCHES, type Rankings, type TallyRow } from "./rankings.ts";
+import { MIN_DECIDED_MATCHES, type TallyRow } from "./rankings.ts";
 import { DRAW_TTL_SECONDS } from "./token.ts";
 import { isValidBracket } from "./verify.ts";
-import type { Division, TournamentState } from "./types.ts";
+import type { TournamentState } from "./types.ts";
 
 const isRecord = (v: unknown): v is Record<string, unknown> => typeof v === "object" && v !== null && !Array.isArray(v);
 
@@ -128,55 +128,8 @@ export function canRetrySubmit(s: SubmitStatus): boolean {
 
 // ---------- 순위 ----------
 
-export type RankingsData = Rankings & { division: Division };
-export type RankingsOutcome = { ok: true; data: RankingsData } | { ok: false; reason: "network" | "login" | "forbidden" | "unknown" };
-
-const isCount = (v: unknown): v is number => typeof v === "number" && Number.isSafeInteger(v) && v >= 0;
-
-function isTallyRow(v: unknown): v is TallyRow {
-  return (
-    isRecord(v) &&
-    typeof v.id === "string" &&
-    isCount(v.appearances) &&
-    isCount(v.championships) &&
-    isCount(v.wins) &&
-    isCount(v.losses)
-  );
-}
-
-export function classifyRankings(status: number, body: unknown): RankingsOutcome {
-  if (status === 0) return { ok: false, reason: "network" };
-  if (status === 401) return { ok: false, reason: "login" };
-  if (status === 403) return { ok: false, reason: "forbidden" };
-  if (
-    status === 200 &&
-    isRecord(body) &&
-    typeof body.division === "string" &&
-    (DIVISIONS as readonly string[]).includes(body.division) &&
-    isCount(body.runs) &&
-    isCount(body.minMatches) &&
-    Array.isArray(body.byChampionships) &&
-    body.byChampionships.every(isTallyRow) &&
-    Array.isArray(body.byWinRate) &&
-    body.byWinRate.every(isTallyRow)
-  ) {
-    return {
-      ok: true,
-      data: {
-        division: body.division as Division,
-        runs: body.runs,
-        minMatches: body.minMatches,
-        byChampionships: body.byChampionships,
-        byWinRate: body.byWinRate,
-      },
-    };
-  }
-  return { ok: false, reason: "unknown" };
-}
-
-export function rankingsFailureMessage(reason: "network" | "login" | "forbidden" | "unknown"): string {
-  return reason === "login" ? "로그인이 만료됐어요. 다시 로그인해 주세요." : "순위를 불러오지 못했어요.";
-}
+/** 순위를 읽지 못했을 때(/awards/rankings 서버 렌더에서 rankings null, 0013 미적용 등) */
+export const RANKINGS_FAILURE_TEXT = "순위를 불러오지 못했어요.";
 
 /** "75%"(반올림). 0판이면 "—" */
 export function winRateText(wins: number, losses: number): string {
@@ -192,8 +145,6 @@ export function rankingStatsText(row: TallyRow): string {
 export function runsSummaryText(runs: number): string {
   return `집계된 대진 ${runs}판`;
 }
-
-export const RANKINGS_LOADING_TEXT = "순위를 불러오는 중…";
 
 /** 목록이 비었을 때 문구. 대진이 하나도 없으면 둘 다 그 문구, 아니면 승률 목록만 대결 수 안내 */
 export function emptyRankingText(runs: number, list: "championships" | "winRate"): string {

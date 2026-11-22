@@ -8,7 +8,7 @@ export type Division = "alltime" | "2026";
 export type SizeChoice = number;
 
 /** 클라이언트로 보내는 게임 한 개. IndexedGame에 그대로 대입된다(Poster 재사용).
- *  categoryId·hidden·version·updatedByName·createdAt·updatedAt은 넣지 않는다 */
+ *  categoryId·hidden·version·updatedByName·createdAt·updatedAt·lastPlayed는 넣지 않는다 */
 export interface AwardEntry {
   id: string;
   name: string;
@@ -24,6 +24,9 @@ export interface AwardEntry {
   vods: Vod[];
   ordinal: number;
   no: string;
+  /** 이 게임이 속한 부문(서버가 전체 게임으로 계산, entries.ts gameDivisions). 클라이언트는 이것으로만 거른다.
+   *  관리자 보정 lastPlayed는 넣지 않는다(방문자에게 보내지 않는 값) */
+  divisions: Division[];
 }
 
 /** 설정 화면에 보이는 강 하나(sizeOptions). 고를 수 없는 강은 아예 넣지 않는다 */

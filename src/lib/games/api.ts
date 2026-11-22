@@ -5,7 +5,7 @@ import { checkSameOrigin } from "../http.ts";
 import { searchCategories, ChzzkCategoryError } from "../chzzk-category.ts";
 import { conflictMessage } from "./diff.ts";
 import { createGame, getGame, listChanges, listGames, setHidden, updateGame } from "./repo.ts";
-import { toGame } from "./rows.ts";
+import { toPublicGame } from "./rows.ts";
 import { CHZZK_VOD_MESSAGE, ID_PATTERN } from "./schema.ts";
 import { fetchYoutubeMeta, YoutubeMetaError } from "./youtube-meta.ts";
 import type {
@@ -98,12 +98,12 @@ function parseVods(v: unknown): Vod[] | null {
   return out;
 }
 
-const INPUT_KEYS = ["name", "originalTitle", "categoryId", "posterUrl", "firstPlayed", "status", "vods"];
+const INPUT_KEYS = ["name", "originalTitle", "categoryId", "posterUrl", "firstPlayed", "lastPlayed", "status", "vods"];
 
 /** 모양(키 집합·타입)만 본다. 값의 의미는 repo의 validateCandidate가 검사한다 */
 export function parseGameInput(body: unknown): GameInput | null {
   if (!isObj(body) || !onlyKeys(body, INPUT_KEYS)) return null;
-  const { name, originalTitle, categoryId, posterUrl, firstPlayed, status } = body;
+  const { name, originalTitle, categoryId, posterUrl, firstPlayed, lastPlayed, status } = body;
   if (typeof name !== "string" || typeof status !== "string") return null;
   if (firstPlayed !== null && typeof firstPlayed !== "string") return null;
   const vods = parseVods(body.vods);
@@ -113,6 +113,7 @@ export function parseGameInput(body: unknown): GameInput | null {
     ["originalTitle", originalTitle],
     ["categoryId", categoryId],
     ["posterUrl", posterUrl],
+    ["lastPlayed", lastPlayed],
   ] as const) {
     if (value === undefined) continue;
     if (typeof value !== "string") return null;
@@ -121,7 +122,7 @@ export function parseGameInput(body: unknown): GameInput | null {
   return out;
 }
 
-const PATCH_KEYS = ["name", "originalTitle", "category", "posterUrl", "firstPlayed", "status", "vods"];
+const PATCH_KEYS = ["name", "originalTitle", "category", "posterUrl", "firstPlayed", "lastPlayed", "status", "vods"];
 
 export function parseGamePatch(body: unknown): GamePatch | null {
   if (!isObj(body) || !onlyKeys(body, PATCH_KEYS)) return null;
@@ -152,6 +153,10 @@ export function parseGamePatch(body: unknown): GamePatch | null {
   if ("firstPlayed" in body) {
     if (body.firstPlayed !== null && typeof body.firstPlayed !== "string") return null;
     out.firstPlayed = body.firstPlayed;
+  }
+  if ("lastPlayed" in body) {
+    if (body.lastPlayed !== null && typeof body.lastPlayed !== "string") return null;
+    out.lastPlayed = body.lastPlayed;
   }
   if ("status" in body) {
     if (typeof body.status !== "string") return null;
@@ -288,7 +293,7 @@ export function handleListGames(req: Request, deps: ApiDeps): Promise<Response> 
       const includeHidden = new URL(req.url).searchParams.get("includeHidden") === "1";
       return respond(200, { games: await listGames(deps.db, { includeHidden }) });
     }
-    return respond(200, { games: (await listGames(deps.db, { includeHidden: false })).map(toGame) });
+    return respond(200, { games: (await listGames(deps.db, { includeHidden: false })).map(toPublicGame) });
   });
 }
 
@@ -298,7 +303,8 @@ export async function loadGamesPageData(deps: ApiDeps, cookieHeader: string | nu
     if (state.kind === "admin") {
       return { ok: true, admin: { name: state.actor.name }, games: await listGames(deps.db, { includeHidden: true }) };
     }
-    return { ok: true, admin: null, games: (await listGames(deps.db, { includeHidden: false })).map(toGame) };
+    // 방문자 props에는 관리자 보정값(lastPlayed)을 싣지 않는다(toPublicGame)
+    return { ok: true, admin: null, games: (await listGames(deps.db, { includeHidden: false })).map(toPublicGame) };
   } catch (error) {
     unexpected(deps, error);
     return { ok: false };

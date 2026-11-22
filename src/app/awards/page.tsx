@@ -2,7 +2,6 @@ import { headers } from 'next/headers';
 import { notFound } from 'next/navigation';
 import type { Metadata } from 'next';
 import { loadAwardsPage, type AwardsPageResult } from '@/lib/awards/api';
-import { toAwardEntries } from '@/lib/awards/entries';
 import { PAGE_TITLE } from '@/lib/awards/labels';
 import { getAwardsDeps } from '../api/awards/_deps';
 import AwardsApp from './AwardsApp';
@@ -26,7 +25,7 @@ export default async function AwardsPage() {
 
   return (
     <div className={styles.page}>
-      <AwardsApp entries={toAwardEntries(result.games)} />
+      <AwardsApp entries={result.entries} />
     </div>
   );
 }

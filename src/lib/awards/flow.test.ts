@@ -78,17 +78,6 @@ describe("token·rankings", () => {
     for (let i = 0; i < 4; i++) s = pickFirst(s);
     expect(s.kind === "result" && s.token).toBe("tok");
   });
-  it("showRankings: 설정에서만 순위로, restart로 돌아온다, 순위에서 pick·undo는 no-op", () => {
-    const rk = reduce(INITIAL_SCREEN, { type: "showRankings" });
-    expect(rk).toEqual({ kind: "rankings" });
-    expect(reduce(rk, { type: "showRankings" })).toBe(rk);
-    expect(reduce(rk, { type: "pick", winnerId: "a", expectedIndex: 0 })).toBe(rk);
-    expect(reduce(rk, { type: "undo" })).toBe(rk);
-    expect(reduce(rk, { type: "restart" })).toEqual({ kind: "setup" });
-    const play = reduce(INITIAL_SCREEN, { type: "start", run: run0(), token: "tok" });
-    expect(reduce(play, { type: "showRankings" })).toBe(play);
-    expect(focusHeadingAfter(INITIAL_SCREEN, rk)).toBe(true);
-  });
 });
 
 describe("inProgress", () => {

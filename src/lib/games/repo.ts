@@ -70,6 +70,8 @@ export function applyPatch(game: Game, patch: GamePatch): unknown {
   if (patch.posterUrl === null) delete out.posterUrl;
   else if (patch.posterUrl !== undefined) out.posterUrl = patch.posterUrl;
   if (patch.firstPlayed !== undefined) out.firstPlayed = patch.firstPlayed;
+  if (patch.lastPlayed === null) delete out.lastPlayed;
+  else if (patch.lastPlayed !== undefined) out.lastPlayed = patch.lastPlayed;
   if (patch.status !== undefined) out.status = patch.status;
   if (patch.vods !== undefined) out.vods = sortVods(patch.vods);
   return out;
@@ -178,6 +180,7 @@ function candidateOf(id: string, input: GameInput): Game {
   if (input.categoryId !== undefined) g.categoryId = input.categoryId;
   if (input.posterUrl !== undefined) g.posterUrl = input.posterUrl;
   g.firstPlayed = input.firstPlayed;
+  if (input.lastPlayed !== undefined) g.lastPlayed = input.lastPlayed;
   g.status = input.status;
   g.vods = sortVods(input.vods);
   return g as unknown as Game;
@@ -193,7 +196,7 @@ export async function createGame(db: GamesDb, input: GameInput, ctx: WriteContex
     const statements: GamesDbStatement[] = [
       db
         .prepare(
-          "INSERT INTO games (id, name, original_title, category_id, poster_url, first_played, status, hidden, version, created_at, updated_at, updated_by_channel_id, updated_by_name) VALUES (?, ?, ?, ?, ?, ?, ?, 0, 1, ?, ?, ?, ?)",
+          "INSERT INTO games (id, name, original_title, category_id, poster_url, first_played, last_played, status, hidden, version, created_at, updated_at, updated_by_channel_id, updated_by_name) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 0, 1, ?, ?, ?, ?)",
         )
         .bind(
           id,
@@ -202,6 +205,7 @@ export async function createGame(db: GamesDb, input: GameInput, ctx: WriteContex
           candidate.categoryId ?? null,
           candidate.posterUrl ?? null,
           candidate.firstPlayed,
+          candidate.lastPlayed ?? null,
           candidate.status,
           ctx.now,
           ctx.now,
@@ -248,7 +252,7 @@ export async function updateGame(
   const statements: GamesDbStatement[] = [
     db
       .prepare(
-        "UPDATE games SET name = ?, original_title = ?, category_id = ?, poster_url = ?, first_played = ?, status = ?, version = version + 1, write_token = ?, updated_at = ?, updated_by_channel_id = ?, updated_by_name = ? WHERE id = ? AND version = ?",
+        "UPDATE games SET name = ?, original_title = ?, category_id = ?, poster_url = ?, first_played = ?, last_played = ?, status = ?, version = version + 1, write_token = ?, updated_at = ?, updated_by_channel_id = ?, updated_by_name = ? WHERE id = ? AND version = ?",
       )
       .bind(
         candidate.name,
@@ -256,6 +260,7 @@ export async function updateGame(
         candidate.categoryId ?? null,
         candidate.posterUrl ?? null,
         candidate.firstPlayed,
+        candidate.lastPlayed ?? null,
         candidate.status,
         token,
         ctx.now,

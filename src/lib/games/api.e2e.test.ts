@@ -98,6 +98,50 @@ describe("하이라이트 시작 PATCH", () => {
   });
 });
 
+describe("마지막 플레이 보정값은 방문자에게 보내지 않는다", () => {
+  const ADMIN = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
+  const USER = "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc";
+  /** 다른 어디에도 없는 날짜(새면 바로 보인다) */
+  const UNIQUE = "2026-12-17";
+  it("관리자 PATCH로 넣고 지우며, 익명·일반 사용자 응답·props에는 키도 값도 없다", async () => {
+    const created = await read(await handleCreateGame(req("POST", "/api/games", ADMIN, { input: INPUT }), deps()));
+    const id: string = created.body.game.id;
+    const ok = await read(await handleUpdateGame(req("PATCH", `/api/games/${id}`, ADMIN, { expectedVersion: 1, patch: { lastPlayed: UNIQUE } }), deps(), id));
+    expect(ok.status).toBe(200);
+    expect(ok.body.game.lastPlayed).toBe(UNIQUE);
+    const changes = await read(await handleListChanges(req("GET", `/api/games/${id}/changes`, ADMIN), deps(), id));
+    expect(changes.body.changes[0].summary).toBe("마지막 플레이 바뀜");
+
+    for (const session of [null, USER]) {
+      const list = await read(await handleListGames(req("GET", "/api/games", session), deps()));
+      expect(list.body.games).toHaveLength(1);
+      const page = await loadGamesPageData(deps(), session === null ? null : `__Host-session=${session}`);
+      expect(page).toMatchObject({ ok: true, admin: null });
+      const text = JSON.stringify([list.body, page]);
+      expect(text, String(session)).not.toContain("lastPlayed");
+      expect(text, String(session)).not.toContain(UNIQUE);
+    }
+    const adminList = await read(await handleListGames(req("GET", "/api/games", ADMIN), deps()));
+    expect(adminList.body.games[0].lastPlayed).toBe(UNIQUE);
+    const adminPage = await loadGamesPageData(deps(), `__Host-session=${ADMIN}`);
+    expect(adminPage.ok && adminPage.games[0].lastPlayed).toBe(UNIQUE);
+
+    const cleared = await read(await handleUpdateGame(req("PATCH", `/api/games/${id}`, ADMIN, { expectedVersion: 2, patch: { lastPlayed: null } }), deps(), id));
+    expect(cleared.status).toBe(200);
+    expect(cleared.body.game).not.toHaveProperty("lastPlayed");
+    const early = await read(await handleUpdateGame(req("PATCH", `/api/games/${id}`, ADMIN, { expectedVersion: 3, patch: { lastPlayed: "2026-09-30" } }), deps(), id));
+    expect(early.status).toBe(422);
+    expect(early.body.issues).toEqual([{ path: "lastPlayed", message: expect.stringContaining("보다 이릅니다") }]);
+    const shape = await read(await handleUpdateGame(req("PATCH", `/api/games/${id}`, ADMIN, { expectedVersion: 3, patch: { lastPlayed: 20261101 } }), deps(), id));
+    expect(shape.status).toBe(400);
+  });
+  it("게임 추가 입력에도 lastPlayed를 받는다", async () => {
+    const created = await read(await handleCreateGame(req("POST", "/api/games", ADMIN, { input: { ...INPUT, lastPlayed: UNIQUE } }), deps()));
+    expect(created.status).toBe(201);
+    expect(created.body.game.lastPlayed).toBe(UNIQUE);
+  });
+});
+
 describe("API 전 과정과 익명 규칙", () => {
   it("관리자(실명 채널) 세션으로 추가 → 수정 → 충돌 → 숨김 → 기록 → 목록, 실명·ID가 어디에도 없다", async () => {
     const created = await read(await handleCreateGame(req("POST", "/api/games", "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", { input: INPUT }), deps()));
