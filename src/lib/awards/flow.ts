@@ -10,6 +10,8 @@ export type Screen =
 
 export type Action =
   | { type: "start"; run: TournamentState; token: string }
+  /** 새로고침 뒤 저장된 대진으로 이어 하기(lib/awards/resume restoreRun). 설정 화면에서만 받는다 */
+  | { type: "resume"; run: TournamentState; token: string }
   | { type: "pick"; winnerId: string; expectedIndex: number }
   | { type: "undo" }
   | { type: "restart" };
@@ -28,6 +30,9 @@ export function reduce(screen: Screen, action: Action): Screen {
   switch (action.type) {
     case "start":
       return { kind: "play", run: action.run, token: action.token };
+    case "resume":
+      if (screen.kind !== "setup") return screen;
+      return isComplete(action.run) ? { kind: "result", run: action.run, token: action.token } : { kind: "play", run: action.run, token: action.token };
     case "restart":
       return screen.kind === "setup" ? screen : { kind: "setup" };
     case "pick": {
@@ -42,11 +47,6 @@ export function reduce(screen: Screen, action: Action): Screen {
       return run === screen.run ? screen : { kind: "play", run, token: screen.token };
     }
   }
-}
-
-/** 이탈 경고(beforeunload)를 걸 때: 한 판 이상 골랐고 아직 끝나지 않음 */
-export function inProgress(screen: Screen): boolean {
-  return screen.kind === "play" && screen.run.picks.length >= 1;
 }
 
 /** 화면이 prev → next로 바뀐 뒤 그 화면 제목으로 포커스를 옮길지. 누른 요소가 사라지거나 비활성이 되는 경우다.

@@ -5,6 +5,7 @@ import {
   base64urlEncode,
   CLOCK_SKEW_SECONDS,
   DRAW_TTL_SECONDS,
+  peekDrawClaims,
   signDraw,
   TOKEN_MAX_CHARS,
   TOKEN_VERSION,
@@ -163,5 +164,24 @@ describe("signDraw / verifyDraw", () => {
   it("길이가 상한을 넘으면 signDraw가 RangeError", async () => {
     const slots = Array.from({ length: 1024 }, (_, i) => `${"g".repeat(400)}${i}`);
     await expect(signDraw(KEY, claims({ bracket: { size: 1024, slots } }))).rejects.toThrow(RangeError);
+  });
+});
+
+describe("peekDrawClaims", () => {
+  it("서명 없이 payload를 읽는다(서명이 틀려도)", async () => {
+    const token = await signDraw(KEY, claims());
+    expect(peekDrawClaims(token)).toEqual(claims());
+    const other = await signDraw(await keyOf("z".repeat(32)), claims());
+    expect(peekDrawClaims(other)).toEqual(claims());
+  });
+  it("형식·디코딩·JSON·모양이 틀리면 null", async () => {
+    expect(peekDrawClaims(1)).toBeNull();
+    expect(peekDrawClaims("x".repeat(TOKEN_MAX_CHARS + 1))).toBeNull();
+    expect(peekDrawClaims("v1.abc")).toBeNull();
+    expect(peekDrawClaims("v2.abc.def")).toBeNull();
+    expect(peekDrawClaims("v1.a+b.def")).toBeNull();
+    expect(peekDrawClaims("v1.A.def")).toBeNull();
+    expect(peekDrawClaims(`v1.${base64urlEncode(enc.encode("{"))}.x`)).toBeNull();
+    expect(peekDrawClaims(`v1.${b64json(payload({ v: 2 }))}.x`)).toBeNull();
   });
 });

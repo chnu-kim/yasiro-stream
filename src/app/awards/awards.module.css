@@ -229,6 +229,11 @@
   cursor: pointer;
   border-radius: var(--radius-md);
   -webkit-tap-highlight-color: transparent;
+  /* 꾹 누르기: 길게 누를 때 뜨는 텍스트 선택·말풍선 메뉴를 막는다 */
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-touch-callout: none;
+  touch-action: manipulation;
 }
 
 .pick:focus-visible {
@@ -244,6 +249,7 @@
 }
 
 .cardCover {
+  position: relative;
   display: block;
   transition:
     transform var(--dur-fast) ease,
@@ -253,6 +259,30 @@
 .pick:hover .cardCover {
   transform: translateY(-2px);
   filter: drop-shadow(0 8px 12px rgba(40, 25, 10, 0.18));
+}
+
+.pick[data-holding] .cardCover {
+  transform: scale(0.97);
+}
+
+/* 꾹 누르는 동안 그림 아래쪽에서 차오르는 막대. 떼면 빠르게 비운다 */
+.holdBar {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 8px;
+  background: var(--accent);
+  border-radius: 0 0 var(--radius-md) var(--radius-md);
+  transform: scaleX(0);
+  transform-origin: left center;
+  transition: transform var(--dur-fast) ease;
+  pointer-events: none;
+}
+
+.pick[data-holding] .holdBar {
+  transform: scaleX(1);
+  transition: transform var(--hold-ms) linear;
 }
 
 .play {

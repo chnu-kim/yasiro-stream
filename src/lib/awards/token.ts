@@ -84,6 +84,26 @@ function toClaims(value: unknown): DrawClaims | null {
   return { drawId: id, division: d as Division, bracket: { size: b.size, slots: [...b.slots] }, thirdPlace: t, issuedAt: iat as number, expiresAt: exp as number };
 }
 
+/** payload 조각 → claims. 디코딩·JSON·모양이 틀리면 null */
+function decodeClaims(payloadB64: string): DrawClaims | null {
+  const bytes = base64urlDecode(payloadB64);
+  if (bytes === null) return null;
+  try {
+    return toClaims(JSON.parse(new TextDecoder("utf-8", { fatal: true }).decode(bytes)));
+  } catch {
+    return null;
+  }
+}
+
+/** 서명을 확인하지 않고 payload만 읽는다(클라이언트가 저장해 둔 대진을 이어 할 때 만료·대진 대조용).
+ *  신뢰 판단에는 쓰지 않는다. 서버는 verifyDraw만 쓴다 */
+export function peekDrawClaims(token: unknown): DrawClaims | null {
+  if (typeof token !== "string" || token.length > TOKEN_MAX_CHARS) return null;
+  const parts = token.split(".");
+  if (parts.length !== 3 || parts[0] !== TOKEN_VERSION || !B64URL.test(parts[1])) return null;
+  return decodeClaims(parts[1]);
+}
+
 /** 검증 순서: 형식 → 서명(상수 시간) → payload 디코딩 → 모양 → 발급 시각(미래면 malformed) → 만료 */
 export async function verifyDraw(key: CryptoKey, token: unknown, now: number): Promise<TokenCheck> {
   const malformed: TokenCheck = { ok: false, reason: "malformed" };
@@ -94,14 +114,7 @@ export async function verifyDraw(key: CryptoKey, token: unknown, now: number): P
   const sig = sigB64.length === SIG_CHARS ? base64urlDecode(sigB64) : null;
   if (sig === null) return malformed;
   if (!(await crypto.subtle.verify("HMAC", key, sig, utf8(`${TOKEN_VERSION}.${payloadB64}`)))) return { ok: false, reason: "signature" };
-  const bytes = base64urlDecode(payloadB64);
-  if (bytes === null) return malformed;
-  let claims: DrawClaims | null;
-  try {
-    claims = toClaims(JSON.parse(new TextDecoder("utf-8", { fatal: true }).decode(bytes)));
-  } catch {
-    return malformed;
-  }
+  const claims = decodeClaims(payloadB64);
   if (claims === null || claims.issuedAt > now + CLOCK_SKEW_SECONDS) return malformed;
   if (now >= claims.expiresAt) return { ok: false, reason: "expired" };
   return { ok: true, claims };

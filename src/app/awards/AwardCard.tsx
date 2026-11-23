@@ -1,7 +1,8 @@
-import type { Ref } from 'react';
+import { useEffect, useRef, useState, type KeyboardEvent, type MouseEvent, type PointerEvent, type Ref } from 'react';
 import { Play } from 'lucide-react';
 import Poster from '../games/Poster';
 import { formatDate } from '@/lib/games/query';
+import { armed, HOLD_MS, isHoldKey } from '@/lib/awards/hold';
 import { cardMedia } from '@/lib/awards/media';
 import type { AwardEntry } from '@/lib/awards/types';
 import styles from './awards.module.css';
@@ -10,6 +11,9 @@ import styles from './awards.module.css';
 // 그림은 /games와 같은 Poster(포스터 → 현장 사진 → 표본 라벨, 정복 도장 없음). 그림 자리는 aria-hidden이다
 // (표본 라벨 문구가 버튼 이름에 섞이지 않게). 고르기 버튼 이름은 "{이름} 고르기".
 // 안쪽 래퍼를 판마다 key로 바꿔 진입 애니메이션을 주고, 버튼은 유지해 포커스가 같은 자리에 남는다.
+// 고르기는 꾹 누르기(HOLD_MS)다. 누르는 동안 그림 아래 막대가 차오르고 손을 떼거나 밖으로 벗어나면 취소된다. 새 판이 뜬 직후
+// ARM_MS 동안은 누르기를 받지 않는다(규칙은 lib/awards/hold). 키보드는 Enter·Space를 누르고 있는 동안이다. 보조기기의 활성화(포인터·키
+// 없이 오는 click, detail 0)는 바로 고른다.
 // 재생 버튼은 시작 시각이 적힌 다시보기(cardMedia의 clip)가 있을 때만 나온다. 영상은 MatchScreen의 HighlightPlayer가 연다.
 export default function AwardCard({
   entry,
@@ -27,12 +31,86 @@ export default function AwardCard({
   onPlay: () => void;
 }) {
   const media = cardMedia(entry);
+  const [holding, setHolding] = useState(false);
+  const timer = useRef<number | null>(null);
+  const shownAt = useRef(0);
+  // 키보드·포인터로 누른 뒤 오는 click은 무시한다(고르기는 타이머가 한다)
+  const pressed = useRef(false);
+  const pickRef = useRef(onPick);
+  useEffect(() => {
+    pickRef.current = onPick;
+  });
+
+  const cancel = () => {
+    if (timer.current !== null) window.clearTimeout(timer.current);
+    timer.current = null;
+    setHolding(false);
+  };
+  // 판이 바뀌면 시계를 다시 맞추고 누르던 것을 취소한다. 언마운트 때도 타이머를 지운다
+  useEffect(() => {
+    shownAt.current = performance.now();
+    pressed.current = false;
+    return () => {
+      if (timer.current !== null) window.clearTimeout(timer.current);
+      timer.current = null;
+      setHolding(false);
+    };
+  }, [matchKey]);
+
+  const start = () => {
+    pressed.current = true;
+    if (timer.current !== null || !armed(shownAt.current, performance.now())) return;
+    setHolding(true);
+    timer.current = window.setTimeout(() => {
+      timer.current = null;
+      setHolding(false);
+      pickRef.current();
+    }, HOLD_MS);
+  };
+
+  const onPointerDown = (e: PointerEvent<HTMLButtonElement>) => {
+    if (e.button !== 0) return;
+    start();
+  };
+  const onKeyDown = (e: KeyboardEvent<HTMLButtonElement>) => {
+    if (e.key !== 'Enter' && e.key !== ' ') return;
+    e.preventDefault(); // 기본 click(Enter는 keydown, Space는 keyup)을 막는다
+    if (isHoldKey(e.key, e.repeat)) start();
+  };
+  const onKeyUp = (e: KeyboardEvent<HTMLButtonElement>) => {
+    if (e.key !== 'Enter' && e.key !== ' ') return;
+    e.preventDefault();
+    cancel();
+  };
+  const onClick = (e: MouseEvent<HTMLButtonElement>) => {
+    if (pressed.current || e.detail !== 0) {
+      pressed.current = false;
+      return;
+    }
+    onPick();
+  };
+
   return (
     <div className={styles.card}>
-      <button type="button" className={styles.pick} onClick={onPick}>
+      <button
+        type="button"
+        className={styles.pick}
+        data-holding={holding || undefined}
+        style={{ ['--hold-ms' as string]: `${HOLD_MS}ms` }}
+        onPointerDown={onPointerDown}
+        onPointerUp={cancel}
+        onPointerLeave={cancel}
+        onPointerCancel={cancel}
+        onKeyDown={onKeyDown}
+        onKeyUp={onKeyUp}
+        onBlur={cancel}
+        onClick={onClick}
+        onContextMenu={(e) => e.preventDefault()}
+      >
         <span key={matchKey} className={styles.cardInner}>
           <span className={styles.cardCover} aria-hidden="true">
             <Poster game={entry} eager showNo={false} stamp={false} stampTopWhenEmpty nameWideOnly />
+            <span className={styles.holdBar} />
           </span>
           <span className={styles.cardName}>
             {entry.name}
