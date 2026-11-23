@@ -432,11 +432,12 @@ describe("2026 부문 = 2026년에 한 게임: 서버·클라이언트 일치, �
         .run(gameId, vid, `https://www.youtube.com/watch?v=${vid}`, date);
     };
     ins.run("a", "에이", "2026-03-01", null, 0);
-    ins.run("b", "비", "2025-10-01", null, 0);
+    ins.run("b", "비", "2025-10-01", "2026-02-01", 0);
     vod("b", "2026-02-01");
+    // c: 2026 다시보기가 있어도 마지막 플레이(저장값 없음 → 첫 플레이 2025)라 2026 부문이 아니다(다시보기 날짜는 보지 않는다)
     ins.run("c", "씨", "2025-05-01", null, 0);
-    vod("c", "2025-06-01");
-    ins.run("d", "디", null, null, 0);
+    vod("c", "2026-06-01");
+    ins.run("d", "디", null, "2026-04-04", 0);
     vod("d", "2026-04-04");
     ins.run("e", "이", null, null, 0);
     ins.run("f", "에프", "2024-01-01", UNIQUE, 0);
@@ -475,7 +476,7 @@ describe("2026 부문 = 2026년에 한 게임: 서버·클라이언트 일치, �
 
   it("loadAwardsRankingsPage: 관리자 ok·순위에 든 게임만, 그 밖 denied, 순위를 못 읽으면 rankings null, D1 오류 error", async () => {
     fixtures();
-    // b: 2025년 첫 플레이 + 2026 다시보기
+    // b: 2025년 첫 플레이 + 마지막 플레이 2026
     await submitWon("b");
     const page = await loadAwardsRankingsPage(deps(), `__Host-session=${ADMIN}`, "2026");
     if (page.kind !== "ok" || page.rankings === null) throw new Error("page");
@@ -510,7 +511,7 @@ describe("2026 부문 = 2026년에 한 게임: 서버·클라이언트 일치, �
     expect(await loadAwardsRankingsPage(deps({ db: { prepare: broken, batch: broken } }), `__Host-session=${ADMIN}`, "2026")).toEqual({ kind: "error" });
   });
 
-  it("GET /api/awards/rankings도 첫 플레이 없이 2026 다시보기만 있는 게임을 2026 순위에 넣는다", async () => {
+  it("GET /api/awards/rankings도 첫 플레이 없이 마지막 플레이만 2026인 게임을 2026 순위에 넣는다", async () => {
     fixtures();
     await submitWon("d");
     const r = await rankings("2026");

@@ -2,7 +2,7 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { createGamesTestDb, type TestD1 } from "../games/test-d1.ts";
 import type { GamesDb } from "../games/types.ts";
 import { listGames } from "../games/repo.ts";
-import { loadDivisionCandidates, loadRankingRows, readLimitCount, recordRun, tallyRows, type RecordRunInput } from "./repo.ts";
+import { loadDivisionCandidates, loadPlayedDates, loadRankingRows, readLimitCount, recordRun, tallyRows, type RecordRunInput } from "./repo.ts";
 import { DRAW_TTL_SECONDS } from "./token.ts";
 import type { Bracket } from "./types.ts";
 
@@ -148,18 +148,32 @@ describe("loadDivisionCandidates / loadRankingRows", () => {
   };
   const visible = () => listGames(d1.db, { includeHidden: false });
 
-  it("후보: 숨기지 않은 게임, 2026은 2026년에 한 게임(첫 플레이·다시보기·보정값)", async () => {
+  it("후보: 숨기지 않은 게임, 2026은 2026년에 한 게임(첫 플레이~마지막 플레이, 다시보기 날짜는 보지 않는다)", async () => {
     game("a", "2026-01-01");
     game("b", "2025-12-31");
     game("c", null);
     game("h", "2026-05-05", 1);
-    game("lol", "2025-10-01");
-    vodOf("lol", "2026-02-01");
-    game("nd", null);
-    vodOf("nd", "2026-04-04");
+    game("lol", "2025-10-01", 0, "2026-02-01");
+    game("nd", null, 0, "2026-04-04");
     game("fix", "2024-01-01", 0, "2026-01-01");
-    expect((await loadDivisionCandidates(d1.db, "alltime")).sort()).toEqual(["a", "b", "c", "fix", "lol", "nd"]);
+    // 2026 다시보기가 있어도 마지막 플레이(저장값 ?? 첫 플레이)가 2025면 빠진다
+    game("vod", "2025-10-01");
+    vodOf("vod", "2026-02-01");
+    expect((await loadDivisionCandidates(d1.db, "alltime")).sort()).toEqual(["a", "b", "c", "fix", "lol", "nd", "vod"]);
     expect((await loadDivisionCandidates(d1.db, "2026")).sort()).toEqual(["a", "fix", "lol", "nd"]);
+  });
+
+  it("loadPlayedDates: 보이는 게임의 id·첫 플레이·마지막 플레이만(없으면 키 없음)", async () => {
+    game("a", "2026-01-01", 0, "2026-03-03");
+    game("b", null);
+    game("h", "2026-05-05", 1);
+    vodOf("a", "2026-09-09");
+    const rows = (await loadPlayedDates(d1.db)).sort((x, y) => (x.id < y.id ? -1 : 1));
+    expect(rows).toEqual([
+      { id: "a", firstPlayed: "2026-01-01", lastPlayed: "2026-03-03" },
+      { id: "b", firstPlayed: null },
+    ]);
+    expect("lastPlayed" in rows[1]).toBe(false);
   });
 
   it("순위 행: 보이는 게임 중 부문 술어, 숨김 제외, runs는 그 부문 판 수", async () => {
@@ -176,9 +190,10 @@ describe("loadDivisionCandidates / loadRankingRows", () => {
     ]);
     const y2026 = await loadRankingRows(d1.db, "2026", await visible());
     expect(y2026).toEqual({ runs: 1, rows: [{ id: "a", appearances: 1, championships: 1, wins: 2, losses: 0 }] });
-    // 2025년에 처음 했어도 2026 다시보기가 생기면 2026 순위에 든다(쌓인 집계 행은 그대로)
-    vodOf("b", "2026-03-03");
+    // 2025년에 처음 했어도 마지막 플레이가 2026으로 바뀌면 2026 순위에 든다(쌓인 집계 행은 그대로)
+    d1.sqlite.prepare("UPDATE games SET last_played = '2026-03-03' WHERE id = 'b'").run();
     expect((await loadRankingRows(d1.db, "2026", await visible())).rows.map((r) => r.id).sort()).toEqual(["a", "b"]);
+    expect((await loadRankingRows(d1.db, "2026", await loadPlayedDates(d1.db))).rows.map((r) => r.id).sort()).toEqual(["a", "b"]);
     expect(await loadRankingRows(createGamesTestDb().db, "alltime", [])).toEqual({ runs: 0, rows: [] });
   });
 });

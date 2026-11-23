@@ -23,7 +23,7 @@ export function toAwardEntries(visible: readonly Game[]): AwardEntry[] {
       vods: [],
       ordinal: game.ordinal,
       no: game.no,
-      // vods를 자르기 전에 원본 게임(전체 다시보기·lastPlayed)으로 계산한다
+      // 원본 게임(첫 플레이·마지막 플레이 저장값)으로 계산한다. entry에는 lastPlayed를 싣지 않는다
       divisions: gameDivisions(game),
     };
     if (game.originalTitle !== undefined) entry.originalTitle = game.originalTitle;
@@ -37,9 +37,9 @@ export function toAwardEntries(visible: readonly Game[]): AwardEntry[] {
   });
 }
 
-/** 서버 전용 부문 술어. alltime = 언제나, 2026 = 그 해에 한 게임(played.ts playedInYear: 가장 이른 알려진 날짜 ~ lastPlayedOf 구간이
- *  AWARDS_YEAR와 겹친다. 첫 플레이 2026 규칙의 상위 집합). 전체 다시보기·lastPlayed가 있는 게임(Game/GameRecord)에만 쓴다.
- *  AwardEntry는 vods가 잘려 있어 구조적으로 대입되더라도 틀린 답이 나온다 → 클라이언트는 divisionEntries(e.divisions) */
+/** 서버 전용 부문 술어. alltime = 언제나, 2026 = 그 해에 한 게임(played.ts playedInYear: 첫 플레이 ~ 마지막 플레이(저장값) 구간이
+ *  AWARDS_YEAR와 겹친다. 첫 플레이 2026 규칙의 상위 집합). lastPlayed가 있는 게임(Game/GameRecord/PlayedGame)에만 쓴다.
+ *  AwardEntry는 lastPlayed가 없어 구조적으로 대입되더라도 틀린 답이 나온다 → 클라이언트는 divisionEntries(e.divisions) */
 export function gameInDivision(game: PlayedDates, division: Division): boolean {
   return division === "alltime" || playedInYear(game, AWARDS_YEAR);
 }

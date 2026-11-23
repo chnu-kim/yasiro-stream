@@ -3,6 +3,7 @@
 import { useEffect, useId, useRef, useState, type MutableRefObject } from 'react';
 import { Plus, Trash2 } from 'lucide-react';
 import { classifyFailure, errorMessage, fixLabel, issueLinkLabel, loginHref, type WriteFailure } from '@/lib/games/client';
+import { formatDate } from '@/lib/games/query';
 import { sortByDate } from '@/lib/games/rows';
 import {
   applyFix,
@@ -17,6 +18,7 @@ import {
   issuesHeadline,
   lastPlayedHint,
   normalizeHighlight,
+  raiseLastPlayed,
   validateForm,
 } from '@/lib/games/patch';
 import { CHZZK_VOD_MESSAGE, isChzzkUrl, isValidIsoDate, youtubeVideoId } from '@/lib/games/schema';
@@ -270,10 +272,16 @@ export default function GameEditForm({
   const commitVod = () => {
     if (add.kind !== 'ready' || !isValidIsoDate(add.date)) return;
     const vod = { title: add.meta.title, url: add.meta.url, date: add.date, highlight: '' };
-    patchForm({ vods: sortByDate([...form.vods, vod]) });
+    // 다시보기가 지금 마지막 플레이보다 늦으면 마지막 플레이도 그 날로 올린다(바뀐 항목에 보이고, 되돌릴 수 있다)
+    const next = raiseLastPlayed(form, sortByDate([...form.vods, vod]), vod.date);
+    setForm(next);
     setAdd({ kind: 'idle' });
     setAddUrl('');
-    setNotice(`다시보기를 넣었어요. 저장하면 반영돼요.`);
+    setNotice(
+      next.lastPlayed !== form.lastPlayed
+        ? `다시보기를 넣었어요. 마지막 플레이도 ${formatDate(next.lastPlayed)}에 맞췄어요. 저장하면 반영돼요.`
+        : `다시보기를 넣었어요. 저장하면 반영돼요.`,
+    );
     requestFocus(`${uid}-vod-url`);
   };
 
@@ -286,7 +294,7 @@ export default function GameEditForm({
   };
 
   const setVodDate = (i: number, date: string) =>
-    patchForm({ vods: form.vods.map((v, j) => (j === i ? { ...v, date } : v)) });
+    setForm((f) => raiseLastPlayed(f, f.vods.map((v, j) => (j === i ? { ...v, date } : v)), date));
 
   const setVodHighlight = (i: number, highlight: string) =>
     patchForm({ vods: form.vods.map((v, j) => (j === i ? { ...v, highlight } : v)) });
@@ -507,7 +515,7 @@ export default function GameEditForm({
               </label>
             </div>
             {errorText('firstPlayed')}
-            {/* 마지막 플레이 보정값(관리자 전용, 공개 화면에는 보이지 않는다). 비우면 첫 플레이·다시보기 날짜로 자동 계산 */}
+            {/* 마지막 플레이(정본, 관리자 전용, 공개 화면에는 보이지 않는다). 비우면 첫 플레이 날짜를 쓴다. 더 늦은 다시보기를 넣으면 raiseLastPlayed가 올린다 */}
             <div className={styles.factRow}>
               <label htmlFor={fieldDomId('lastPlayed')} className={styles.factLabel}>마지막 플레이</label>
               <input
@@ -526,7 +534,7 @@ export default function GameEditForm({
                   className={styles.unlink}
                   onClick={() => {
                     patchForm({ lastPlayed: '' });
-                    setNotice('마지막 플레이를 비웠어요. 자동 계산값을 써요.');
+                    setNotice('마지막 플레이를 비웠어요. 첫 플레이 날짜를 써요.');
                     requestFocus(fieldDomId('lastPlayed'));
                   }}
                 >

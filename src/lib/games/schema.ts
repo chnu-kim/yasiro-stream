@@ -152,7 +152,7 @@ function validateGame(raw: unknown, i: number, issues: ValidationIssue[]): Game 
   const firstPlayed = raw.firstPlayed;
   if (firstPlayed !== null && !isValidIsoDate(firstPlayed)) add("firstPlayed", "YYYY-MM-DD 또는 null이어야 합니다");
 
-  // 관리자 보정 마지막 플레이(0014). 다시보기 날짜보다 이른 값은 허용한다(실제 값은 played.ts lastPlayedOf가 max로 정한다)
+  // 마지막 플레이(0014, 정본). 첫 플레이보다 이르면 거부한다. 다시보기 날짜와의 관계는 검증하지 않는다(#60: 다시보기에 의존하지 않는다)
   let lastPlayed: string | undefined;
   if ("lastPlayed" in raw) {
     const lp = raw.lastPlayed;
@@ -291,7 +291,7 @@ export function serializeGames(games: readonly Game[]): string {
     if (g.categoryId !== undefined) o.categoryId = g.categoryId;
     if (g.posterUrl !== undefined) o.posterUrl = g.posterUrl;
     o.firstPlayed = g.firstPlayed;
-    // 없으면 키를 생략한다: 보정값이 없는 기록의 출력(시드·export 해시)이 바이트 단위로 같다
+    // 없으면 키를 생략한다: 마지막 플레이가 없는 기록의 출력(시드·export 해시)이 바이트 단위로 같다
     if (g.lastPlayed !== undefined) o.lastPlayed = g.lastPlayed;
     o.status = g.status;
     o.vods = [...g.vods]

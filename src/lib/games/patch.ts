@@ -1,6 +1,5 @@
 // 수정 모드 폼 로직(클라이언트). 서버(repo.ts)와 같은 validateCandidate·diffGames를 쓴다. 순수 함수.
 import { diffGames, FIELD_LABEL, FIELD_ORDER } from "./diff.ts";
-import { lastPlayedOf } from "./played.ts";
 import { formatDate } from "./query.ts";
 import { CHZZK_VOD_MESSAGE, GAME_STATUSES, isChzzkPosterUrl, isChzzkUrl, isValidIsoDate, validateCandidate } from "./schema.ts";
 import { formatTimecode, parseTimecode } from "./timecode.ts";
@@ -67,7 +66,7 @@ export function formToRaw(id: string, form: GameForm): Record<string, unknown> {
   const posterUrl = formPosterUrl(form);
   if (posterUrl !== null) raw.posterUrl = posterUrl;
   raw.firstPlayed = form.undated ? null : form.firstPlayed;
-  // 원문 그대로 넣어 형식이 틀리면 schema가 lastPlayed 이슈를 내게 한다. "" = 보정 없음(키 생략)
+  // 원문 그대로 넣어 형식이 틀리면 schema가 lastPlayed 이슈를 내게 한다. "" = 저장값 없음(키 생략, 첫 플레이로 대신한다)
   if (form.lastPlayed !== "") raw.lastPlayed = form.lastPlayed;
   raw.status = form.status;
   raw.vods = form.vods.map((v) => {
@@ -87,11 +86,13 @@ export function normalizeHighlight(raw: string): string {
   return sec === null ? raw : formatTimecode(sec);
 }
 
-/** 검증을 통과한 폼 → 게임 추가 입력 */
+/** 검증을 통과한 폼 → 게임 추가 입력. 마지막 플레이를 비워 두면 첫 플레이 날짜로 채운다(정본이 비지 않게, 서버 createGame과 같은 규칙).
+ *  formToRaw에는 넣지 않는다: formToPatch도 쓰므로 저장값 없는 게임을 고칠 때마다 '마지막 플레이'가 바뀐 것으로 보인다 */
 export function formToInput(form: GameForm): GameInput {
   const raw = formToRaw(NEW_ID, form);
   const { id: _id, ...input } = raw;
   void _id;
+  if (input.lastPlayed === undefined && typeof input.firstPlayed === "string") input.lastPlayed = input.firstPlayed;
   return input as unknown as GameInput;
 }
 
@@ -161,27 +162,30 @@ export function suggestFirstPlayed(form: GameForm): string | null {
   return earliest;
 }
 
-/** 보정값 없이 폼의 첫 플레이(날짜 기록 없음이 아니고 유효할 때) + 유효한 다시보기 날짜로 계산한 자동 마지막 플레이 */
-export function autoLastPlayed(form: GameForm): string | null {
-  return lastPlayedOf(autoDates(form));
+/** 폼의 지금 마지막 플레이: 유효한 입력값, 비었거나 틀리면 첫 플레이(날짜 기록 없음이 아니고 유효할 때), 둘 다 없으면 null */
+export function effectiveLastPlayed(form: GameForm): string | null {
+  if (isValidIsoDate(form.lastPlayed)) return form.lastPlayed;
+  return !form.undated && isValidIsoDate(form.firstPlayed) ? form.firstPlayed : null;
 }
 
-function autoDates(form: GameForm): { firstPlayed: string | null; vods: { date: string }[] } {
-  return {
-    firstPlayed: !form.undated && isValidIsoDate(form.firstPlayed) ? form.firstPlayed : null,
-    vods: form.vods.filter((v) => isValidIsoDate(v.date)),
-  };
+/** 다시보기를 vods로 바꾼 폼. 방금 추가하거나 날짜를 바꾼 다시보기의 날짜(changedDate)가 유효하고 지금 마지막 플레이
+ *  (effectiveLastPlayed)보다 늦으면(마지막 플레이가 없으면 언제나) lastPlayed를 그 날로 올린다. 다른 다시보기의 날짜는 보지 않아
+ *  사용자가 되돌린 값을 무관한 다시보기로 다시 올리지 않는다. 다시보기 추가·날짜 변경에만 쓴다(삭제·정렬·첫 플레이 변경에는 쓰지 않는다).
+ *  내리지는 않는다 */
+export function raiseLastPlayed(form: GameForm, vods: FormVod[], changedDate: string): GameForm {
+  const next: GameForm = { ...form, vods };
+  if (!isValidIsoDate(changedDate)) return next;
+  const current = effectiveLastPlayed(form);
+  if (current === null || changedDate > current) next.lastPlayed = changedDate;
+  return next;
 }
 
-/** 마지막 플레이 칸 아래 힌트(aria-describedby). 입력이 바뀌면 바로 다시 계산된다.
- *  input[type=date]는 placeholder를 무시하므로 자동값은 이 문구로만 보인다 */
+/** 마지막 플레이 칸 아래 힌트(aria-describedby). input[type=date]는 placeholder를 무시하므로 빈 칸의 뜻은 이 문구로만 보인다 */
 export function lastPlayedHint(form: GameForm): string {
-  const auto = autoLastPlayed(form);
-  if (auto === null) return "비워 두면 첫 플레이·다시보기 날짜로 정해요.";
-  const basis = autoDates(form).vods.some((v) => v.date === auto) ? "다시보기" : "첫 플레이";
-  if (form.lastPlayed === "") return `비워 두면 ${basis} 기준 ${formatDate(auto)}`;
-  if (isValidIsoDate(form.lastPlayed) && form.lastPlayed < auto) return `${basis} 기준 ${formatDate(auto)}가 더 늦어 그 날을 써요.`;
-  return `자동 계산은 ${formatDate(auto)}예요.`;
+  if (form.lastPlayed !== "") return "더 늦은 다시보기를 넣으면 함께 올라가요.";
+  if (form.undated) return "비워 두면 날짜 기록 없음으로 둬요.";
+  if (isValidIsoDate(form.firstPlayed)) return `비워 두면 첫 플레이 날짜(${formatDate(form.firstPlayed)})를 써요.`;
+  return "비워 두면 첫 플레이 날짜를 써요.";
 }
 
 export function applyFix(form: GameForm, fix: FormFix): GameForm {
@@ -353,7 +357,7 @@ export function parseDraft(raw: string | null): GameDraftStore | null {
       ...(isStr(f.posterUrl) ? { posterUrl: f.posterUrl } : {}),
       firstPlayed: f.firstPlayed,
       undated: f.undated,
-      // lastPlayed가 없는 옛 초안(0014 이전)은 ""(보정 없음)로 채운다
+      // lastPlayed가 없는 옛 초안(0014 이전)은 ""(저장값 없음)로 채운다
       lastPlayed: isStr(f.lastPlayed) ? f.lastPlayed : "",
       status,
       vods,

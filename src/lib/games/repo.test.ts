@@ -495,7 +495,7 @@ describe("하이라이트 시작(highlightStart)", () => {
   }
 });
 
-describe("마지막 플레이 보정값(lastPlayed, 0014)", () => {
+describe("마지막 플레이(lastPlayed, 0014, 정본)", () => {
   const stored = (id: string) => d1.sqlite.prepare("SELECT last_played v FROM games WHERE id = ?").get(id) as { v: string | null };
   it("applyPatch: 값은 넣고 null은 지우고, 키가 없으면 그대로 둔다", () => {
     const g: Game = { id: "g", name: "a", firstPlayed: "2026-01-01", lastPlayed: "2026-03-01", status: "clear", vods: [] };
@@ -504,13 +504,16 @@ describe("마지막 플레이 보정값(lastPlayed, 0014)", () => {
     expect(applyPatch(g, { lastPlayed: "2026-04-01" })).toMatchObject({ lastPlayed: "2026-04-01" });
     expect(applyPatch(g, { lastPlayed: null })).not.toHaveProperty("lastPlayed");
   });
-  it("createGame이 저장하고, 없으면 NULL", async () => {
+  it("createGame이 저장하고, 없으면 첫 플레이 날짜로, 첫 플레이도 없으면 NULL", async () => {
     const r = await createGame(d1.db, input({ lastPlayed: "2026-11-01" }), ctx());
     expect(r.ok && r.game.lastPlayed).toBe("2026-11-01");
     expect(stored("엘든-링").v).toBe("2026-11-01");
     const plain = await createGame(d1.db, input({ name: "다크 소울" }), ctx());
-    expect(plain.ok && "lastPlayed" in plain.game).toBe(false);
-    expect(stored("다크-소울").v).toBeNull();
+    expect(plain.ok && plain.game.lastPlayed).toBe("2026-10-01");
+    expect(stored("다크-소울").v).toBe("2026-10-01");
+    const undated = await createGame(d1.db, input({ name: "세키로", firstPlayed: null }), ctx());
+    expect(undated.ok && "lastPlayed" in undated.game).toBe(false);
+    expect(stored("세키로").v).toBeNull();
   });
   it("상태만 고쳐도 저장값이 남는다(회귀: toGame이 lastPlayed를 버리면 지워진다)", async () => {
     await createGame(d1.db, input({ lastPlayed: "2026-11-01" }), ctx());

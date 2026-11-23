@@ -4,8 +4,8 @@ import { gameInDivision } from "./entries.ts";
 import { SUBMIT_LIMIT_PER_DAY } from "./limit.ts";
 import type { TallyRow } from "./rankings.ts";
 import type { DrawClaims } from "./token.ts";
-import { listGames } from "../games/repo.ts";
-import type { Game, GamesDb } from "../games/types.ts";
+import type { PlayedDates } from "../games/played.ts";
+import type { GamesDb } from "../games/types.ts";
 import type { Bracket, Division, GameRecordTally } from "./types.ts";
 
 export interface RecordRunInput {
@@ -108,15 +108,26 @@ export async function readLimitCount(db: GamesDb, day: number, keyHash: string, 
   return row?.count ?? 0;
 }
 
-/** 부문 후보 id(숨기지 않은 게임 + gameInDivision). 다시보기 날짜가 필요해 listGames(게임 + 다시보기)를 읽고 같은 순수 함수로 거른다.
- *  순서는 drawBracket이 정렬하므로 상관없다 */
-export async function loadDivisionCandidates(db: GamesDb, division: Division): Promise<string[]> {
-  return (await listGames(db, { includeHidden: false })).filter((g) => gameInDivision(g, division)).map((g) => g.id);
+/** 부문 판정에 필요한 날짜만 담은 보이는 게임(숨김 제외). 다시보기는 읽지 않는다(played.ts는 다시보기 날짜를 보지 않는다) */
+export type PlayedGame = PlayedDates & { id: string };
+
+export async function loadPlayedDates(db: GamesDb): Promise<PlayedGame[]> {
+  const { results } = await db.prepare("SELECT id, first_played, last_played FROM games WHERE hidden = 0").all();
+  return (results as { id: string; first_played: string | null; last_played: string | null }[]).map((r) => {
+    const g: PlayedGame = { id: r.id, firstPlayed: r.first_played };
+    if (r.last_played !== null) g.lastPlayed = r.last_played;
+    return g;
+  });
 }
 
-/** 순위 행: visible(listGames includeHidden:false, 숨긴 게임은 여기 없어 빠진다) 중 지금 gameInDivision인 게임만.
+/** 부문 후보 id(숨기지 않은 게임 + gameInDivision). 순서는 drawBracket이 정렬하므로 상관없다 */
+export async function loadDivisionCandidates(db: GamesDb, division: Division): Promise<string[]> {
+  return (await loadPlayedDates(db)).filter((g) => gameInDivision(g, division)).map((g) => g.id);
+}
+
+/** 순위 행: visible(보이는 게임만, 숨긴 게임은 여기 없어 빠진다) 중 지금 gameInDivision인 게임만.
  *  runs는 그 부문 제출 판 수 */
-export async function loadRankingRows(db: GamesDb, division: Division, visible: readonly Game[]): Promise<{ runs: number; rows: TallyRow[] }> {
+export async function loadRankingRows(db: GamesDb, division: Division, visible: readonly PlayedGame[]): Promise<{ runs: number; rows: TallyRow[] }> {
   const [runs, rows] = await db.batch([
     db.prepare("SELECT count(*) AS runs FROM award_runs WHERE division = ?").bind(division),
     db.prepare("SELECT game_id AS id, appearances, championships, wins, losses FROM award_tally WHERE division = ?").bind(division),
