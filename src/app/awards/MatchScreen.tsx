@@ -78,7 +78,7 @@ export default function MatchScreen({
         <div className={styles.bar} aria-hidden="true">
           <div className={styles.barFill} style={{ width: `${(p.done / p.total) * 100}%` }} />
         </div>
-        <p className={styles.hint}>더 마음에 드는 게임을 고르세요.</p>
+        <p className={styles.hint}>더 마음에 드는 게임을 꾹 눌러 고르세요.</p>
       </header>
       <p className={styles.srOnly} aria-live="polite">
         {matchAnnouncement(p, a.name, b.name)}

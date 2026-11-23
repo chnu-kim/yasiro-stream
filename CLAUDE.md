@@ -38,13 +38,13 @@ src/app/
   about/                소개 — 고정 그림판 + 챕터 도감(Dossier: 소개·프로필·취향·팬네임·찾아가기(채널), 목록은 chapters.ts), 탐험 기록 숫자
   games/                플레이한 게임. page=서버(D1 읽기·관리자 판별), GamesBoard·GameCard·GameDetailDialog·Pagination·Poster(공개) +
                         관리자 UI: AdminBar·GameEditForm·CategoryPicker·AddGameFlow·DialogFrame·Toast, adminApi(fetch 래퍼)·drafts(localStorage)
-  awards/               2026 야시로 게임 어워즈(이상형 월드컵, 관리자 전용: 비관리자 404·noindex, Nav·sitemap·SITE_PAGES·홈 카드 미등록, 진입은 /games AdminBar "어워즈"). 대진은 서버가 뽑아 서명 토큰(24시간)으로 건네고, 끝까지 마친 판만 제출받아 부문별로 집계한다(순위는 별도 페이지 `/awards/rankings?division=`, 같은 관리자 게이트·noindex). 대진·진행·결과·검증은 src/lib/awards(순수, rng 주입). 공개로 바꿀 때 Nav·SITE_PAGES·더 둘러보기에 넣는다
+  awards/               2026 야시로 게임 어워즈(이상형 월드컵, 관리자 전용: 비관리자 404·noindex, Nav·sitemap·SITE_PAGES·홈 카드 미등록, 진입은 /games AdminBar "어워즈"). 대진은 서버가 뽑아 서명 토큰(24시간)으로 건네고, 끝까지 마친 판만 제출받아 부문별로 집계한다. 진행 중인 대진(token + picks)은 `localStorage['yasiro-awards-run']`에 저장해 새로고침해도 이어 하고(token payload와 대조, `resume.ts restoreRun`), 대결 카드는 0.6초 꾹 눌러야 고른다(새 판 뒤 0.4초 잠금, `hold.ts`)(순위는 별도 페이지 `/awards/rankings?division=`, 같은 관리자 게이트·noindex). 대진·진행·결과·검증은 src/lib/awards(순수, rng 주입). 공개로 바꿀 때 Nav·SITE_PAGES·더 둘러보기에 넣는다
   auth/{login,callback,logout}/route.ts   치지직 OAuth (login?next=<경로>는 oauth_next 쿠키로 복귀). 로직은 src/lib/auth-routes.ts
   api/games/            관리자 API (route·[id]·[id]/hidden·[id]/changes·categories·youtube). 핸들러는 얇게, 로직은 src/lib/games/api.ts
   api/awards/           어워즈 API (draw·submit·rankings, 관리자 전용: AWARDS_PUBLIC). 핸들러는 얇게, 로직은 src/lib/awards/api.ts(repo·token·keys·limit·rankings)
 src/components/         Nav, SkipLink, ClearStamp (공유)
 scripts/games-{seed,export,edit}.ts   pnpm games:seed / games:export / games:edit 진입점 (얇게. 로직은 src/lib/games/seed.ts, ops.ts)
-src/lib/                순수 로직 + *.test.ts (session, auth-routes, http, chzzk-auth, chzzk-category(검색·slugify만), games/{schema,query,labels,rows,repo,admin,diff,patch,client,api,seed,youtube-meta,home,media,timecode,played}, awards/{entries,options,draw,tournament,flow,labels,verify,media,rng,keys,token,limit,repo,rankings,client,api})
+src/lib/                순수 로직 + *.test.ts (session, auth-routes, http, chzzk-auth, chzzk-category(검색·slugify만), games/{schema,query,labels,rows,repo,admin,diff,patch,client,api,seed,youtube-meta,home,media,timecode,played}, awards/{entries,options,draw,tournament,flow,labels,verify,media,rng,keys,token,limit,repo,rankings,client,api,resume,hold})
 migrations/             D1 마이그레이션 (wrangler 관리)
 _design/                원본 디자인 핸드오프 (gitignored)
 ```

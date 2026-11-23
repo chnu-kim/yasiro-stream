@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { focusHeadingAfter, inProgress, INITIAL_SCREEN, newRun, reduce, type Screen } from "./flow.ts";
+import { focusHeadingAfter, INITIAL_SCREEN, newRun, reduce, type Screen } from "./flow.ts";
 import { currentMatch } from "./tournament.ts";
 
 const ids = ["a", "b", "c", "d"];
@@ -80,16 +80,16 @@ describe("token·rankings", () => {
   });
 });
 
-describe("inProgress", () => {
-  it("한 판 이상 골랐고 끝나지 않았을 때만", () => {
-    const start = reduce(INITIAL_SCREEN, { type: "start", run: run0(), token: "tok" });
-    expect(inProgress(INITIAL_SCREEN)).toBe(false);
-    expect(inProgress(start)).toBe(false);
-    const picked = pickFirst(start);
-    expect(inProgress(picked)).toBe(true);
-    let s = picked;
+describe("resume", () => {
+  it("설정 화면에서만: 진행 중이면 play, 다 골랐으면 result", () => {
+    let s: Screen = reduce(INITIAL_SCREEN, { type: "start", run: run0(), token: "tok" });
+    s = pickFirst(s);
+    const mid = s.kind === "play" ? s.run : null!;
+    expect(reduce(INITIAL_SCREEN, { type: "resume", run: mid, token: "t2" })).toEqual({ kind: "play", run: mid, token: "t2" });
     for (let i = 0; i < 3; i++) s = pickFirst(s);
-    expect(inProgress(s)).toBe(false);
+    const done = s.kind === "result" ? s.run : null!;
+    expect(reduce(INITIAL_SCREEN, { type: "resume", run: done, token: "t3" })).toEqual({ kind: "result", run: done, token: "t3" });
+    expect(reduce(s, { type: "resume", run: mid, token: "t2" })).toBe(s);
   });
 });
 
