@@ -78,7 +78,7 @@ export function rowsToRecords(games: readonly GameRow[], vods: readonly VodRow[]
   return games.map((g) => rowToRecord(g, byGame.get(g.id) ?? []));
 }
 
-/** 도메인 사본: 관리 메타(hidden·version·수정자 등)를 뺀 Game. 관리자 보정값 lastPlayed는 담는다(applyPatch·스냅샷·export용).
+/** 도메인 사본: 관리 메타(hidden·version·수정자 등)를 뺀 Game. 마지막 플레이(lastPlayed, 관리자 전용)는 담는다(applyPatch·스냅샷·export용).
  *  방문자 응답·props에는 toPublicGame을 쓴다. JSON 키 순서가 필요하면 serializeGames를 쓴다 */
 export function toGame(g: Game): Game {
   const out: Game = { id: g.id, name: g.name, firstPlayed: g.firstPlayed, status: g.status, vods: g.vods.map(copyVod) };
@@ -89,7 +89,7 @@ export function toGame(g: Game): Game {
   return out;
 }
 
-/** 방문자용: toGame에서 관리자 보정값(lastPlayed)까지 뺀 사본. /games 비관리자 응답·props 전용(홈·/awards는 각자 필드를 골라 옮긴다) */
+/** 방문자용: toGame에서 마지막 플레이(lastPlayed, 관리자 전용)까지 뺀 사본. /games 비관리자 응답·props 전용(홈·/awards는 각자 필드를 골라 옮긴다) */
 export function toPublicGame(g: Game): Game {
   const out = toGame(g);
   delete out.lastPlayed;

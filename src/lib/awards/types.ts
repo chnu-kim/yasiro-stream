@@ -25,7 +25,7 @@ export interface AwardEntry {
   ordinal: number;
   no: string;
   /** 이 게임이 속한 부문(서버가 전체 게임으로 계산, entries.ts gameDivisions). 클라이언트는 이것으로만 거른다.
-   *  관리자 보정 lastPlayed는 넣지 않는다(방문자에게 보내지 않는 값) */
+   *  마지막 플레이(lastPlayed)는 넣지 않는다(방문자에게 보내지 않는 값) */
   divisions: Division[];
 }
 

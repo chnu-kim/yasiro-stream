@@ -90,12 +90,16 @@ describe("toAwardEntries", () => {
     expect(e.divisions).toEqual(["alltime", "2026"]);
   });
 
-  it("소속은 잘리기 전 전체 다시보기로 계산한다(현장 사진 편이 2025여도 2026 다시보기가 있으면 2026)", () => {
+  it("소속은 원본 게임의 마지막 플레이(저장값)로 계산한다(보내는 현장 사진 편이 2025여도 마지막 플레이가 2026이면 2026)", () => {
     const [e] = toAwardEntries([
-      g("a", "2025-10-01", { vods: [vod("AAAAAAAAAAA", "2025-10-01", "게임a 했어요"), vod("BBBBBBBBBBB", "2026-02-01", "종겜룰렛데이 했어요")] }),
+      g("a", "2025-10-01", {
+        lastPlayed: "2026-02-01",
+        vods: [vod("AAAAAAAAAAA", "2025-10-01", "게임a 했어요"), vod("BBBBBBBBBBB", "2026-02-01", "종겜룰렛데이 했어요")],
+      }),
     ]);
     expect(e.vods.map((v) => v.date)).toEqual(["2025-10-01"]);
     expect(e.divisions).toEqual(["alltime", "2026"]);
+    expect("lastPlayed" in e).toBe(false);
   });
 
   it("originalTitle·posterUrl이 없으면 키도 없다", () => {
@@ -203,7 +207,7 @@ describe("gameInDivision / gameDivisions", () => {
   it("alltime은 언제나 참(날짜가 없어도)", () => {
     for (const d of [null, "2025-12-31", "2026-01-01", "2027-01-01"]) expect(gameInDivision(g("x", d), "alltime")).toBe(true);
   });
-  it("2026 = 2026년에 한 게임: 첫 플레이·다시보기·보정값 구간이 2026과 겹친다", () => {
+  it("2026 = 2026년에 한 게임: 첫 플레이~마지막 플레이(저장값) 구간이 2026과 겹친다", () => {
     const cases: [Game, boolean][] = [
       [g("n", null), false],
       [g("p", "2025-12-31"), false],
@@ -211,11 +215,14 @@ describe("gameInDivision / gameDivisions", () => {
       [g("s", "2026-12-31"), true],
       [g("r", "2027-01-01"), false],
       // 2025년에 처음 했지만 2026에도 한 게임(스펠렁키 2·리그 오브 레전드 유형)
-      [g("lol", "2025-10-01", { vods: [vod("AAAAAAAAAAA", "2025-10-01", "t"), vod("BBBBBBBBBBB", "2026-02-01", "t")] }), true],
-      [g("old", "2025-10-01", { vods: [vod("CCCCCCCCCCC", "2025-12-31", "t")] }), false],
-      // 첫 플레이 기록이 없어도 2026 다시보기가 있으면 든다
-      [g("nodate", null, { vods: [vod("DDDDDDDDDDD", "2026-04-04", "t")] }), true],
+      [g("lol", "2025-10-01", { lastPlayed: "2026-02-01" }), true],
+      [g("old", "2025-10-01", { lastPlayed: "2025-12-31" }), false],
+      // 첫 플레이 기록이 없어도 마지막 플레이가 2026이면 든다
+      [g("nodate", null, { lastPlayed: "2026-04-04" }), true],
       [g("fix", "2024-01-01", { lastPlayed: "2026-01-01" }), true],
+      // 다시보기 날짜는 보지 않는다: 2026 다시보기가 있어도 마지막 플레이가 2025면 빠진다
+      [g("vodonly", "2025-10-01", { vods: [vod("BBBBBBBBBBB", "2026-02-01", "t")] }), false],
+      [g("vodnodate", null, { vods: [vod("DDDDDDDDDDD", "2026-04-04", "t")] }), false],
     ];
     for (const [game, want] of cases) {
       expect(gameInDivision(game, "2026"), game.id).toBe(want);

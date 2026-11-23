@@ -202,7 +202,15 @@ describe("runOps", () => {
     await seed({ name: "윷놀이", firstPlayed: "2025-10-07", status: "unknown", vods: [vod("aaaaaaaaaaa", "2025-10-07"), vod("bbbbbbbbbbb", "2026-02-16")] });
     await seed({ name: "넷마블 윷놀이", firstPlayed: "2024-02-09", status: "unknown", vods: [] });
     const out = await runOps(d1.db, [{ op: "move-vods", from: "윷놀이", to: "넷마블-윷놀이", dates: ["2025-10-07"] }], ctx());
-    expect(out).toEqual({ ok: true, lines: ["다시보기 1편 윷놀이 → 넷마블-윷놀이", "  넷마블-윷놀이 · 다시보기 1편 추가", "  윷놀이 · 다시보기 1편 삭제"] });
+    expect(out).toEqual({
+      ok: true,
+      lines: [
+        "다시보기 1편 윷놀이 → 넷마블-윷놀이",
+        "  넷마블-윷놀이 · 다시보기 1편 추가",
+        "  주의: 넷마블-윷놀이 다시보기 날짜(2025-10-07)가 마지막 플레이(2024-02-09)보다 늦어요. lastPlayed도 바꿀지 확인해 주세요.",
+        "  윷놀이 · 다시보기 1편 삭제",
+      ],
+    });
     expect((await getGame(d1.db, "넷마블-윷놀이", { includeHidden: false }))?.vods.map((v) => v.date)).toEqual(["2025-10-07"]);
     expect((await getGame(d1.db, "윷놀이", { includeHidden: false }))?.vods.map((v) => v.date)).toEqual(["2026-02-16"]);
   });
@@ -213,7 +221,13 @@ describe("runOps", () => {
     await seed({ name: "롤", firstPlayed: "2025-01-01", status: "endless", vods: [vod("ddddddddddd", "2025-01-01")] });
     const out = await runOps(d1.db, [{ op: "move-vods", from: "증바람", to: "롤", hideFrom: true }], ctx());
     expect(out.ok).toBe(true);
-    expect(out.lines).toEqual(["다시보기 1편 증바람 → 롤", "  롤 · 다시보기 1편 추가", "  증바람 · 다시보기 1편 삭제", "  증바람 · 목록에서 숨김"]);
+    expect(out.lines).toEqual([
+      "다시보기 1편 증바람 → 롤",
+      "  롤 · 다시보기 1편 추가",
+      "  주의: 롤 다시보기 날짜(2026-07-04)가 마지막 플레이(2025-01-01)보다 늦어요. lastPlayed도 바꿀지 확인해 주세요.",
+      "  증바람 · 다시보기 1편 삭제",
+      "  증바람 · 목록에서 숨김",
+    ]);
     expect((await getGame(d1.db, "롤", { includeHidden: false }))?.vods).toHaveLength(2);
     expect(await getGame(d1.db, "증바람", { includeHidden: false })).toBeNull();
     expect((await listChanges(d1.db, "증바람")).changes[0].summary).toBe("목록에서 숨김");
@@ -228,7 +242,13 @@ describe("runOps", () => {
       [{ op: "move-vods", from: "에이", to: "비", urls: ["https://youtu.be/eeeeeeeeeee", "https://youtu.be/fffffffffff?t=3"] }],
       ctx(),
     );
-    expect(out.lines).toEqual(["다시보기 2편 에이 → 비", "  비 · 다시보기 1편 추가", "  에이 · 다시보기 2편 삭제"]);
+    // 비는 첫 플레이·마지막 플레이가 모두 없다
+    expect(out.lines).toEqual([
+      "다시보기 2편 에이 → 비",
+      "  비 · 다시보기 1편 추가",
+      "  주의: 비 다시보기 날짜(2026-01-02)가 마지막 플레이(없음)보다 늦어요. lastPlayed도 바꿀지 확인해 주세요.",
+      "  에이 · 다시보기 2편 삭제",
+    ]);
     expect((await getGame(d1.db, "비", { includeHidden: false }))?.vods).toHaveLength(2);
   });
 
@@ -269,6 +289,47 @@ describe("runOps", () => {
 });
 
 describe("runOps lastPlayed", () => {
+  const warn = (id: string, date: string, last: string) =>
+    `  주의: ${id} 다시보기 날짜(${date})가 마지막 플레이(${last})보다 늦어요. lastPlayed도 바꿀지 확인해 주세요.`;
+
+  it("add: 마지막 플레이를 비우면 첫 플레이로 저장하고, 더 늦은 다시보기가 있으면 주의 줄", async () => {
+    d1 = createGamesTestDb();
+    const out = await runOps(
+      d1.db,
+      [
+        { op: "add", input: { name: "에이", firstPlayed: "2026-01-01", status: "unknown", vods: [vod("aaaaaaaaaaa", "2026-03-03")] } },
+        { op: "add", input: { name: "비", firstPlayed: "2026-01-01", lastPlayed: "2026-03-03", status: "unknown", vods: [vod("bbbbbbbbbbb", "2026-03-03")] } },
+        { op: "add", input: { name: "씨", firstPlayed: "2026-01-01", status: "unknown", vods: [] } },
+      ],
+      ctx(),
+    );
+    expect(out.ok).toBe(true);
+    expect(out.lines.filter((l) => l.includes("주의"))).toEqual([warn("에이", "2026-03-03", "2026-01-01")]);
+    expect(await getGame(d1.db, "에이", { includeHidden: true })).toMatchObject({ lastPlayed: "2026-01-01" });
+    expect(await getGame(d1.db, "씨", { includeHidden: true })).toMatchObject({ lastPlayed: "2026-01-01" });
+  });
+
+  it("update: 다시보기를 바꿔 마지막 플레이보다 늦어지면 주의 줄(자동으로 바꾸지 않음), lastPlayed도 함께 올리면 없음, 다시보기를 안 건드리면 없음", async () => {
+    d1 = createGamesTestDb();
+    await seed({ name: "에이", firstPlayed: "2026-01-01", status: "unknown", vods: [vod("aaaaaaaaaaa", "2026-01-01")] });
+    const c = ctx();
+    const later = [vod("aaaaaaaaaaa", "2026-01-01"), vod("bbbbbbbbbbb", "2026-04-04")];
+    const out = await runOps(d1.db, [{ op: "update", id: "에이", patch: { vods: later } }], c);
+    expect(out).toEqual({ ok: true, lines: ["수정 에이 · 다시보기 1편 추가", warn("에이", "2026-04-04", "2026-01-01")] });
+    expect(await getGame(d1.db, "에이", { includeHidden: true })).toMatchObject({ lastPlayed: "2026-01-01" });
+    // 다시보기 말고 다른 것만 고치면 이미 늦은 다시보기가 있어도 주의하지 않는다
+    expect((await runOps(d1.db, [{ op: "update", id: "에이", patch: { status: "clear" } }], c)).lines).toEqual(["수정 에이 · 정복 여부 모름 → 정복"]);
+    // 같은 작업에서 lastPlayed도 올리면 주의하지 않는다
+    const both = await runOps(
+      d1.db,
+      [{ op: "update", id: "에이", patch: { lastPlayed: "2026-05-05", vods: [...later, vod("ccccccccccc", "2026-05-05")] } }],
+      c,
+    );
+    expect(both.lines.some((l) => l.includes("주의"))).toBe(false);
+    // 다시보기를 다 지워도 주의하지 않는다
+    expect((await runOps(d1.db, [{ op: "update", id: "에이", patch: { vods: [] } }], c)).lines.some((l) => l.includes("주의"))).toBe(false);
+  });
+
   it("update patch.lastPlayed: 넣기·지우기, 요약은 '마지막 플레이 바뀜'", async () => {
     d1 = createGamesTestDb();
     await seed({ name: "에이", firstPlayed: "2026-01-01", status: "clear", vods: [] });

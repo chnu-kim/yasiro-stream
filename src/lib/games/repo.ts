@@ -180,7 +180,9 @@ function candidateOf(id: string, input: GameInput): Game {
   if (input.categoryId !== undefined) g.categoryId = input.categoryId;
   if (input.posterUrl !== undefined) g.posterUrl = input.posterUrl;
   g.firstPlayed = input.firstPlayed;
-  if (input.lastPlayed !== undefined) g.lastPlayed = input.lastPlayed;
+  // 마지막 플레이는 정본이라 비워 두지 않는다: 없으면 첫 플레이 날짜로 저장한다(첫 플레이도 없으면 없음)
+  const lastPlayed = input.lastPlayed ?? input.firstPlayed;
+  if (lastPlayed !== null) g.lastPlayed = lastPlayed;
   g.status = input.status;
   g.vods = sortVods(input.vods);
   return g as unknown as Game;

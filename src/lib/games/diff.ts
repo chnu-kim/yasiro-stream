@@ -75,7 +75,7 @@ const PIECE: Readonly<Record<GameField, (a: Game, b: Game) => string>> = {
   originalTitle: (a, b) => `원제 ${a.originalTitle ?? "없음"} → ${b.originalTitle ?? "없음"}`,
   category: categoryPiece,
   firstPlayed: (a, b) => `첫 플레이 ${formatDate(a.firstPlayed)} → ${formatDate(b.firstPlayed)}`,
-  // 관리자 보정값이라 값을 적지 않는다(변경 기록은 관리자만 보지만 요약 문구는 스펙대로)
+  // 관리자 전용 값이라 값을 적지 않는다(변경 기록은 관리자만 보지만 요약 문구는 스펙대로)
   lastPlayed: () => "마지막 플레이 바뀜",
   status: (a, b) => `정복 여부 ${STATUS_FILTER_LABEL[a.status]} → ${STATUS_FILTER_LABEL[b.status]}`,
   vods: vodsPiece,

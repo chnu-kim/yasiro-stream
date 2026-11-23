@@ -2,6 +2,7 @@
 // 실제로 실행된 쓰기 문장만 리터럴 SQL로 받아 원격에 그대로 적용한다. 그래서 낙관적 잠금(version·write_token)과
 // 변경 기록(game_changes, 수정자 '관리자')이 사이트에서 저장한 것과 같게 남는다.
 import { YASIRO_CHANNEL_ID, actorNameFor, parseAdminIds } from "./admin.ts";
+import { lastPlayedOf } from "./played.ts";
 import { createGame, getGame, listChanges, setHidden, updateGame } from "./repo.ts";
 import { copyVod } from "./rows.ts";
 import { isChzzkPosterUrl, youtubeVideoId } from "./schema.ts";
@@ -151,6 +152,20 @@ async function summaryOf(db: GamesDb, r: WriteResult): Promise<string> {
   return (await listChanges(db, r.game.id, 1)).changes[0].summary;
 }
 
+/** summaryOf를 통과한(던지지 않은) 쓰기 결과 */
+type WriteOk = Extract<WriteResult, { ok: true }>;
+
+/** 다시보기를 쓴 뒤(summaryOf 통과 = 성공) 그 게임의 가장 늦은 다시보기 날짜가 마지막 플레이(저장값 ?? 첫 플레이)보다 늦으면 주의 줄을 붙인다.
+ *  마지막 플레이는 정본이라 자동으로 바꾸지 않는다(사람이 확인하고 lastPlayed를 함께 넣는다) */
+function warnStaleLastPlayed(r: WriteResult, lines: string[]): void {
+  const { game } = r as WriteOk;
+  // 저장된 다시보기는 date 오름차순이라 마지막 편이 가장 늦다
+  const latest = game.vods.at(-1)?.date;
+  const last = lastPlayedOf(game);
+  if (latest === undefined || (last !== null && latest <= last)) return;
+  lines.push(`  주의: ${game.id} 다시보기 날짜(${latest})가 마지막 플레이(${last ?? "없음"})보다 늦어요. lastPlayed도 바꿀지 확인해 주세요.`);
+}
+
 async function mustGet(db: GamesDb, id: string) {
   const g = await getGame(db, id, { includeHidden: true });
   if (g === null) throw failure({ ok: false, reason: "not_found" });
@@ -170,6 +185,7 @@ async function moveVods(db: GamesDb, op: Extract<GameOp, { op: "move-vods" }>, c
   lines.push(`다시보기 ${picked.length}편 ${src.id} → ${dst.id}`);
   const added = await updateGame(db, dst.id, { vods: [...dst.vods, ...picked.filter((v) => !dstIds.has(youtubeVideoId(v.url)))].map(copyVod) }, dst.version, ctx);
   lines.push(`  ${dst.id} · ${await summaryOf(db, added)}`);
+  warnStaleLastPlayed(added, lines);
   const removed = await updateGame(db, src.id, { vods: src.vods.filter((v) => !pickedIds.has(youtubeVideoId(v.url))).map(copyVod) }, src.version, ctx);
   lines.push(`  ${src.id} · ${await summaryOf(db, removed)}`);
   if (op.hideFrom === true) lines.push(`  ${src.id} · ${await summaryOf(db, await setHidden(db, src.id, true, ctx))}`);
@@ -220,12 +236,15 @@ async function runOne(db: GamesDb, op: GameOp, ctx: WriteContext, lines: string[
     case "add": {
       const r = await createGame(db, op.input, ctx);
       const summary = await summaryOf(db, r);
-      lines.push(`추가 ${(r as Extract<WriteResult, { ok: true }>).game.id} · ${summary}`);
+      lines.push(`추가 ${(r as WriteOk).game.id} · ${summary}`);
+      warnStaleLastPlayed(r, lines);
       return;
     }
     case "update": {
       const current = await mustGet(db, op.id);
-      lines.push(`수정 ${op.id} · ${await summaryOf(db, await updateGame(db, op.id, op.patch, current.version, ctx))}`);
+      const r = await updateGame(db, op.id, op.patch, current.version, ctx);
+      lines.push(`수정 ${op.id} · ${await summaryOf(db, r)}`);
+      if (op.patch.vods !== undefined) warnStaleLastPlayed(r, lines);
       // 요약은 "포스터 바뀜"뿐이라 Steam 포스터 추가와 카테고리 포스터 덮어쓰기가 구분되지 않는다
       if (op.patch.posterUrl !== undefined && op.patch.category === undefined && current.categoryId !== undefined) {
         const what = isChzzkPosterUrl(current.posterUrl) ? "카테고리 포스터를 덮어써요" : "--apply 전에 확인해 주세요";

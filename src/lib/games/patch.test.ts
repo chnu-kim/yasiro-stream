@@ -17,7 +17,8 @@ import {
   parseDraft,
   serializeDraft,
   unlinkKeepsPoster,
-  autoLastPlayed,
+  effectiveLastPlayed,
+  raiseLastPlayed,
   lastPlayedHint,
   suggestFirstPlayed,
   validateForm,
@@ -435,7 +436,7 @@ describe("하이라이트 시작", () => {
   });
 });
 
-describe("마지막 플레이(보정값)", () => {
+describe("마지막 플레이(정본)", () => {
   // base: firstPlayed 2026-10-10, 다시보기 2026-10-10·2026-10-15
   it("gameToForm: 저장값을 열고, 없으면 \"\"", () => {
     expect(gameToForm({ ...base, lastPlayed: "2026-11-01" }).lastPlayed).toBe("2026-11-01");
@@ -475,20 +476,60 @@ describe("마지막 플레이(보정값)", () => {
     );
     expect(issues.map((i) => i.field)).toEqual(["firstPlayed", "lastPlayed", "status"]);
   });
-  it("autoLastPlayed: 유효한 첫 플레이·다시보기 날짜의 최댓값(보정값은 보지 않는다)", () => {
-    expect(autoLastPlayed(form({ lastPlayed: "2027-01-01" }))).toBe("2026-10-15");
-    expect(autoLastPlayed(form({ vods: [] }))).toBe("2026-10-10");
-    expect(autoLastPlayed(form({ vods: [], undated: true }))).toBeNull();
-    expect(autoLastPlayed(form({ vods: [{ ...F2, date: "2026-1" }], firstPlayed: "2026-10" }))).toBeNull();
-    expect(autoLastPlayed(gameToForm(null))).toBeNull();
+  it("formToInput(추가): 비우면 첫 플레이 날짜로 채운다, 날짜 기록 없음이면 키 없음, 값이 있으면 그 값", () => {
+    const empty = gameToForm(null);
+    expect(formToInput({ ...empty, name: "x", firstPlayed: "2026-01-02" }).lastPlayed).toBe("2026-01-02");
+    expect("lastPlayed" in formToInput({ ...empty, name: "x", undated: true })).toBe(false);
+    expect(formToInput({ ...empty, name: "x", firstPlayed: "2026-01-02", lastPlayed: "2026-03-03" }).lastPlayed).toBe("2026-03-03");
+    // 수정(formToRaw·formToPatch)은 채우지 않는다: 저장값 없는 게임을 고쳐도 마지막 플레이가 바뀐 것으로 보이지 않는다
+    expect(formToPatch(base, form({ name: "새 이름" }))).toEqual({ name: "새 이름" });
+  });
+  it("effectiveLastPlayed: 유효한 입력값 → 첫 플레이 → null", () => {
+    expect(effectiveLastPlayed(form({ lastPlayed: "2026-11-01" }))).toBe("2026-11-01");
+    expect(effectiveLastPlayed(form())).toBe("2026-10-10");
+    expect(effectiveLastPlayed(form({ lastPlayed: "2026-1" }))).toBe("2026-10-10");
+    expect(effectiveLastPlayed(form({ undated: true }))).toBeNull();
+    expect(effectiveLastPlayed(form({ firstPlayed: "2026-10" }))).toBeNull();
+    expect(effectiveLastPlayed(form({ undated: true, lastPlayed: "2026-11-01" }))).toBe("2026-11-01");
+  });
+  it("raiseLastPlayed: 바뀐 다시보기 날짜가 더 늦으면 올리고, 같거나 이르면 그대로, 내리지 않는다", () => {
+    const late = { ...F2, date: "2026-11-20" };
+    // 저장값 없음 → 첫 플레이(2026-10-10)보다 늦으니 올린다
+    expect(raiseLastPlayed(form(), [F1, late], late.date)).toEqual({ ...form(), vods: [F1, late], lastPlayed: "2026-11-20" });
+    // 저장값보다 늦으면 올린다
+    expect(raiseLastPlayed(form({ lastPlayed: "2026-11-01" }), [late], late.date).lastPlayed).toBe("2026-11-20");
+    // 같은 날이면 그대로
+    expect(raiseLastPlayed(form({ lastPlayed: "2026-11-20" }), [late], late.date).lastPlayed).toBe("2026-11-20");
+    expect(raiseLastPlayed(form({ vods: [] }), [{ ...F1, date: "2026-10-10" }], "2026-10-10").lastPlayed).toBe("");
+    // 이르면 그대로(사용자가 손으로 넣은 더 늦은 값이 이긴다)
+    expect(raiseLastPlayed(form({ lastPlayed: "2026-12-01" }), [late], late.date).lastPlayed).toBe("2026-12-01");
+    // 마지막 플레이가 없으면(날짜 기록 없음·첫 플레이 미입력) 유효한 다시보기 날짜로 정한다
+    expect(raiseLastPlayed(form({ undated: true }), [late], late.date).lastPlayed).toBe("2026-11-20");
+    expect(raiseLastPlayed(gameToForm(null), [late], late.date).lastPlayed).toBe("2026-11-20");
+    // 틀린 날짜는 보지 않는다(다시보기는 바꾼다)
+    const bad = { ...F2, date: "2026-11" };
+    expect(raiseLastPlayed(form(), [bad], bad.date)).toEqual({ ...form(), vods: [bad] });
+    // 입력 폼을 바꾸지 않는다
+    const f = form();
+    raiseLastPlayed(f, [late], late.date);
+    expect(f).toEqual(form());
+  });
+  it("raiseLastPlayed: 바뀐 다시보기만 본다. 사용자가 되돌린 값을 다른 늦은 다시보기로 다시 올리지 않는다", () => {
+    const a = { ...F1, date: "2026-10-05" };
+    const b = { ...F2, date: "2026-10-02" };
+    // A(10-05)는 이미 있고, 사용자가 마지막 플레이를 10-01로 되돌렸다. B(10-02)를 넣으면 B의 날짜로만 올린다
+    const reverted = form({ firstPlayed: "2026-09-01", lastPlayed: "2026-10-01", vods: [a] });
+    expect(raiseLastPlayed(reverted, [b, a], b.date).lastPlayed).toBe("2026-10-02");
+    // B보다 이른 날로 되돌렸어도 A의 날짜(10-05)로는 올라가지 않는다
+    const reverted2 = form({ firstPlayed: "2026-09-01", lastPlayed: "2026-10-03", vods: [a, b] });
+    expect(raiseLastPlayed(reverted2, [a, b], b.date).lastPlayed).toBe("2026-10-03");
   });
   it("lastPlayedHint: 각 분기", () => {
-    expect(lastPlayedHint(gameToForm(null))).toBe("비워 두면 첫 플레이·다시보기 날짜로 정해요.");
-    expect(lastPlayedHint(form())).toBe("비워 두면 다시보기 기준 2026.10.15");
-    expect(lastPlayedHint(form({ vods: [] }))).toBe("비워 두면 첫 플레이 기준 2026.10.10");
-    expect(lastPlayedHint(form({ lastPlayed: "2026-10-12" }))).toBe("다시보기 기준 2026.10.15가 더 늦어 그 날을 써요.");
-    expect(lastPlayedHint(form({ lastPlayed: "2026-11-01" }))).toBe("자동 계산은 2026.10.15예요.");
-    expect(lastPlayedHint(form({ lastPlayed: "2026-1" }))).toBe("자동 계산은 2026.10.15예요.");
+    expect(lastPlayedHint(gameToForm(null))).toBe("비워 두면 첫 플레이 날짜를 써요.");
+    expect(lastPlayedHint(form())).toBe("비워 두면 첫 플레이 날짜(2026.10.10)를 써요.");
+    expect(lastPlayedHint(form({ firstPlayed: "2026-10" }))).toBe("비워 두면 첫 플레이 날짜를 써요.");
+    expect(lastPlayedHint(form({ undated: true }))).toBe("비워 두면 날짜 기록 없음으로 둬요.");
+    expect(lastPlayedHint(form({ lastPlayed: "2026-11-01" }))).toBe("더 늦은 다시보기를 넣으면 함께 올라가요.");
   });
   it("draft: 왕복하고, lastPlayed가 없는 옛 초안은 \"\", 문자열이 아니면 null", () => {
     const store = { form: form({ lastPlayed: "2026-11-01" }), baseVersion: 3, savedAt: 1 };
