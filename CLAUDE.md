@@ -130,7 +130,7 @@ _design/                원본 디자인 핸드오프 (gitignored)
 
 ## 하네스 (`.claude/`)
 
-- 스킬: `new-entry`(새 페이지), `verify`(PR 전 검증), `d1-migration`(스키마 변경), `games-edit`(운영 /games 기록 추가·수정. update patch에 `lastPlayed`, 원격 0014 적용 전에는 쓰지 않는다)
+- 스킬: `new-entry`(새 페이지), `verify`(PR 전 검증), `d1-migration`(스키마 변경), `games-edit`(운영 /games 기록 추가·수정. update patch에 `lastPlayed`, 원격 0014 적용 전에는 쓰지 않는다), `highlight-pick`(/awards 하이라이트 시작 시각 고르기: 치지직 클립·받아쓰기로 후보 → 결과 페이지 → 확정 값을 `games-edit`용 ops로. 도구는 스킬의 `scripts/`, 데이터·오디오·모델은 git이 무시하는 `work/`)
 - hook: 기존 `migrations/*.sql` 수정 차단, Route Handler의 `NextResponse`·`runtime` 선언 감지
 - 권한: 테스트·lint·로컬 D1은 허용. 배포, 원격 D1, secret, `git push`는 매번 확인
 

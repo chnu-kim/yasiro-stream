@@ -1,0 +1,53 @@
+/* 레이아웃: 탐험가 '현장 기록지' — 게임마다 굵은 윗선, 후보는 카드 하나씩, 대사는 시각 열 + 내용 열 */
+:root {
+  --bg: #FBFAF7; --surface: #F3EEE4; --fg: #2B2620; --muted: #6E655A;
+  --rule: #DDD4C5; --accent: #B4561C; --accent-soft: #F6E3D3; --good: #2F7A4C; --good-soft: #E1F0E6; --warn: #8A5A00; --warn-soft: #FBEFD6;
+  --font-display: "Jua", "Noto Sans KR", system-ui, sans-serif;
+  --font-body: "Noto Sans KR", system-ui, -apple-system, sans-serif;
+  --font-num: "Fredoka", "Noto Sans KR", system-ui, sans-serif;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --bg: #1C1915; --surface: #26221D; --fg: #EFE8DC; --muted: #A99F91; --rule: #3B352D; --accent: #F0A36A; --accent-soft: #3A2A1E;
+  --good: #7FCB98; --good-soft: #1F3326; --warn: #F2C36B; --warn-soft: #3A2E17; color-scheme: dark } }
+:root[data-theme="dark"] {
+  --bg: #1C1915; --surface: #26221D; --fg: #EFE8DC; --muted: #A99F91; --rule: #3B352D; --accent: #F0A36A; --accent-soft: #3A2A1E;
+  --good: #7FCB98; --good-soft: #1F3326; --warn: #F2C36B; --warn-soft: #3A2E17; color-scheme: dark }
+* { box-sizing: border-box }
+body { background: var(--bg); color: var(--fg); font-family: var(--font-body); font-size: 15px; line-height: 1.65;
+  padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); }
+main { max-width: 860px; margin: 0 auto; padding-block: 40px 64px; display: grid; gap: 44px }
+h1, h2, h3 { font-family: var(--font-display); font-weight: 400; text-wrap: balance; margin: 0 }
+h1 { font-size: clamp(28px, 5vw, 36px); line-height: 1.2 }
+h2 { font-size: 23px; padding-top: 10px; border-top: 3px solid var(--fg) }
+h3 { font-size: 18px }
+p { margin: 0 }
+a { color: var(--accent); text-underline-offset: 3px }
+a:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 2px }
+.eyebrow { font-family: var(--font-num); font-size: 12px; letter-spacing: .12em; text-transform: uppercase; color: var(--accent) }
+.lede { color: var(--muted); max-width: 62ch }
+.note { font-size: 13px; color: var(--muted) }
+section { display: grid; gap: 14px }
+.cands { display: grid; gap: 12px }
+.cand { background: var(--surface); border-radius: 10px; padding: 16px 18px; display: grid; gap: 10px }
+.cand-head { display: flex; flex-wrap: wrap; gap: 8px 14px; align-items: center; justify-content: space-between }
+.cand-title { display: flex; flex-wrap: wrap; gap: 8px; align-items: baseline }
+.t { font-family: var(--font-num); font-variant-numeric: tabular-nums; font-weight: 600; font-size: 22px }
+.chip { display: inline-block; font-size: 12px; font-weight: 700; padding: 2px 9px; border-radius: 999px; background: var(--accent-soft); color: var(--accent) }
+.chip.good { background: var(--good-soft); color: var(--good) }
+.chip.warn { background: var(--warn-soft); color: var(--warn) }
+.btn { display: inline-flex; align-items: center; gap: 6px; padding: 7px 13px; border-radius: 999px; background: var(--accent); color: var(--bg);
+  text-decoration: none; font-weight: 700; font-size: 14px; white-space: nowrap }
+.btn:hover { filter: brightness(1.08) }
+.log { display: grid; border-top: 1px solid var(--rule) }
+.row { display: grid; grid-template-columns: 78px 1fr; gap: 12px; padding: 7px 0; border-bottom: 1px solid var(--rule) }
+.row > div { min-width: 0 }
+.row .tm { font-family: var(--font-num); font-variant-numeric: tabular-nums; color: var(--muted) }
+.row.key { background: var(--accent-soft); margin: 0 -8px; padding-inline: 8px; border-radius: 4px }
+.why { font-size: 14px }
+.ask { border-left: 3px solid var(--warn); padding: 10px 14px; background: var(--warn-soft); border-radius: 0 8px 8px 0; display: grid; gap: 4px }
+.status { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 8px }
+.st { border-top: 1px solid var(--rule); padding-top: 8px; display: flex; justify-content: space-between; gap: 8px }
+@media (max-width: 480px) { .row { grid-template-columns: 64px 1fr; gap: 8px } .t { font-size: 20px } }
+.meta { display: flex; flex-wrap: wrap; gap: 6px }
+.st a { color: inherit; text-decoration: none }
+.st a:hover { text-decoration: underline }

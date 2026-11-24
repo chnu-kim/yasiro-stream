@@ -1,0 +1,9 @@
+{
+  "설명": "사용자가 직접 정한 하이라이트 시작 시각. 일괄 재선정에서 덮어쓰지 않는다. make_batch.py는 이 게임을 묶음에서 빼고, build_page.py는 이 값과 다른 확정을 거부한다. 사용자가 새로 직접 정하거나 바꾸면 여기에 추가·수정한다(1위 제안을 그대로 받아들인 확정은 넣지 않는다).",
+  "games": {
+    "hextreming-deep": { "name": "고독방송:심", "videoId": "ca26YV2FV_c", "start": "3:30:30" },
+    "cuphead": { "name": "컵헤드", "videoId": "em_J-6HizLA", "start": "3:21:22" },
+    "who-s-at-the-door": { "name": "후즈 앳 더 도어", "videoId": "83SLrJF5Edw", "start": "4:03:48" },
+    "godok": { "name": "고독방송", "videoId": "WZfhdQ2A9Tg", "start": "6:22:40" }
+  }
+}
