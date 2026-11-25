@@ -200,12 +200,13 @@ a {
 /* 홈 히어로 ↔ /about 그림판(같은 이름 yasiro-figure, components/HeroFigure). 움직임은 HeroFigure가 Web Animations로 직접 건다
    (얼굴을 맞춘 두 그림을 함께 날림, 계산은 lib/hero-morph). 여기서는 그 계산이 전제하는 스냅샷 크기·기준점만 정한다.
    - old/new를 그룹 폭에 늘리지 않고 스냅샷 원래 크기로 두고, transform 기준점을 왼쪽 위로 둔다
-   - z-index: template의 새 본문 그룹(page-in)은 옛 페이지에 없던 이름이라 늘 맨 위에 붙고, 그 스냅샷은 그림 자리를 바탕색으로 칠해
-     그림 그룹을 덮는다. 그래서 그림 그룹을 위로 올린다
+   - 층(z-index): 바탕(root) < /about 띠 < 본문(page-in/out) < 캐릭터 < /about 눈금자·라벨 < Nav.
+     본문 그룹은 옛 페이지에 없던 이름이라 그대로 두면 늘 맨 위에 붙어 캐릭터를 가린다. 본문 스냅샷은 투명해야 띠가 비친다
+     (페이지 최상위에 바탕색을 칠하지 않는다. 바탕은 body)
    계산을 못 하면(측정 실패) 브라우저 기본 모핑이 그대로 돈다. 그때를 위해 animation 축약형을 쓰지 않는다
    (축약형은 fill-mode를 지워, 사라지는 그림이 끝 프레임에 다시 보이며 번쩍인다) */
 ::view-transition-group(.figure-morph) {
-  z-index: 1;
+  z-index: 2;
   animation-duration: 720ms;
 }
 
@@ -216,15 +217,33 @@ a {
   transform-origin: 0 0;
 }
 
-/* /about 그림판의 띠·눈금자·장비 라벨(about/page.module.css에서 이동 중에만 이름): 떠날 때는 제자리에서 빨리 사라지고,
-   들어올 때는 캐릭터가 거의 도착한 뒤 나타난다. 라벨은 캐릭터 위, 띠는 아래 */
-::view-transition-group(about-band) {
-  z-index: 0;
+/* /about 그림판의 띠·눈금자·장비 라벨(data-vt): 페이지 이동 중에만 이름을 붙여 캐릭터 스냅샷에서 뺀다
+   (빼면 캐릭터만 홈 히어로 크기로 날아가고, 같이 찍히면 띠·라벨까지 2배 넘게 커진다).
+   떠날 때는 제자리에서 빨리 사라지고, 들어올 때는 새 본문과 함께 나타난다. 라벨은 캐릭터 위, 띠는 아래 */
+html:active-view-transition-type(page) [data-vt='about-band'] {
+  view-transition-name: about-band;
+}
+
+html:active-view-transition-type(page) [data-vt='about-ruler'] {
+  view-transition-name: about-ruler;
+}
+
+html:active-view-transition-type(page) [data-vt='about-callouts'] {
+  view-transition-name: about-callouts;
+}
+
+::view-transition-group(.page-in),
+::view-transition-group(.page-out) {
+  z-index: 1;
 }
 
 ::view-transition-group(about-ruler),
 ::view-transition-group(about-callouts) {
-  z-index: 2;
+  z-index: 3;
+}
+
+::view-transition-group(site-nav) {
+  z-index: 4;
 }
 
 ::view-transition-old(about-band),
@@ -236,7 +255,7 @@ a {
 ::view-transition-new(about-band),
 ::view-transition-new(about-ruler),
 ::view-transition-new(about-callouts) {
-  animation: vtFadeIn 300ms var(--ease-out) 380ms both;
+  animation: vtFadeIn var(--dur-base) var(--ease-out) 80ms both; /* 새 본문(page-in)과 같은 박자. 홈에서 올 때는 HeroFigure가 함께 늦춘다 */
 }
 
 @keyframes vtFadeIn {

@@ -55,9 +55,9 @@ function onShare(instance: ViewTransitionInstance) {
     instance.new.animate([...HERO_MORPH.newOpacity], fade),
   ];
 
-  // 새 본문(template page-in)은 캐릭터가 거의 도착할 때 들어오게 늦춘다. 짝이 지어진 이동에서만 바뀐다
+  // 새 본문(template page-in)과 /about 띠·라벨의 등장을 캐릭터 이동에 맞춰 늦춘다. 짝이 지어진 이동에서만 바뀐다
   for (const a of document.documentElement.getAnimations({ subtree: true })) {
-    if (a instanceof CSSAnimation && a.animationName === 'vtFadeUp') {
+    if (a instanceof CSSAnimation && (a.animationName === 'vtFadeUp' || a.animationName === 'vtFadeIn')) {
       a.effect?.updateTiming({ delay: HERO_MORPH.pageInDelay, duration: HERO_MORPH.pageInDuration });
     }
   }

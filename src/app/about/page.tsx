@@ -163,7 +163,8 @@ function ChapterTitle({ index, id }: { index: number; id: string }) {
 export default async function About() {
   const counts = await getExpeditionCounts();
   return (
-    <div style={{ background: 'var(--bg)', color: 'var(--text)' }}>
+    // 바탕색은 body가 칠한다. 여기 칠하면 페이지 전환 스냅샷이 불투명해져 아래 층(그림판 띠)을 가린다
+    <div style={{ color: 'var(--text)' }}>
       {/* ══ 탐험가 도감: 고정 그림판 + 챕터 ══ */}
       <Dossier plate={<Plate />}>
         <section data-chapter-id="intro" className={`${styles.chapter} ${styles.intro}`} aria-labelledby="about-title">
@@ -344,7 +345,10 @@ function Plate() {
   return (
     <HeroFigure>
     <div className={styles.stage} data-hero-figure>
-      <span className={styles.band} aria-hidden="true" />
+      {/* 띠는 무대 위로 삐져나와 무대가 자른다. 전환에서는 띠만 따로 찍히는데 그때는 무대의 자르기가 빠지므로, 무대 크기 틀로 한 번 더 자른다 */}
+      <span className={styles.bandClip} data-vt="about-band" aria-hidden="true">
+        <span className={styles.band} />
+      </span>
       <div className={styles.figure}>
         <ArtImage
           name="yasiro4"
@@ -357,10 +361,10 @@ function Plate() {
           priority
           style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'contain' }}
         />
-        <div className={styles.rulerWrap}>
+        <div className={styles.rulerWrap} data-vt="about-ruler">
           <HeightRuler headTop={10} feetBottom={4.5} side="left" style={{ right: '100%', marginRight: 'max(6px, calc(88px - 22%))' }} />
         </div>
-        <ul className={styles.callouts} aria-label="그림에 표시한 장비">
+        <ul className={styles.callouts} data-vt="about-callouts" aria-label="그림에 표시한 장비">
           {CALLOUTS.map((c, i) => (
             <li key={c.gear} data-side={c.side} style={{ '--i': i } as CSSProperties}>
               <Callout {...c} />

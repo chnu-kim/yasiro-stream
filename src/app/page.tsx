@@ -54,7 +54,8 @@ export default async function Home() {
   const rest = home?.rows ?? [];
 
   return (
-    <div style={{ background: 'var(--bg)', color: 'var(--text)' }}>
+    // 바탕색은 body가 칠한다. 여기 칠하면 페이지 전환 스냅샷이 불투명해져 아래 층을 가린다(globals.css 페이지 전환)
+    <div style={{ color: 'var(--text)' }}>
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: jsonLdString(siteJsonLd()) }} />
 
       {/* ══ HERO: 그림은 상자 없이 오른쪽 칸에 크게. 가슴 아래는 바탕에 묻힌다 ══ */}
