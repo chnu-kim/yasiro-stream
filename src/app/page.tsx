@@ -1,8 +1,8 @@
 import type { Metadata } from 'next';
 import ArtImage from '@/components/ArtImage';
-import { ViewTransition } from 'react';
 import Link from 'next/link';
-import { HERO_FIGURE, HERO_FIGURE_SHARE, PAGE_TRANSITION } from '@/lib/page-transition';
+import { PAGE_TRANSITION } from '@/lib/page-transition';
+import HeroFigure from '@/components/HeroFigure';
 import styles from './page.module.css';
 import Button from '@/components/Button';
 import { ArrowIcon } from '@/components/icons';
@@ -82,8 +82,8 @@ export default async function Home() {
             ))}
           </dl>
 
-          <ViewTransition name={HERO_FIGURE} share={HERO_FIGURE_SHARE} default="none">
-          <div className={styles.figure}>
+          <HeroFigure>
+          <div className={styles.figure} data-hero-figure>
             <ArtImage
               name="yasiro1"
               widths={[1600]}
@@ -95,7 +95,7 @@ export default async function Home() {
               className={styles.char}
             />
           </div>
-          </ViewTransition>
+          </HeroFigure>
         </div>
       </section>
 

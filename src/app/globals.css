@@ -197,22 +197,23 @@ a {
   animation: vtFadeUp var(--dur-base) var(--ease-out) 80ms both;
 }
 
-/* 홈 히어로 ↔ /about 그림판(같은 이름 yasiro-figure): 캐릭터 상자가 자리를 옮기는 동안 두 그림을 겹쳐 바꾼다.
-   그림이 서로 달라(상반신·전신) 중간에 살짝 흐려 겹침을 감춘다.
-   z-index: template의 새 본문 그룹(page-in)은 옛 페이지에 없던 이름이라 늘 맨 위에 붙는다. 그 스냅샷은 그림 자리를 바탕색으로 칠해
-   그림 그룹을 덮으므로(페이드인할수록 그림이 사라진다) 그림 그룹을 위로 올린다 */
+/* 홈 히어로 ↔ /about 그림판(같은 이름 yasiro-figure, components/HeroFigure). 움직임은 HeroFigure가 Web Animations로 직접 건다
+   (얼굴을 맞춘 두 그림을 함께 날림, 계산은 lib/hero-morph). 여기서는 그 계산이 전제하는 스냅샷 크기·기준점만 정한다.
+   - old/new를 그룹 폭에 늘리지 않고 스냅샷 원래 크기로 두고, transform 기준점을 왼쪽 위로 둔다
+   - z-index: template의 새 본문 그룹(page-in)은 옛 페이지에 없던 이름이라 늘 맨 위에 붙고, 그 스냅샷은 그림 자리를 바탕색으로 칠해
+     그림 그룹을 덮는다. 그래서 그림 그룹을 위로 올린다
+   계산을 못 하면(측정 실패) 브라우저 기본 모핑이 그대로 돈다. 그때를 위해 animation 축약형을 쓰지 않는다
+   (축약형은 fill-mode를 지워, 사라지는 그림이 끝 프레임에 다시 보이며 번쩍인다) */
 ::view-transition-group(.figure-morph) {
   z-index: 1;
-  animation-duration: 450ms;
-  animation-timing-function: var(--ease-out);
+  animation-duration: 720ms;
 }
 
-::view-transition-image-pair(.figure-morph) {
-  animation: vtBlurVia 450ms var(--ease-out);
-}
-
-@keyframes vtBlurVia {
-  40% { filter: blur(4px); }
+::view-transition-old(.figure-morph),
+::view-transition-new(.figure-morph) {
+  inline-size: auto;
+  block-size: auto;
+  transform-origin: 0 0;
 }
 
 @keyframes vtFadeOut {

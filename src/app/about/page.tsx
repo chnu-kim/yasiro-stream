@@ -1,5 +1,5 @@
-import { ViewTransition, type CSSProperties, type ReactNode } from 'react';
-import { HERO_FIGURE, HERO_FIGURE_SHARE } from '@/lib/page-transition';
+import type { CSSProperties, ReactNode } from 'react';
+import HeroFigure from '@/components/HeroFigure';
 import type { Metadata } from 'next';
 import { pageMetadata } from '@/lib/seo';
 import ArtImage from '@/components/ArtImage';
@@ -342,8 +342,8 @@ export default async function About() {
 // 고정 그림판: 사선 띠 위 캐릭터 + 키 눈금자 + 장비 라벨(전신으로 물러난 뒤 CSS가 켠다)
 function Plate() {
   return (
-    <ViewTransition name={HERO_FIGURE} share={HERO_FIGURE_SHARE} default="none">
-    <div className={styles.stage}>
+    <HeroFigure>
+    <div className={styles.stage} data-hero-figure>
       <div className={styles.figure}>
         <ArtImage
           name="yasiro4"
@@ -368,7 +368,7 @@ function Plate() {
         </ul>
       </div>
     </div>
-    </ViewTransition>
+    </HeroFigure>
   );
 }
 

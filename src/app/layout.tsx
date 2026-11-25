@@ -32,7 +32,9 @@ export default async function RootLayout({ children }: { children: React.ReactNo
   const user = await getSessionUser();
 
   return (
-    <html lang="ko" suppressHydrationWarning>
+    // data-scroll-behavior: globals의 smooth 스크롤은 페이지 안 앵커용. 페이지를 옮길 때는 Next가 잠시 끄고 바로 맨 위로 간다
+    // (없으면 Next 16은 새 페이지를 부드럽게 끌어올려, 전환 도중 화면이 미끄러지고 캐릭터 착지 자리가 어긋난다)
+    <html lang="ko" data-scroll-behavior="smooth" suppressHydrationWarning>
       <head>
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />

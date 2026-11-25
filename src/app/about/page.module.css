@@ -130,6 +130,11 @@
 
 /* 캐릭터 무대: 상자 없이 사선 띠 하나만 뒤에. 크기 컨테이너라 그림 상자를 무대 크기에서 바로 계산한다.
    확대된 그림이 아래 목차 글자 밑으로 깔리지 않게 무대에서 자른다(자른 끝은 아래 스크롤 연동 절의 mask가 바탕에 스며들게 한다) */
+/* 다른 페이지로 떠나는 순간(Dossier data-leaving) 라벨을 숨겨 전환 스냅샷에 찍히지 않게 한다 */
+.dossier[data-leaving] :is(.rulerWrap, .callouts) {
+  visibility: hidden;
+}
+
 .stage {
   flex: 1;
   min-height: 0;
