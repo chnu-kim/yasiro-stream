@@ -1,7 +1,7 @@
 import type { Metadata } from 'next';
 import ArtImage from '@/components/ArtImage';
 import Link from 'next/link';
-import { PAGE_TRANSITION } from '@/lib/page-transition';
+import { PAGE_TRANSITION, vtTarget } from '@/lib/page-transition';
 import HeroFigure from '@/components/HeroFigure';
 import styles from './page.module.css';
 import Button from '@/components/Button';
@@ -61,20 +61,20 @@ export default async function Home() {
       {/* ══ HERO: 그림은 상자 없이 오른쪽 칸에 크게. 가슴 아래는 바탕에 묻힌다 ══ */}
       <section className={styles.hero} aria-labelledby="hero-title">
         <div className={styles.heroGrid}>
-          <div className={styles.heroHead}>
+          <div className={styles.heroHead} {...vtTarget('home-head', 'rise', 0)}>
             <p className={styles.eyebrow}>치지직 버츄얼 스트리머</p>
             <h1 id="hero-title" className={styles.title}>야시로</h1>
           </div>
           <div className={styles.heroBody}>
-            <p className={styles.lead}>호기심 많은 탐험가, 벌꿀오소리 야시로</p>
-            <div className={styles.actions}>
+            <p className={styles.lead} {...vtTarget('home-lead', 'rise', 1)}>호기심 많은 탐험가, 벌꿀오소리 야시로</p>
+            <div className={styles.actions} {...vtTarget('home-actions', 'rise', 2)}>
               <Button href={CHZZK_LIVE_URL} external size="lg" iconEnd={<ArrowIcon direction="up-right" size={18} />}>
                 방송 입장하기
               </Button>
             </div>
           </div>
 
-          <dl className={styles.facts}>
+          <dl className={styles.facts} {...vtTarget('home-facts', 'rise', 3)}>
             {FACTS.map((f) => (
               <div key={f.term} className={styles.fact}>
                 <dt>{f.term}</dt>

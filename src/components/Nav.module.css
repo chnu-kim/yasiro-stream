@@ -101,8 +101,7 @@
   color: var(--text);
 }
 
-.link[aria-current='page']::after {
-  content: '';
+.mark {
   position: absolute;
   left: 50%;
   bottom: 4px;

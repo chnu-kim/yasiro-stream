@@ -86,6 +86,8 @@ export default function Nav({ initialUser }: NavProps) {
             aria-current={isCurrent(pathname, l.href) ? 'page' : undefined}
           >
             {l.label}
+            {/* 현재 위치 표시. 가상 요소가 아니라 요소인 것은 페이지 전환에서 새 메뉴 아래로 미끄러지게 이름(nav-mark)을 붙이기 위해서다 */}
+            {isCurrent(pathname, l.href) && <span className={styles.mark} style={{ viewTransitionName: 'nav-mark' }} aria-hidden="true" />}
           </Link>
         ))}
       </nav>

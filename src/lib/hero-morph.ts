@@ -52,7 +52,7 @@ export function rectFromKeyframe(k: Record<string, unknown>): Rect | null {
   return { x: v[4], y: v[5], w, h };
 }
 
-// 시간표(ms). 옛 본문이 먼저 빠지고 → 캐릭터가 이동하고 → 거의 도착할 때 새 본문이 들어온다.
+// 시간표(ms). 옛 본문이 먼저 빠지고, 캐릭터가 이동하는 동안 새 본문이 차례로 떠오른다.
 // 새 그림을 위에 먼저 다 덮은 뒤 옛 그림을 지운다(둘이 동시에 반투명해져 바탕이 비치는 일을 막는다).
 export const HERO_MORPH = {
   duration: 720,
@@ -69,7 +69,71 @@ export const HERO_MORPH = {
     { offset: 0.85, opacity: 0 },
     { offset: 1, opacity: 0 },
   ],
-  // 새 본문(template page-in)의 등장을 캐릭터 도착에 맞춰 늦춘다
-  pageInDelay: 320,
-  pageInDuration: 340,
+  // 짝이 지어지면 새 페이지의 등장 애니메이션(globals.css: 본문·제목 순차 등장·띠·도장)을 모두 이만큼 늦춘다.
+  // 간격은 그대로라 순서가 유지된다. 본문 기본 등장 80ms + 60 = 140ms(캐릭터 이동과 겹쳐 들어온다)
+  enterShift: 60,
 } as const;
+
+// ── 전환 연출 실행(components/HeroFigure의 onShare). DOM·Web Animations는 아래 모양으로만 다뤄 테스트에서 가짜로 바꾼다 ──
+
+type Cancelable = { cancel(): void };
+export type PseudoLike = {
+  animate(keyframes: Keyframe[] | PropertyIndexedKeyframes, options: KeyframeAnimationOptions): Cancelable;
+  getAnimations(): Array<Cancelable & { effect: { getKeyframes(): Array<Record<string, unknown>> } | null }>;
+};
+export type MorphInstance = { name: string; group: PseudoLike; imagePair: PseudoLike; old: PseudoLike; new: PseudoLike };
+
+// 문서의 CSS 애니메이션 하나(대상 pseudo, 지금 delay, delay 바꾸기)
+export type DocAnimation = { pseudo: string | null; delay: number; setDelay(ms: number): void };
+
+// 그룹(UA) 애니메이션의 첫·끝 키프레임 → 옛·새 상자
+export function groupRects(group: PseudoLike): [Rect, Rect] | null {
+  const frames = group.getAnimations()[0]?.effect?.getKeyframes();
+  if (!frames || frames.length < 2) return null;
+  const from = rectFromKeyframe(frames[0]);
+  const to = rectFromKeyframe(frames[frames.length - 1]);
+  return from && to ? [from, to] : null;
+}
+
+// 새 페이지의 등장(::view-transition-new) 애니메이션을 shift만큼 늦춘다. 캐릭터(name) 자신은 뺀다
+export function shiftEnters(anims: DocAnimation[], name: string, shift: number): number {
+  let n = 0;
+  for (const a of anims) {
+    if (!a.pseudo?.startsWith('::view-transition-new(') || a.pseudo === `::view-transition-new(${name})`) continue;
+    a.setDelay(a.delay + shift);
+    n++;
+  }
+  return n;
+}
+
+// 짝이 지어진 순간 한 번: 기본 모핑을 걷어 내고 얼굴 맞춘 두 그림을 날린 뒤 새 페이지 등장을 늦춘다.
+// 계산할 수 없으면(측정 실패·모션 줄이기) 아무것도 바꾸지 않고 null(브라우저 기본 전환이 돈다). 돌려주는 함수는 정리용
+export function runHeroMorph(args: {
+  instance: MorphInstance;
+  oldM: FigureMeasure | null;
+  newM: FigureMeasure | null;
+  reducedMotion: boolean;
+  docAnimations: () => DocAnimation[];
+}): (() => void) | null {
+  const { instance, oldM, newM } = args;
+  if (args.reducedMotion || !oldM || !newM) return null;
+  const boxes = groupRects(instance.group);
+  if (!boxes) return null;
+  const t = morphTransforms(oldM, newM, boxes[0], boxes[1]);
+  if (!t) return null;
+
+  // 그룹은 새 상자 자리에 멈춘다(UA가 끝 상태를 정적 스타일로 둔다)
+  for (const part of [instance.group, instance.imagePair, instance.old, instance.new]) {
+    for (const a of part.getAnimations()) a.cancel();
+  }
+  const move = { duration: HERO_MORPH.duration, easing: HERO_MORPH.easing, fill: 'both' as const };
+  const fade = { duration: HERO_MORPH.duration, easing: 'linear', fill: 'both' as const };
+  const anims = [
+    instance.old.animate({ transform: [...t.old] }, move),
+    instance.new.animate({ transform: [...t.new] }, move),
+    instance.old.animate([...HERO_MORPH.oldOpacity], fade),
+    instance.new.animate([...HERO_MORPH.newOpacity], fade),
+  ];
+  shiftEnters(args.docAnimations(), instance.name, HERO_MORPH.enterShift);
+  return () => anims.forEach((a) => a.cancel());
+}
