@@ -344,6 +344,7 @@ function Plate() {
   return (
     <HeroFigure>
     <div className={styles.stage} data-hero-figure>
+      <span className={styles.band} aria-hidden="true" />
       <div className={styles.figure}>
         <ArtImage
           name="yasiro4"

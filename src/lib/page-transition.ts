@@ -7,16 +7,3 @@ export const PAGE_TRANSITION = ['page'];
 export const HERO_FIGURE = 'yasiro-figure';
 export const HERO_FIGURE_SHARE = { page: 'figure-morph', default: 'none' };
 
-// 이 클릭이 사이트 안 다른 페이지로 떠나는 링크 클릭인가(새 탭·다운로드·바깥 주소·같은 페이지 앵커는 아니다).
-// /about은 이때 그림판의 눈금자·장비 라벨을 숨겨, 전환 스냅샷에 라벨이 찍혀 캐릭터와 함께 커지지 않게 한다.
-export type ClickLike = { button: number; metaKey: boolean; ctrlKey: boolean; shiftKey: boolean; altKey: boolean };
-export type AnchorLike = { href: string; target: string; download: boolean };
-
-export function leavesPage(click: ClickLike, anchor: AnchorLike | null, here: string): boolean {
-  if (!anchor || click.button !== 0) return false;
-  if (click.metaKey || click.ctrlKey || click.shiftKey || click.altKey) return false;
-  if ((anchor.target && anchor.target !== '_self') || anchor.download) return false;
-  const from = new URL(here);
-  const to = new URL(anchor.href, from);
-  return to.origin === from.origin && to.pathname !== from.pathname;
-}

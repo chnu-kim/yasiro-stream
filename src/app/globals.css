@@ -216,6 +216,33 @@ a {
   transform-origin: 0 0;
 }
 
+/* /about 그림판의 띠·눈금자·장비 라벨(about/page.module.css에서 이동 중에만 이름): 떠날 때는 제자리에서 빨리 사라지고,
+   들어올 때는 캐릭터가 거의 도착한 뒤 나타난다. 라벨은 캐릭터 위, 띠는 아래 */
+::view-transition-group(about-band) {
+  z-index: 0;
+}
+
+::view-transition-group(about-ruler),
+::view-transition-group(about-callouts) {
+  z-index: 2;
+}
+
+::view-transition-old(about-band),
+::view-transition-old(about-ruler),
+::view-transition-old(about-callouts) {
+  animation: vtFadeOut var(--dur-fast) ease-in both;
+}
+
+::view-transition-new(about-band),
+::view-transition-new(about-ruler),
+::view-transition-new(about-callouts) {
+  animation: vtFadeIn 300ms var(--ease-out) 380ms both;
+}
+
+@keyframes vtFadeIn {
+  from { opacity: 0; }
+}
+
 @keyframes vtFadeOut {
   to { opacity: 0; }
 }

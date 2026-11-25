@@ -9,7 +9,6 @@
 // 데스크톱(1024px 이상, 높이 641px 이상)에서만 움직인다. 그 밖이나 JS가 없으면 그림판은 모든 표시가 켜진 상태로 보인다.
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { CHAPTERS, chapterNo } from './chapters';
-import { leavesPage } from '@/lib/page-transition';
 import styles from './page.module.css';
 
 const DESKTOP = '(min-width: 1024px) and (min-height: 641px)';
@@ -110,27 +109,6 @@ export default function Dossier({ plate, children }: { plate: ReactNode; childre
       el.removeAttribute('data-zoomed');
     };
   }, [active, motion]);
-
-  // 다른 페이지로 떠나는 링크를 누르면 눈금자·장비 라벨을 바로 숨긴다. 페이지 전환이 그림판을 찍어 홈 히어로 크기로 키우는데(HeroFigure),
-  // 라벨까지 같이 커지면 어색하다. 이동이 취소돼 페이지에 남으면 잠시 뒤 되돌린다
-  useEffect(() => {
-    const el = root.current;
-    if (!el) return;
-    let timer = 0;
-    const onClick = (e: MouseEvent) => {
-      const a = (e.target as Element | null)?.closest?.('a[href]') as HTMLAnchorElement | null;
-      const anchor = a && { href: a.href, target: a.target, download: a.hasAttribute('download') };
-      if (!leavesPage(e, anchor, location.href)) return;
-      el.setAttribute('data-leaving', '');
-      clearTimeout(timer);
-      timer = window.setTimeout(() => el.removeAttribute('data-leaving'), 3000);
-    };
-    document.addEventListener('click', onClick, true);
-    return () => {
-      document.removeEventListener('click', onClick, true);
-      clearTimeout(timer);
-    };
-  }, []);
 
   useEffect(() => () => releaseJump.current(), []);
 

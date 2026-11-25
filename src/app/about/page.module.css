@@ -130,11 +130,6 @@
 
 /* 캐릭터 무대: 상자 없이 사선 띠 하나만 뒤에. 크기 컨테이너라 그림 상자를 무대 크기에서 바로 계산한다.
    확대된 그림이 아래 목차 글자 밑으로 깔리지 않게 무대에서 자른다(자른 끝은 아래 스크롤 연동 절의 mask가 바탕에 스며들게 한다) */
-/* 다른 페이지로 떠나는 순간(Dossier data-leaving) 라벨을 숨겨 전환 스냅샷에 찍히지 않게 한다 */
-.dossier[data-leaving] :is(.rulerWrap, .callouts) {
-  visibility: hidden;
-}
-
 .stage {
   flex: 1;
   min-height: 0;
@@ -147,9 +142,9 @@
   padding-left: calc(var(--page-x) + 96px); /* 왼쪽에 키 눈금자와 "149.8 cm" 라벨 자리 */
 }
 
-/* 띠 아래 끝은 바탕에 스며들게 한다. sticky가 풀릴 때 수평으로 잘린 끝이 보이지 않게(홈 히어로와 같은 처리) */
-.stage::before {
-  content: '';
+/* 띠 아래 끝은 바탕에 스며들게 한다. sticky가 풀릴 때 수평으로 잘린 끝이 보이지 않게(홈 히어로와 같은 처리).
+   ::before가 아니라 요소인 것은 페이지 전환에서 따로 이름을 붙이기 위해서다(아래 '홈 ↔ 소개 전환') */
+.band {
   position: absolute;
   top: -10%;
   bottom: 0;
@@ -223,6 +218,20 @@
   position: absolute;
   inset: 0;
   pointer-events: none;
+}
+
+/* 홈 ↔ 소개 전환(components/HeroFigure): 캐릭터만 홈 히어로 자리로 날아가고, 띠·눈금자·장비 라벨은 제자리에서 사라지고 나타난다.
+   페이지 이동 중에만 따로 이름을 붙여 캐릭터 스냅샷에서 뺀다(빼지 않으면 캐릭터와 함께 2배 넘게 커진다). 애니메이션은 globals.css */
+:global(html:active-view-transition-type(page)) .band {
+  view-transition-name: about-band;
+}
+
+:global(html:active-view-transition-type(page)) .rulerWrap {
+  view-transition-name: about-ruler;
+}
+
+:global(html:active-view-transition-type(page)) .callouts {
+  view-transition-name: about-callouts;
 }
 
 /* ─── 소개 ─── */
