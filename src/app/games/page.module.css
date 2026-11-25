@@ -1,21 +1,27 @@
-/* /games 플레이한 게임. 색은 전부 globals.css 토큰. 시안: Main(데스크톱) · MobileDark(≤640px) */
+/* /games 플레이한 게임. /about 도감과 같은 골격: 왼쪽 고정 기록판(제목·숫자·검색·필터·연도 목차) + 오른쪽 연도 챕터.
+   2단은 /about과 같은 조건(폭 1024px 이상·높이 641px 이상)에서만. 그 밖에서는 기록판 → 연도 목차 띠(위에 붙음) → 챕터 한 줄 흐름.
+   색은 전부 globals.css 토큰 */
 .page {
-  padding: var(--space-8) var(--page-x) var(--section-y);
+  padding: 0 var(--page-x) var(--section-y);
   color: var(--text);
 }
 
-/* ─── 헤더 ─── */
-.header {
-  display: flex;
-  align-items: flex-end;
-  justify-content: space-between;
-  gap: var(--space-6);
-  flex-wrap: wrap;
-  padding-bottom: var(--space-6);
-  border-bottom: 1px dashed var(--border-strong);
+.layout {
+  --rail-h: 0px;
 }
 
-.headerText {
+.board {
+  min-width: 0;
+}
+
+.boardIn {
+  display: flex;
+  flex-direction: column;
+  padding-top: var(--space-6);
+}
+
+/* ─── 머리: 제목 묶음 + 기록지(/about 프로필과 같은 문법: 위 굵은 선 + 작은 라벨 위 큰 값) ─── */
+.header {
   display: flex;
   flex-direction: column;
   gap: var(--space-3);
@@ -24,37 +30,48 @@
 .title {
   font-family: var(--font-display);
   font-weight: 400;
-  font-size: var(--fs-page);
+  font-size: clamp(36px, 1.6vw + 24px, 48px);
   line-height: 1.1;
+  word-break: keep-all;
 }
 
 .lead {
-  font-size: 17px;
-  line-height: var(--lh-body);
+  font-size: 15px;
+  line-height: 1.7;
   color: var(--text-dim);
   word-break: keep-all;
 }
 
 .stats {
-  display: flex;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  column-gap: var(--space-5);
+  margin: var(--space-2) 0 0;
+  /* 위쪽 가로선은 Nav 점선·검색 밑줄·연도 챕터 굵은 선만 둔다(선이 겹겹이 보이면 지저분하다). 숫자 묶음은 선 없이 간격으로 */
 }
 
 .stat {
-  padding: 4px var(--space-5);
-  border-left: 2px solid var(--brass);
+  position: relative;
 }
 
 .stat dt {
-  font-size: var(--fs-sm);
+  font: 500 var(--fs-sm) / 1.4 'Noto Sans KR', sans-serif;
   color: var(--text-dim);
 }
 
 .stat dd {
-  margin-top: 4px;
+  margin: 0;
   font-family: 'Fredoka', sans-serif;
   font-weight: 600;
-  font-size: 32px;
-  line-height: 1;
+  font-size: 34px;
+  line-height: 1.15;
+  white-space: nowrap;
+}
+
+.unit {
+  margin-left: 0.15em;
+  font: 500 var(--fs-sm) 'Noto Sans KR', sans-serif;
+  color: var(--text-dim);
 }
 
 .statClear {
@@ -86,29 +103,22 @@
   from { --count-n: var(--from); }
 }
 
-/* ─── 검색·필터 ─── */
+/* ─── 검색·필터: 묶음마다 작은 라벨을 위에(/about 기록지의 '작은 라벨 위 값'), 모두 같은 왼쪽 선과 같은 간격 ─── */
 .controls {
   display: flex;
-  flex-wrap: wrap;
-  align-items: flex-end;
-  gap: 16px 24px;
-  padding: 28px 0 12px;
+  flex-direction: column;
+  gap: var(--space-5);
+  margin-top: var(--space-6);
 }
 
-.field {
+.group {
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: var(--space-2);
 }
 
-.fieldSearch {
-  flex: 1 1 320px;
-  min-width: 0;
-}
-
-.label {
-  font-size: var(--fs-sm);
-  font-weight: 500;
+.groupLabel {
+  font: 500 var(--fs-sm) / 1.4 'Noto Sans KR', sans-serif;
   color: var(--text-dim);
 }
 
@@ -116,15 +126,19 @@
   display: flex;
   align-items: center;
   gap: 10px;
-  height: 48px;
-  padding: 0 16px;
-  background: var(--paper-hi);
-  border: 1px solid var(--border-strong);
-  border-radius: var(--radius-md);
+  height: var(--tap);
+  padding: 0;
+  border-bottom: 1px solid var(--border-strong);
   color: var(--text-dim);
+  transition: border-color var(--dur-fast), box-shadow var(--dur-fast);
 }
 
 .search:focus-within {
+  border-bottom-color: var(--text);
+  box-shadow: inset 0 -1px 0 var(--text);
+}
+
+.search:has(.searchInput:focus-visible) {
   outline: 2px solid var(--focus);
   outline-offset: 2px;
 }
@@ -135,7 +149,7 @@
   border: 0;
   background: transparent;
   font: inherit;
-  font-size: var(--fs-base);
+  font-size: 15px;
   color: var(--text);
   outline: none;
 }
@@ -145,76 +159,151 @@
   opacity: 1;
 }
 
-.segment {
+/* 정복 여부: 개수를 단 알약 버튼. 보이는 높이는 36px, 위아래 4px씩 누르는 자리를 늘려 44px */
+.chips {
   display: flex;
-  background: var(--paper-hi);
+  flex-wrap: wrap;
+  gap: var(--space-2) 6px;
+}
+
+.chip {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 36px;
+  padding: 0 var(--space-3);
   border: 1px solid var(--border-strong);
-  border-radius: var(--radius-md);
-  overflow: hidden;
-}
-
-.segBtn {
-  height: 46px;
-  padding: 0 16px;
-  border: 0;
-  border-right: 1px solid var(--border);
-  background: transparent;
+  border-radius: var(--radius-pill);
+  background: none;
+  font: 500 var(--fs-sm) 'Noto Sans KR', sans-serif;
   color: var(--text);
-  font: inherit;
-  font-size: 15px;
+  white-space: nowrap;
   cursor: pointer;
-  transition: background var(--dur-fast);
+  transition: background var(--dur-fast), border-color var(--dur-fast), color var(--dur-fast);
 }
 
-.segBtn:last-child {
-  border-right: 0;
+.chip::after {
+  content: '';
+  position: absolute;
+  inset: -4px 0;
 }
 
-.segBtn:hover {
-  background: var(--accent-bg);
+.chip:hover {
+  border-color: var(--text);
 }
 
-.segBtn[aria-pressed='true'] {
-  background: var(--btn-primary-bg);
-  color: var(--btn-primary-fg);
-  font-weight: 600;
+.chipCount {
+  font: 600 var(--fs-xs) 'Fredoka', sans-serif;
+  color: var(--text-dim);
+}
+
+.chip[aria-pressed='true'] {
+  background: var(--text);
+  border-color: var(--text);
+  color: var(--bg);
+}
+
+.chip[aria-pressed='true'] .chipCount {
+  color: inherit;
+  opacity: 0.75;
+}
+
+/* ─── 본문 맨 위 줄: 보기 탭(표지·일지, /about 챕터 목차와 같은 밑줄) + 결과 요약 ─── */
+.contentBar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3) var(--space-5);
+  flex-wrap: wrap;
+  margin-bottom: var(--space-5);
+}
+
+.views {
+  display: flex;
+  gap: var(--space-5);
+}
+
+.viewBtn {
+  height: var(--tap);
+  padding: 0 2px;
+  border: 0;
+  border-bottom: 2px solid transparent;
+  background: none;
+  font: 500 15px 'Noto Sans KR', sans-serif;
+  color: var(--text-dim);
+  cursor: pointer;
+  transition: color var(--dur-fast), border-color var(--dur-fast);
+}
+
+.viewBtn:hover {
+  color: var(--text);
+}
+
+.viewBtn[aria-pressed='true'] {
+  color: var(--accent-text);
+  border-bottom-color: var(--accent);
+}
+
+/* 탭 줄의 정렬: 줄 자체가 선을 가지므로 밑줄 없이 글자와 화살표만 */
+.contentBar .select {
+  width: auto;
+  border-bottom: 0;
+  font-size: var(--fs-sm);
+}
+
+.contentBar .selectWrap {
+  max-width: none;
 }
 
 .selectWrap {
   position: relative;
   display: block;
+  min-width: 0;
+  max-width: 220px;
 }
-
-.selectWrapYear { min-width: 132px; }
-.selectWrapSort { min-width: 168px; }
 
 /* 기기 기본 화살표 대신 인라인 SVG(currentColor)를 얹어 라이트·다크 모두 토큰 색을 따른다 */
 .select {
   appearance: none;
   -webkit-appearance: none;
   width: 100%;
-  height: 48px;
-  min-height: var(--tap);
-  padding: 0 36px 0 12px;
-  background: var(--paper-hi);
-  border: 1px solid var(--border-strong);
-  border-radius: var(--radius-md);
+  height: var(--tap);
+  padding: 0 22px 0 0;
+  background: transparent;
+  border: 0;
+  border-bottom: 1px solid var(--border-strong);
+  border-radius: 0;
   font: inherit;
   font-size: 15px;
+  color: var(--text);
+  cursor: pointer;
+  transition: border-color var(--dur-fast);
+}
+
+.select:hover {
+  border-bottom-color: var(--text);
+}
+
+/* 다크 모드에서 펼친 목록이 흰 바탕이 되지 않게 */
+.select option {
+  background: var(--paper-hi);
   color: var(--text);
 }
 
 .selectArrow {
   position: absolute;
-  right: 12px;
+  right: 4px;
   top: 50%;
   transform: translateY(-50%);
   color: var(--text-dim);
   pointer-events: none;
 }
 
-.segBtn:focus-visible,
+.chip:focus-visible,
+.viewBtn:focus-visible,
 .select:focus-visible,
+.railItem:focus-visible,
 .linkBtn:focus-visible,
 .solidBtn:focus-visible,
 .ghostBtn:focus-visible {
@@ -222,18 +311,17 @@
   outline-offset: 2px;
 }
 
-/* 페이지 이동·상세 닫힘 뒤 포커스가 오는 자리(tabIndex=-1). 마우스로 왔을 때만 테두리를 숨긴다 */
-.statusRow:focus:not(:focus-visible) {
+/* 상세 닫힘·되돌리기 뒤 포커스가 오는 자리(tabIndex=-1). 마우스로 왔을 때만 테두리를 숨긴다 */
+.statusRow:focus:not(:focus-visible),
+.chapterTitle:focus:not(:focus-visible) {
   outline: none;
 }
 
 .statusRow {
   display: flex;
   align-items: center;
-  justify-content: space-between;
   gap: var(--space-4);
-  flex-wrap: wrap;
-  margin-bottom: 28px;
+  min-width: 0;
 }
 
 .status {
@@ -242,8 +330,9 @@
 }
 
 .linkBtn {
-  min-height: 36px;
+  min-height: var(--tap);
   padding: 0 12px;
+  margin-inline: -12px;
   background: transparent;
   border: 0;
   font: inherit;
@@ -255,30 +344,131 @@
   cursor: pointer;
 }
 
-/* 탭 영역 padding이 글자 시작을 밀어내지 않게 음수 margin으로 시각 정렬 */
-.statusRow .linkBtn {
-  margin-inline: -12px;
+/* ─── 연도 목차: 기록판 안 세로 목록(/about 챕터 목차와 같은 번호 + 이름) ─── */
+.rail {
+  display: flex;
+  flex-direction: column;
+  margin-top: var(--space-6);
 }
 
-/* ─── 카드 그리드 ─── */
-.grid {
+.rail .groupLabel {
+  padding-bottom: var(--space-1);
+}
+
+.railItem {
+  display: grid;
+  grid-template-columns: 28px minmax(0, 1fr) auto;
+  align-items: baseline;
+  gap: var(--space-2);
+  min-height: var(--tap);
+  padding: var(--space-1) 2px;
+  border: 0;
+  background: none;
+  text-align: left;
+  color: var(--text-dim);
+  cursor: pointer;
+  transition: color var(--dur-fast), box-shadow var(--dur-fast), padding var(--dur-fast);
+}
+
+.railItem:hover {
+  color: var(--text);
+}
+
+.railItem[aria-current='location'] {
+  padding-left: var(--space-3);
+  color: var(--text);
+  box-shadow: inset 3px 0 0 var(--accent);
+}
+
+.railNo {
+  font: 600 13px 'Fredoka', sans-serif;
+  color: var(--accent-text);
+}
+
+.railYear,
+.railNone {
+  font: 400 20px / 1.2 var(--font-display);
+}
+
+.railNone {
+  font-size: 17px;
+}
+
+.railCount {
+  font: 500 13px 'Fredoka', sans-serif;
+  color: var(--text-dim);
+}
+
+/* 좁은 화면용 가로 띠(넓은 화면에서는 숨김) */
+.railStrip {
+  display: none;
+}
+
+/* ─── 연도 챕터 ─── */
+.content {
+  min-width: 0;
+}
+
+.chapter + .chapter {
+  margin-top: var(--space-8);
+}
+
+/* /about 챕터 제목과 같은 문법: 번호 + 제목(Jua), 아래 굵은 선 */
+.chapterTitle {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-3);
+  padding-bottom: var(--space-3);
+  margin-bottom: var(--space-5);
+  border-bottom: 2px solid var(--text);
+  font-family: var(--font-display);
+  font-weight: 400;
+  font-size: var(--fs-2xl);
+  line-height: var(--lh-tight);
+  scroll-margin-top: calc(var(--nav-h) + var(--rail-h) + var(--space-4));
+}
+
+.chapterNo {
+  flex-shrink: 0;
+  font-family: 'Fredoka', sans-serif;
+  font-size: 0.55em;
+  font-weight: 600;
+  color: var(--accent-text);
+}
+
+.chapterNone {
+  font-size: 0.8em;
+}
+
+.chapterCount {
+  margin-left: auto;
+  font: 500 var(--fs-sm) 'Noto Sans KR', sans-serif;
+  color: var(--text-dim);
+  white-space: nowrap;
+}
+
+/* 표지 격자: 칸 최소 136px로 채운다(1280px 화면에서 5열). 연도 끝줄은 비어도 그대로 둔다(챕터가 끝났다는 표시) */
+.wall {
   list-style: none;
   display: grid;
-  /* 최대 4열: 페이지당 24개(PAGE_SIZE)가 4·3·2열에서 줄이 딱 맞는다. 칸 최소 폭은 208px, 넓어도 (폭 - 열 간격 3개) / 4보다 좁아지지 않는다 */
-  grid-template-columns: repeat(auto-fill, minmax(max(208px, calc((100% - 3 * 24px) / 4)), 1fr));
-  gap: 40px 24px;
+  grid-template-columns: repeat(auto-fill, minmax(136px, 1fr));
+  gap: var(--space-6) var(--space-4);
 }
 
-/* ─── 빈 결과 ─── */
+/* 이름순(챕터 없음)도 같은 굵은 선 아래에 놓는다 */
+.plain {
+  padding-top: var(--space-5);
+  border-top: 2px solid var(--text);
+}
+
+/* ─── 빈 결과: 상자 없이 기록지 선 아래 ─── */
 .empty {
   display: flex;
   flex-direction: column;
   align-items: center;
   gap: var(--space-3);
-  padding: 72px var(--space-5);
-  background: var(--paper-hi);
-  border: 1px dashed var(--border-strong);
-  border-radius: var(--radius-md);
+  padding: var(--space-8) var(--space-5);
+  border-top: 2px solid var(--text);
   text-align: center;
 }
 
@@ -334,15 +524,23 @@
   background: var(--accent-bg);
 }
 
-.footnote {
+/* ─── 아래쪽: 가는 선 아래 출처 안내 + 관리자 로그인 한 줄 ─── */
+.foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2) var(--space-5);
+  flex-wrap: wrap;
   margin-top: var(--space-8);
+  padding-top: var(--space-3);
+  border-top: 1px solid var(--border);
+}
+
+.footnote {
   font-size: var(--fs-sm);
   line-height: var(--lh-body);
   color: var(--text-dim);
-}
-
-.adminLogin {
-  margin-top: var(--space-2);
+  word-break: keep-all;
 }
 
 .adminLogin a {
@@ -367,165 +565,9 @@
   outline-offset: 2px;
 }
 
-/* ─── 모바일 ─── */
-/* 모바일: 첫 화면에 포스터 첫 줄이 다 들어오도록 컨트롤 라벨은 화면에서 숨기고(스크린리더용으로 남김) 여백을 줄인다 */
-@media (max-width: 640px) {
-  .page {
-    padding-top: var(--space-6);
-    padding-bottom: var(--space-8);
-  }
-
-  .header {
-    display: block;
-    padding-bottom: 0;
-    border-bottom: 0;
-  }
-
-  .headerText {
-    gap: 10px;
-  }
-
-
-  .lead {
-    font-size: 15px;
-  }
-
-  .stats {
-    margin-top: var(--space-4);
-  }
-
-  .stat {
-    padding: 2px 20px 2px 14px;
-  }
-
-  .stat dd {
-    font-size: 26px;
-  }
-
-  .controls {
-    display: flex;
-    flex-direction: column;
-    align-items: stretch;
-    gap: 10px;
-    margin-top: var(--space-5);
-    padding: var(--space-4) 0 0;
-    border-top: 1px dashed var(--border-strong);
-  }
-
-  .fieldSearch {
-    flex: none;
-  }
-
-  .labelHideMobile {
-    position: absolute;
-    width: 1px;
-    height: 1px;
-    overflow: hidden;
-    clip-path: inset(50%);
-  }
-
-  .search {
-    padding: 0 14px;
-  }
-
-  /* 탭 개수·글자 길이에 맞춰 한 줄에서 너비를 나눈다("끝없는 탐험"이 가장 길다) */
-  .segBtn {
-    flex: 1 1 auto;
-    height: var(--tap);
-    padding: 0 6px;
-    font-size: var(--fs-sm);
-    white-space: nowrap;
-  }
-
-  .selects {
-    display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 10px;
-  }
-
-  .selectWrap {
-    width: 100%;
-    min-width: 0;
-  }
-
-  .select {
-    height: 44px;
-    min-width: 0;
-    padding: 0 32px 0 10px;
-  }
-
-  .selectArrow {
-    right: 10px;
-  }
-
-  .statusRow {
-    margin: 10px 0 var(--space-4);
-  }
-
-  .grid {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 32px 14px;
-  }
-
-  .footnote {
-    margin-top: 40px;
-  }
-}
-
-/* 데스크톱에서 selects 래퍼는 레이아웃에 참여하지 않는다 */
-@media (min-width: 641px) {
-  .selects {
-    display: contents;
-  }
-}
-
-/* 관리자 띠 자리(제목 위, 시안: Main). 띠 스타일은 AdminBar.module.css */
+/* 관리자 띠 자리(기록판 위, 전체 폭). 띠 스타일은 AdminBar.module.css */
 .adminSlot {
-  margin-bottom: var(--space-6);
-}
-
-/* ─── 연도 구분선(날짜순일 때만). 큰 연도 숫자 + 흐린 개수 + 오른쪽으로 이어지는 1px 선 ─── */
-.yearGroup + .yearGroup {
-  margin-top: var(--space-8);
-}
-
-.yearHead {
-  display: flex;
-  align-items: baseline;
-  gap: var(--space-3);
-  margin-bottom: var(--space-5);
-}
-
-.yearNum {
-  font-family: 'Fredoka', sans-serif;
-  font-weight: 600;
-  font-size: var(--fs-xl);
-  line-height: 1;
-  color: var(--text);
-}
-
-/* Fredoka에는 한글 글리프가 없다 */
-.yearNone {
-  font-family: 'Noto Sans KR', sans-serif;
-  font-weight: 700;
-  font-size: var(--fs-lg);
-  line-height: 1;
-  letter-spacing: 0;
-  color: var(--text);
-}
-
-.yearCount {
-  font-size: var(--fs-sm);
-  letter-spacing: 0;
-  color: var(--text-dim);
-  white-space: nowrap;
-}
-
-.yearRule {
-  flex: 1;
-  min-width: var(--space-5);
-  align-self: center;
-  border-top: 1px solid var(--border);
+  padding-top: var(--space-6);
 }
 
 .srOnly {
@@ -536,17 +578,241 @@
   clip-path: inset(50%);
 }
 
-@media (max-width: 640px) {
-  .yearGroup + .yearGroup {
-    margin-top: var(--space-7);
+/* ─── 2단(/about과 같은 조건): 기록판이 Nav 아래에 붙어 있고, 넘치면 기록판 안에서만 스크롤 ─── */
+@media (min-width: 1024px) and (min-height: 641px) {
+  .layout {
+    display: grid;
+    grid-template-columns: 320px minmax(0, 1fr);
+    column-gap: var(--space-7);
   }
 
-  .yearHead {
-    gap: 10px;
+  .boardIn {
+    position: sticky;
+    top: var(--nav-h);
+    max-height: calc(100svh - var(--nav-h));
+    overflow-y: auto;
+    scrollbar-width: thin; /* 낮은 화면에서 넘치면 기록판 안에서 스크롤된다는 것이 보이게 */
+    padding-bottom: var(--space-5);
+  }
+
+  /* 보기 탭 글자가 왼쪽 'EXPEDITION LOG'와 같은 높이에 오도록(탭 높이 44px의 가운데 - 라벨 줄 가운데, 실측으로 맞춤) */
+  .content {
+    padding-top: calc(var(--space-6) - 16px);
+  }
+}
+
+/* 낮은 2단 화면(노트북 720px 등): 기록판이 한 화면에 들어가도록 소개 문장을 숨기고 간격을 줄인다 */
+@media (min-width: 1024px) and (min-height: 641px) and (max-height: 860px) {
+  .boardIn {
+    padding-top: var(--space-5);
+  }
+
+  .lead {
+    display: none;
+  }
+
+  .title {
+    font-size: 36px;
+  }
+
+  .stats {
+    margin-top: 0;
+  }
+
+  .stat dd {
+    font-size: 28px;
+  }
+
+  .controls {
+    gap: var(--space-3);
+    margin-top: var(--space-4);
+  }
+
+  .group {
+    gap: 2px;
+  }
+
+  .rail {
+    margin-top: var(--space-4);
+  }
+
+  .railItem {
+    min-height: 36px;
+    padding-block: 6px;
+  }
+
+  .content {
+    padding-top: calc(var(--space-5) - 16px);
+  }
+}
+
+@media (min-width: 1024px) and (min-height: 641px) and (max-height: 700px) {
+  .header {
+    gap: var(--space-2);
+  }
+
+  .title {
+    font-size: 32px;
+  }
+
+  /* 가장 낮은 2단 화면: 값이 스스로 설명되는 검색(자리 표시 글자)·정렬(선택값)은 라벨을 화면에서 숨긴다 */
+  .search,
+  .selectWrap {
+    margin-top: -2px;
+  }
+
+  .group:has(.search) .groupLabel,
+  .group:has(.select) .groupLabel {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+  }
+
+  .railItem {
+    min-height: 32px;
+    padding-block: 4px;
+  }
+
+  .railYear {
+    font-size: 18px;
+  }
+}
+
+/* ─── 한 줄 흐름: 기록판 → 연도 목차 띠(Nav 아래에 붙음) → 챕터 ─── */
+@media not ((min-width: 1024px) and (min-height: 641px)) {
+  .layout {
+    --rail-h: 45px;
+  }
+
+  .rail {
+    display: none;
+  }
+
+  .railStrip {
+    position: sticky;
+    top: var(--nav-h);
+    z-index: 3;
+    display: flex;
+    gap: var(--space-5);
+    margin: var(--space-4) calc(-1 * var(--page-x)) var(--space-5);
+    padding: 0 var(--page-x);
+    overflow-x: auto;
+    scrollbar-width: none;
+    background: var(--bg);
+    border-bottom: 1px solid var(--border-strong);
+  }
+
+  .railStrip .railItem {
+    display: flex;
+    flex: none;
+    align-items: baseline;
+    gap: 6px;
+    padding: var(--space-2) 0;
+    border: 0;
+    white-space: nowrap;
+  }
+
+  .railStrip .railItem[aria-current='location'] {
+    padding-left: 0;
+    box-shadow: inset 0 -2px 0 var(--accent);
+  }
+
+  .railStrip .railYear {
+    font-size: 17px;
+  }
+
+  .railStrip .railNone {
+    font-size: 15px;
+  }
+
+  .content {
+    padding-top: var(--space-2);
+  }
+
+  .stats {
+    max-width: 420px;
+  }
+}
+
+@media (max-width: 640px) {
+  .boardIn {
+    padding-top: var(--space-5);
+  }
+
+  .header {
+    gap: var(--space-2);
+  }
+
+  .title {
+    font-size: 40px;
+  }
+
+  .stat dd {
+    font-size: 28px;
+  }
+
+  .controls {
+    gap: var(--space-3);
+    margin-top: var(--space-4);
+  }
+
+  /* 좁은 화면은 라벨을 화면에서 숨겨(스크린리더용으로 남김) 첫 화면에 표지가 들어오게 한다 */
+  .controls .groupLabel {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+  }
+
+  .group {
+    gap: 0;
+  }
+
+  .contentBar {
+    flex-wrap: nowrap;
     margin-bottom: var(--space-4);
   }
 
-  .yearNone {
-    font-size: var(--fs-md);
+  /* 좁은 화면은 결과 요약을 화면에서 숨긴다(검색·필터를 바꾸면 스크린리더가 읽는다). 탭과 정렬만 한 줄에 */
+  .status {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+  }
+
+  /* 정복 여부 알약은 한 줄로 두고 가로로 밀어 본다 */
+  .chips {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    scrollbar-width: none;
+    margin-inline: calc(-1 * var(--page-x));
+    padding: 4px var(--page-x);
+  }
+
+  .chip {
+    flex: none;
+  }
+
+  .chapter + .chapter {
+    margin-top: var(--space-7);
+  }
+
+  .chapterTitle {
+    font-size: 28px;
+    margin-bottom: var(--space-4);
+  }
+
+  .wall {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: var(--space-5) 10px;
+  }
+
+  .foot {
+    margin-top: var(--space-7);
   }
 }

@@ -55,15 +55,16 @@ export type StatusFilter = "all" | GameStatus;
 /** "all" | "YYYY" | "none"(날짜 기록 없음) */
 export type YearFilter = "all" | "none" | `${number}`;
 export type SortKey = "recent" | "old" | "name";
+/** 표지 격자(grid) 또는 날짜순 일지(diary) */
+export type ViewKey = "grid" | "diary";
 
-/** URL 쿼리(q, status, year, sort, page)와 1:1 대응하는 목록 상태 */
+/** URL 쿼리(q, status, year, sort, view)와 1:1 대응하는 목록 상태. 페이지는 없다(연도 챕터로 나눈다) */
 export interface GamesQueryState {
   q: string;
   status: StatusFilter;
   year: YearFilter;
   sort: SortKey;
-  /** 1부터. 상한은 paginate가 pageCount로 clamp */
-  page: number;
+  view: ViewKey;
 }
 
 /** parseQueryState 입력. Next 16 page의 await searchParams 결과 또는 URLSearchParams */
@@ -77,20 +78,6 @@ export interface IndexedGame extends Game {
   ordinal: number;
   /** ordinal을 3자리 0 패딩한 문자열 ("031"). 1000 이상은 패딩 없이 그대로 */
   no: string;
-}
-
-export interface Page<T> {
-  items: T[];
-  /** clamp된 현재 페이지(1..pageCount) */
-  page: number;
-  /** 최소 1 (결과 0개여도 1) */
-  pageCount: number;
-  /** 필터 후 전체 개수 */
-  total: number;
-  /** items[0]의 0-based 위치. total=0이면 0 */
-  start: number;
-  /** 마지막 항목 다음 위치(exclusive). total=0이면 0 */
-  end: number;
 }
 
 export interface GameStats {

@@ -6,7 +6,6 @@ import { Search } from 'lucide-react';
 import SectionLabel from '@/components/SectionLabel';
 import {
   applyFilterChange,
-  availableYears,
   countStats,
   detailQuery,
   indexGames,
@@ -15,13 +14,13 @@ import {
   parseDetailId,
   parseQueryState,
   parseSortKey,
-  parseYearFilter,
   Q_MAX,
-  selectPage,
+  selectGames,
   serializeQueryState,
   SORT_KEYS,
   STATUS_FILTERS,
-  yearFilterOptions,
+  statusCounts,
+  VIEW_KEYS,
 } from '@/lib/games/query';
 import {
   describeConditions,
@@ -30,9 +29,9 @@ import {
   resultSummary,
   SORT_LABEL,
   STATUS_FILTER_LABEL,
-  yearLabel,
+  VIEW_LABEL,
 } from '@/lib/games/labels';
-import { yearGroups } from '@/lib/games/years';
+import { diaryMonths, yearChapters } from '@/lib/games/years';
 import { SEEN_STATS_KEY, serializeSeenStats } from '@/lib/games/seen-stats';
 import { addedMessage, errorMessage, hiddenMessage, savedMessage, unhiddenMessage } from '@/lib/games/client';
 import type { GamesPageData, GamesQueryState, GameRecord } from '@/lib/games/types';
@@ -41,14 +40,16 @@ import AddGameFlow from './AddGameFlow';
 import AdminBar from './AdminBar';
 import type { AdminGame, BoardGame } from './boardTypes';
 import GameCard from './GameCard';
+import DiaryList from './DiaryList';
 import GameDetailDialog, { type AdminDetailContext } from './GameDetailDialog';
-import Pagination from './Pagination';
 import Toast, { type ToastState } from './Toast';
+import { useChapterSpy } from './useChapterSpy';
 import styles from './page.module.css';
 
 // 목록 상태(q, status, year, sort, page)의 정본은 URL이다. useSearchParams로 읽고
 // history.pushState/replaceState로 쓴다(Next가 둘을 라우터와 동기화한다).
-// 검색 입력은 타이핑마다 replaceState(히스토리 오염 방지), 필터·정렬·페이지는 pushState.
+// 검색 입력은 타이핑마다 replaceState(히스토리 오염 방지), 필터·정렬·보기는 pushState.
+// 목록은 페이지로 나누지 않고 첫 플레이 연도 챕터로 묶는다. 연도 목차는 스크롤만 하고 URL을 바꾸지 않는다.
 // 상세를 열며 쌓은 history 항목 표식. Next는 pushState data의 사용자 키를 보존한다.
 const DETAIL_ENTRY = 'yasiroGameDetail';
 
@@ -125,10 +126,13 @@ function Board({ data }: { data: Extract<GamesPageData, { ok: true }> }) {
       root.setProperty('--seen-clear', String(stats.clear));
     }, 1500);
   }, [stats]);
-  const years = useMemo(() => availableYears(visible), [visible]);
-  const page = useMemo(() => selectPage(source, state), [source, state]);
-  // 날짜순이면 현재 페이지를 첫 플레이 연도별로 나눈다(이름순은 null). 개수는 source 기준이라 숨김 보기에서는 숨긴 게임도 센다
-  const groups = useMemo(() => yearGroups(source, state, page.items), [source, state, page.items]);
+  const results = useMemo(() => selectGames(source, state), [source, state]);
+  const resultClear = useMemo(() => results.filter((g) => g.status === 'clear').length, [results]);
+  const counts = useMemo(() => statusCounts(source, state), [source, state]);
+  // 날짜순이면 결과 전체를 첫 플레이 연도 챕터로 나눈다(이름순은 null). 숨김 보기에서는 숨긴 게임도 센다
+  const chapters = useMemo(() => yearChapters(results, state), [results, state]);
+  const chapterKeys = useMemo(() => (chapters ?? []).map((c) => c.key), [chapters]);
+  const spy = useChapterSpy(chapterKeys);
 
   useEffect(() => {
     if (toast === null || toastHeld) return;
@@ -216,14 +220,6 @@ function Board({ data }: { data: Extract<GamesPageData, { ok: true }> }) {
 
   const change = (patch: Partial<GamesQueryState>) => writeUrl(applyFilterChange(state, patch), 'push');
 
-  // 페이지를 바꾸면 목록 위 결과 요약 줄로 스크롤·포커스를 옮긴다. 누른 버튼이 disabled가 되거나
-  // 목록 아래에 포커스가 남아 키보드·스크린리더 사용자가 처음부터 다시 탭하지 않도록.
-  const goPage = (n: number) => {
-    writeUrl({ ...state, page: n }, 'push');
-    topRef.current?.scrollIntoView({ block: 'start' });
-    topRef.current?.focus({ preventScroll: true });
-  };
-
   const detailUrl = (id: string | null) => {
     const qs = detailQuery(state, id);
     return qs ? `${pathname}?${qs}` : pathname;
@@ -298,15 +294,13 @@ function Board({ data }: { data: Extract<GamesPageData, { ok: true }> }) {
     else window.history.replaceState(null, '', detailUrl(null));
   };
 
-  const yearOptions = yearFilterOptions(years, state.year);
-
   const active = hasActiveFilter(state);
 
-  const renderCard = (game: BoardGame, titleAs: 'h2' | 'h3') => (
+  const renderCard = (game: BoardGame) => (
     <GameCard
       key={game.id}
       game={game}
-      titleAs={titleAs}
+      titleAs="h3"
       onOpen={onOpen}
       admin={
         isAdmin
@@ -318,6 +312,42 @@ function Board({ data }: { data: Extract<GamesPageData, { ok: true }> }) {
       }
     />
   );
+
+  const renderItems = (items: BoardGame[], monthly: boolean) =>
+    state.view === 'diary' ? (
+      monthly ? <DiaryList months={diaryMonths(items)} onOpen={onOpen} /> : <DiaryList flat={items} onOpen={onOpen} />
+    ) : (
+      <ul className={styles.wall}>{items.map(renderCard)}</ul>
+    );
+
+  // 연도 목차. 넓은 화면은 기록판 안 세로 목록, 좁은 화면은 내용 위에 붙는 가로 띠라 둘 다 그리고 CSS로 하나만 보인다
+  const rail = (where: 'board' | 'strip') =>
+    chapters !== null &&
+    chapters.length > 1 && (
+      <nav className={where === 'board' ? styles.rail : styles.railStrip} aria-label="첫 플레이 연도">
+        {where === 'board' && (
+          <span className={styles.groupLabel} aria-hidden="true">
+            첫 플레이 연도
+          </span>
+        )}
+        {chapters.map((c) => (
+          <button
+            key={c.key}
+            type="button"
+            className={styles.railItem}
+            aria-current={spy.current === c.key ? 'location' : undefined}
+            onClick={() => spy.jump(c.key)}
+          >
+            <span className={styles.railNo} aria-hidden="true">{c.no}</span>
+            <span className={c.kind === 'year' ? styles.railYear : styles.railNone}>{c.kind === 'year' ? c.heading : '날짜 없음'}</span>
+            <span className={styles.railCount}>
+              {c.count}
+              <span className={styles.srOnly}>개</span>
+            </span>
+          </button>
+        ))}
+      </nav>
+    );
 
   return (
     <>
@@ -333,167 +363,169 @@ function Board({ data }: { data: Extract<GamesPageData, { ok: true }> }) {
         </div>
       )}
 
-      <section className={styles.header} aria-labelledby="games-title">
-        <div className={styles.headerText}>
-          <SectionLabel style={{ marginBottom: 0 }}>EXPEDITION LOG</SectionLabel>
-          <h1 id="games-title" className={styles.title}>플레이한 게임</h1>
-          <p className={styles.lead}>야시로가 방송에서 탐험한 게임 행성들의 기록이에요.</p>
-        </div>
-        <dl className={styles.stats}>
-          <div className={styles.stat}>
-            <dt>기록된 게임</dt>
-            <dd><CountUp kind="total" to={stats.total} /></dd>
-          </div>
-          <div className={styles.stat}>
-            <dt>정복</dt>
-            <dd className={styles.statClear}><CountUp kind="clear" to={stats.clear} /></dd>
-          </div>
-        </dl>
-      </section>
-
-      <section className={styles.controls} aria-label="검색과 필터">
-        <div className={`${styles.field} ${styles.fieldSearch}`}>
-          <label htmlFor="game-q" className={`${styles.label} ${styles.labelHideMobile}`}>게임 검색</label>
-          <div className={styles.search}>
-            <Search size={18} strokeWidth={1.8} aria-hidden="true" />
-            <input
-              id="game-q"
-              type="search"
-              className={styles.searchInput}
-              value={typed}
-              maxLength={Q_MAX}
-              placeholder="한글·원제·초성"
-              onChange={(e) => {
-                setTyped(e.target.value);
-                writeUrl(applyFilterChange(state, { q: normalizeQ(e.target.value) }), 'replace');
-              }}
-            />
-          </div>
-        </div>
-
-        <div className={styles.field}>
-          <span id="status-label" className={`${styles.label} ${styles.labelHideMobile}`}>정복 여부</span>
-          <div role="group" aria-labelledby="status-label" className={styles.segment}>
-            {STATUS_FILTERS.map((key) => (
-              <button
-                key={key}
-                type="button"
-                className={styles.segBtn}
-                aria-pressed={state.status === key}
-                onClick={() => change({ status: key })}
-              >
-                {STATUS_FILTER_LABEL[key]}
-              </button>
-            ))}
-          </div>
-        </div>
-
-        <div className={styles.selects}>
-          <div className={styles.field}>
-            <label htmlFor="game-year" className={`${styles.label} ${styles.labelHideMobile}`}>첫 플레이 연도</label>
-            <span className={`${styles.selectWrap} ${styles.selectWrapYear}`}>
-              <select
-                id="game-year"
-                className={styles.select}
-                value={state.year}
-                onChange={(e) => change({ year: parseYearFilter(e.target.value) })}
-              >
-                {yearOptions.map((y) => (
-                  <option key={y} value={y}>{yearLabel(y)}</option>
-                ))}
-              </select>
-              <svg className={styles.selectArrow} width="12" height="12" viewBox="0 0 12 12" fill="none" aria-hidden="true" focusable="false">
-                <path d="M2.5 4.5 6 8l3.5-3.5" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" />
-              </svg>
-            </span>
-          </div>
-          <div className={styles.field}>
-            <label htmlFor="game-sort" className={`${styles.label} ${styles.labelHideMobile}`}>정렬</label>
-            <span className={`${styles.selectWrap} ${styles.selectWrapSort}`}>
-              <select
-                id="game-sort"
-                className={styles.select}
-                value={state.sort}
-                onChange={(e) => change({ sort: parseSortKey(e.target.value) })}
-              >
-                {SORT_KEYS.map((key) => (
-                  <option key={key} value={key}>{SORT_LABEL[key]}</option>
-                ))}
-              </select>
-              <svg className={styles.selectArrow} width="12" height="12" viewBox="0 0 12 12" fill="none" aria-hidden="true" focusable="false">
-                <path d="M2.5 4.5 6 8l3.5-3.5" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" />
-              </svg>
-            </span>
-          </div>
-        </div>
-      </section>
-
-      <div ref={topRef} tabIndex={-1} className={styles.statusRow}>
-        <p role="status" className={styles.status}>
-          {resultSummary(page)} · 정복 도장은 확인된 게임에만 찍어요.
-        </p>
-        {active && (
-          <button type="button" className={styles.linkBtn} onClick={() => change({ q: '', status: 'all', year: 'all' })}>
-            검색·필터 초기화
-          </button>
-        )}
-      </div>
-
-      {page.total > 0 ? (
-        <>
-          {groups === null ? (
-            <ul className={styles.grid}>{page.items.map((game) => renderCard(game, 'h2'))}</ul>
-          ) : (
-            groups.map((group) => (
-              <section key={group.key} className={styles.yearGroup}>
-                <div className={styles.yearHead}>
-                  <h2 className={group.kind === 'year' ? styles.yearNum : styles.yearNone}>
-                    {group.heading}
-                    {group.kind === 'year' && <span className={styles.srOnly}>년</span>}
-                  </h2>
-                  <p className={styles.yearCount}>{group.countText}</p>
-                  <span className={styles.yearRule} aria-hidden="true" />
+      {/* /about 도감과 같은 골격: 왼쪽 기록판은 고정, 오른쪽 연도 챕터가 스크롤된다 */}
+      <div className={styles.layout}>
+        <div className={styles.board}>
+          <div className={styles.boardIn}>
+            <section className={styles.header} aria-labelledby="games-title">
+              <SectionLabel style={{ marginBottom: 0 }}>EXPEDITION LOG</SectionLabel>
+              <h1 id="games-title" className={styles.title}>플레이한 게임</h1>
+              <p className={styles.lead}>야시로가 방송에서 탐험한 게임 행성들의 기록이에요.</p>
+              <dl className={styles.stats}>
+                <div className={styles.stat}>
+                  <dt>기록된 게임</dt>
+                  <dd><CountUp kind="total" to={stats.total} /><span className={styles.unit}>개</span></dd>
                 </div>
-                <ul className={styles.grid}>{group.items.map((game) => renderCard(game, 'h3'))}</ul>
-              </section>
-            ))
+                <div className={styles.stat}>
+                  <dt>정복</dt>
+                  <dd><span className={styles.statClear}><CountUp kind="clear" to={stats.clear} /></span><span className={styles.unit}>개</span></dd>
+                </div>
+              </dl>
+            </section>
+
+            <section className={styles.controls} aria-label="검색과 필터">
+              <div className={styles.group}>
+                <label htmlFor="game-q" className={styles.groupLabel}>게임 검색</label>
+                <div className={styles.search}>
+                  <Search size={18} strokeWidth={1.8} aria-hidden="true" />
+                  <input
+                    id="game-q"
+                    type="search"
+                    className={styles.searchInput}
+                    value={typed}
+                    maxLength={Q_MAX}
+                    placeholder="한글·원제·초성"
+                    onChange={(e) => {
+                      setTyped(e.target.value);
+                      writeUrl(applyFilterChange(state, { q: normalizeQ(e.target.value) }), 'replace');
+                    }}
+                  />
+                </div>
+              </div>
+
+              <div className={styles.group}>
+                <span id="status-label" className={styles.groupLabel}>정복 여부</span>
+                <div role="group" aria-labelledby="status-label" className={styles.chips}>
+                  {STATUS_FILTERS.map((key) => (
+                    <button
+                      key={key}
+                      type="button"
+                      className={styles.chip}
+                      aria-pressed={state.status === key}
+                      onClick={() => change({ status: key })}
+                    >
+                      {STATUS_FILTER_LABEL[key]}
+                      <span className={styles.chipCount}>
+                        {counts[key]}
+                        <span className={styles.srOnly}>개</span>
+                      </span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+            </section>
+
+            {rail('board')}
+          </div>
+        </div>
+
+        {rail('strip')}
+
+        <div className={styles.content}>
+          {/* 보기(표지·일지)는 필터와 따로, 본문 맨 위 탭으로. 오른쪽은 결과 요약(검색·필터를 바꾸면 읽어 준다) */}
+          <div className={styles.contentBar}>
+            <span id="view-label" className={styles.srOnly}>보기</span>
+            <div role="group" aria-labelledby="view-label" className={styles.views}>
+              {VIEW_KEYS.map((key) => (
+                <button
+                  key={key}
+                  type="button"
+                  className={styles.viewBtn}
+                  aria-pressed={state.view === key}
+                  onClick={() => change({ view: key })}
+                >
+                  {VIEW_LABEL[key]}
+                </button>
+              ))}
+            </div>
+            <div ref={topRef} tabIndex={-1} className={styles.statusRow}>
+              {active && (
+                <button type="button" className={styles.linkBtn} onClick={() => change({ q: '', status: 'all', year: 'all' })}>
+                  검색·필터 초기화
+                </button>
+              )}
+              <p role="status" className={styles.status}>{resultSummary(results.length, resultClear, state)}</p>
+              {/* 정렬은 이 목록의 순서라 필터가 아니라 보기 옆에 */}
+              <label htmlFor="game-sort" className={styles.srOnly}>정렬</label>
+              <span className={styles.selectWrap}>
+                <select
+                  id="game-sort"
+                  className={styles.select}
+                  value={state.sort}
+                  onChange={(e) => change({ sort: parseSortKey(e.target.value) })}
+                >
+                  {SORT_KEYS.map((key) => (
+                    <option key={key} value={key}>{SORT_LABEL[key]}</option>
+                  ))}
+                </select>
+                <svg className={styles.selectArrow} width="12" height="12" viewBox="0 0 12 12" fill="none" aria-hidden="true" focusable="false">
+                  <path d="M2.5 4.5 6 8l3.5-3.5" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" />
+                </svg>
+              </span>
+            </div>
+          </div>
+
+          {results.length > 0 ? (
+            chapters === null ? (
+              <div className={styles.plain}>{renderItems(results, false)}</div>
+            ) : (
+              chapters.map((c) => (
+                <section key={c.key} className={styles.chapter} data-chapter={c.key} aria-labelledby={`chapter-${c.key}`}>
+                  <h2 id={`chapter-${c.key}`} tabIndex={-1} className={styles.chapterTitle}>
+                    <span className={styles.chapterNo} aria-hidden="true">{c.no}</span>
+                    <span className={c.kind === 'year' ? styles.chapterYear : styles.chapterNone}>
+                      {c.heading}
+                      {c.kind === 'year' && <span className={styles.srOnly}>년</span>}
+                    </span>
+                    <span className={styles.chapterCount}>{c.countText}</span>
+                  </h2>
+                  {renderItems(c.items, true)}
+                </section>
+              ))
+            )
+          ) : (
+            <div className={styles.empty}>
+              <p className={styles.emptyTitle}>현재 조건에 맞는 게임이 없어요</p>
+              <p className={styles.emptyDesc}>{describeConditions(state)}</p>
+              <div className={styles.emptyActions}>
+                {state.q !== '' && (
+                  <button type="button" className={styles.solidBtn} onClick={() => change({ q: '' })}>
+                    검색어 지우기
+                  </button>
+                )}
+                {hasFilterSelection(state) && (
+                  <button type="button" className={state.q !== '' ? styles.ghostBtn : styles.solidBtn} onClick={() => change({ status: 'all', year: 'all' })}>
+                    필터 해제
+                  </button>
+                )}
+              </div>
+            </div>
           )}
-          <Pagination
-            page={page.page}
-            pageCount={page.pageCount}
-            rangeText={`${page.page} / ${page.pageCount} 페이지`}
-            onGo={goPage}
-          />
-        </>
-      ) : (
-        <div className={styles.empty}>
-          <p className={styles.emptyTitle}>현재 조건에 맞는 게임이 없어요</p>
-          <p className={styles.emptyDesc}>{describeConditions(state)}</p>
-          <div className={styles.emptyActions}>
-            {state.q !== '' && (
-              <button type="button" className={styles.solidBtn} onClick={() => change({ q: '' })}>
-                검색어 지우기
-              </button>
-            )}
-            {hasFilterSelection(state) && (
-              <button type="button" className={state.q !== '' ? styles.ghostBtn : styles.solidBtn} onClick={() => change({ status: 'all', year: 'all' })}>
-                필터 해제
-              </button>
+
+          <div className={styles.foot}>
+            <p className={styles.footnote}>
+              정복 도장은 확인된 게임에만 찍어요. 게임 이름과 포스터는 치지직 카테고리 정보를 따릅니다. 비공식 팬 사이트의 기록이라 빠진 게임이 있을 수 있어요.
+            </p>
+            {/* 방문자용 로그인 버튼이 없으므로 관리자(야시로 포함)는 여기서 들어온다. 허용 목록에 없으면 로그인돼도 관리 UI가 안 보인다 */}
+            {!isAdmin && (
+              <p className={styles.adminLogin}>
+                <a href="/auth/login?next=/games">관리자 로그인</a>
+              </p>
             )}
           </div>
         </div>
-      )}
-
-      <p className={styles.footnote}>
-        게임 이름과 포스터는 치지직 카테고리 정보를 따릅니다. 비공식 팬 사이트의 기록이라 빠진 게임이 있을 수 있어요.
-      </p>
-
-      {/* 방문자용 로그인 버튼이 없으므로 관리자(야시로 포함)는 여기서 들어온다. 허용 목록에 없으면 로그인돼도 관리 UI가 안 보인다 */}
-      {!isAdmin && (
-        <p className={styles.adminLogin}>
-          <a href="/auth/login?next=/games">관리자 로그인</a>
-        </p>
-      )}
+      </div>
 
       {openGame && <GameDetailDialog key={openGame.id} game={openGame} admin={adminDetail} onClose={onClose} />}
       {isAdmin && adding && (

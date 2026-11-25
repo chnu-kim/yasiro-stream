@@ -2,9 +2,9 @@ import { formatDate } from "./query.ts";
 import type {
   GamesQueryState,
   GameStatus,
-  Page,
   SortKey,
   StatusFilter,
+  ViewKey,
   Vod,
   YearFilter,
 } from "./types.ts";
@@ -31,6 +31,11 @@ export const SORT_LABEL: Readonly<Record<SortKey, string>> = {
   name: "이름순",
 };
 
+export const VIEW_LABEL: Readonly<Record<ViewKey, string>> = {
+  grid: "표지",
+  diary: "일지",
+};
+
 export function yearLabel(year: YearFilter): string {
   if (year === "all") return "모든 연도"; // 모바일에서 라벨 없이 선택 상자만 보여도 뜻이 통하게
   if (year === "none") return "날짜 기록 없음";
@@ -55,9 +60,10 @@ export function describeConditions(state: GamesQueryState): string {
   return parts.length === 0 ? "" : `적용된 조건: ${parts.join(", ")}`;
 }
 
-export function resultSummary(page: Page<unknown>): string {
-  if (page.total === 0) return "일치하는 게임 0개";
-  return `${page.total}개 중 ${page.start + 1}–${page.end}번째`;
+/** 목록 결과 요약. 연도 구분과 같은 형식("N개 · 정복 M"), 상태 필터가 걸리면 정복 수는 뜻이 없어 "N개"만 */
+export function resultSummary(total: number, clear: number, state: Pick<GamesQueryState, "status">): string {
+  if (total === 0) return "일치하는 게임 0개";
+  return state.status === "all" ? `${total}개 · 정복 ${clear}` : `${total}개`;
 }
 
 export function vodAriaLabel(vod: Vod): string {

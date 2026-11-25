@@ -3,7 +3,15 @@
   position: relative;
   display: flex;
   flex-direction: column;
-  gap: 14px;
+  gap: 10px;
+  min-width: 0;
+  /* 371장을 한 번에 그리므로 화면 밖 카드는 배치·그리기를 미룬다(높이는 한 번 그린 값을 기억).
+     content-visibility는 카드 밖 그리기를 자르므로 둘레에 8px 여유(padding)를 두고 같은 만큼 margin으로 되돌려
+     포커스 링(6px)과 호버 그림자가 잘리지 않게 한다 */
+  content-visibility: auto;
+  contain-intrinsic-size: auto 316px;
+  padding: 8px;
+  margin: -8px;
 }
 
 .cardCover {
@@ -13,22 +21,23 @@
 
 .card:hover .cardCover {
   transform: translateY(-4px);
-  filter: drop-shadow(0 8px 12px rgba(40, 25, 10, 0.18));
+  filter: drop-shadow(0 6px 6px rgba(40, 25, 10, 0.18));
 }
 
 .cardBody {
   display: flex;
   flex-direction: column;
-  gap: 6px;
-  padding-right: 8px;
+  gap: 4px;
 }
 
 .cardTitle {
-  font-size: var(--fs-base);
-  font-weight: 600;
-  line-height: 1.4;
+  font-family: var(--font-display);
+  font-weight: 400;
+  font-size: 16px;
+  line-height: 1.35;
   word-break: keep-all;
   overflow-wrap: anywhere;
+  text-wrap: balance;
 }
 
 /* 카드 전체가 클릭 영역. 제목 버튼의 ::after가 li(position: relative)를 덮는다 */
@@ -40,7 +49,7 @@
 .cardOpen::after {
   content: '';
   position: absolute;
-  inset: 0;
+  inset: 8px; /* 카드 둘레 여유(padding)를 뺀 실제 카드 자리 */
   border-radius: var(--radius-md);
 }
 
@@ -53,9 +62,18 @@
   display: flex;
   align-items: center;
   flex-wrap: wrap;
-  gap: var(--space-2);
-  font-size: var(--fs-sm);
+  gap: 2px var(--space-2);
+  font-size: 13px;
+  line-height: 1.4;
   color: var(--text-dim);
+}
+
+.no {
+  font-family: 'Fredoka', sans-serif;
+  font-weight: 600;
+  font-size: var(--fs-xs);
+  letter-spacing: 0.1em;
+  color: var(--accent-text);
 }
 
 .date {
@@ -63,19 +81,28 @@
   font-weight: 500;
 }
 
-.failChip {
-  padding: 2px 8px;
-  border: 1px dashed var(--border-strong);
-  border-radius: var(--radius-sm);
-  font-size: 13px;
+/* 칩 대신 글자. 앞의 작은 사각 도트(borderRadius 1은 의도된 값)가 날짜와 나눈다 */
+.statusText {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  white-space: nowrap;
 }
 
-.endlessChip {
-  padding: 2px 8px;
-  border: 1px solid var(--brass);
-  border-radius: var(--radius-sm);
-  font-size: 13px;
+.statusText::before {
+  content: '';
+  width: 5px;
+  height: 5px;
+  border-radius: 1px;
+  background: var(--border-strong);
+}
+
+.isEndless {
   color: var(--accent-text);
+}
+
+.isEndless::before {
+  background: var(--brass);
 }
 
 .srOnly {
@@ -89,8 +116,8 @@
 /* ─── 관리자 ─── */
 .editChip {
   position: absolute;
-  top: 8px;
-  right: 8px;
+  top: 16px; /* 카드 둘레 여유 8px + 포스터 안쪽 8px */
+  right: 16px;
   z-index: 2; /* .cardOpen::after(카드 전체 덮개) 위 */
   display: flex;
   align-items: center;
@@ -172,19 +199,27 @@
 
 @media (max-width: 640px) {
   .card {
-    gap: 10px;
+    gap: 8px;
   }
 
   .cardBody {
-    gap: 4px;
-    padding-right: 10px;
+    gap: 2px;
   }
 
   .cardTitle {
-    font-size: 15px;
+    font-size: 14px;
+  }
+
+  .cardMeta {
+    font-size: var(--fs-xs);
+    column-gap: 6px;
+  }
+
+  .no {
+    letter-spacing: 0.04em;
   }
 
   .cardCover {
-    --stamp-inset: 6px;
+    --stamp-inset: 4px;
   }
 }
