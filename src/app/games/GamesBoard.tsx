@@ -64,11 +64,11 @@ function isWrite(v: unknown): v is { game: GameRecord } {
 export default function GamesBoard({ data }: { data: GamesPageData }) {
   if (!data.ok) {
     return (
-      <section className={styles.header} aria-labelledby="games-title">
+      <section className={`${styles.header} ${styles.failed}`} aria-labelledby="games-title">
         <div className={styles.headerText}>
           <SectionLabel style={{ marginBottom: 0 }}>EXPEDITION LOG</SectionLabel>
           <h1 id="games-title" className={styles.title}>플레이한 게임</h1>
-          <p role="alert" className={styles.lead}>기록을 불러오지 못했어요. 잠시 후 다시 시도해 주세요.</p>
+          <p role="alert" className={styles.loadError}>기록을 불러오지 못했어요. 잠시 후 다시 시도해 주세요.</p>
         </div>
       </section>
     );

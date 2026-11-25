@@ -42,6 +42,19 @@
   word-break: keep-all;
 }
 
+/* D1을 못 읽었을 때는 기록판 없이 머리만 보이므로 기록판과 같은 위 여백을 직접 둔다 */
+.failed {
+  padding-top: var(--space-6);
+}
+
+/* D1을 못 읽었을 때의 안내. 낮은 화면에서 소개 문장(.lead)을 숨겨도 이 안내는 늘 보인다 */
+.loadError {
+  font-size: 15px;
+  line-height: 1.7;
+  color: var(--text);
+  word-break: keep-all;
+}
+
 .stats {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
