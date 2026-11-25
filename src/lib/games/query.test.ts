@@ -9,10 +9,9 @@ import {
   formatDate,
   indexGames,
   indexWithHidden,
-  selectPage,
+  selectGames,
   sortGames,
-  paginate,
-  pageWindow,
+  statusCounts,
   parseDetailId,
   parseQueryState,
   serializeQueryState,
@@ -201,62 +200,21 @@ describe("filterGames", () => {
   });
 });
 
-describe("paginate", () => {
-  const nums = (n: number) => Array.from({ length: n }, (_, i) => i);
-  it("50개 중 2페이지", () => {
-    const p = paginate(nums(50), 2);
-    expect(p.items).toHaveLength(24);
-    expect(p).toMatchObject({ page: 2, start: 24, end: 48, pageCount: 3, total: 50 });
-    expect(p.items[0]).toBe(24);
-  });
-  it("마지막 페이지는 나머지 2개", () => {
-    const p = paginate(nums(50), 3);
-    expect(p.items).toEqual([48, 49]);
-    expect(p).toMatchObject({ start: 48, end: 50 });
-  });
-  it("빈 배열은 1페이지, 0..0", () => {
-    expect(paginate([], 1)).toEqual({ items: [], page: 1, pageCount: 1, total: 0, start: 0, end: 0 });
-  });
-  it("경계: 24개는 1페이지, 25개는 2페이지에 1건", () => {
-    expect(paginate(nums(24), 1).pageCount).toBe(1);
-    const p = paginate(nums(25), 2);
-    expect(p.pageCount).toBe(2);
-    expect(p.items).toEqual([24]);
-  });
-  it("범위를 넘는 페이지는 마지막으로 clamp", () => {
-    expect(paginate(nums(10), 99).page).toBe(1);
-    expect(paginate(nums(50), 99).page).toBe(3);
-  });
-  it("0, 음수, NaN, 소수는 1페이지", () => {
-    for (const bad of [0, -3, NaN, 1.5, Infinity]) {
-      expect(paginate(nums(50), bad).page).toBe(1);
-    }
-  });
-  it("pageSize를 지정할 수 있다", () => {
-    expect(paginate(nums(5), 2, 2).items).toEqual([2, 3]);
-  });
-  it("잘못된 pageSize는 RangeError", () => {
-    for (const bad of [0, -1, 1.5, NaN]) {
-      expect(() => paginate(nums(3), 1, bad)).toThrow(RangeError);
-    }
-  });
-});
-
 describe("parseQueryState", () => {
   it("URLSearchParams를 그대로 읽는다", () => {
     expect(
-      parseQueryState(new URLSearchParams("q=스텔라&status=clear&year=2025&sort=old&page=2")),
-    ).toEqual({ q: "스텔라", status: "clear", year: "2025", sort: "old", page: 2 });
+      parseQueryState(new URLSearchParams("q=스텔라&status=clear&year=2025&sort=old&view=diary")),
+    ).toEqual({ q: "스텔라", status: "clear", year: "2025", sort: "old", view: "diary" });
   });
   it("Record 입력은 빠진 값을 기본값으로 채운다", () => {
     expect(parseQueryState({ q: "a", status: "fail" })).toEqual({
-      q: "a", status: "fail", year: "all", sort: "recent", page: 1,
+      q: "a", status: "fail", year: "all", sort: "recent", view: "grid",
     });
   });
   it("빈 입력은 기본값", () => {
     expect(parseQueryState({})).toEqual(DEFAULT_QUERY_STATE);
     expect(parseQueryState(new URLSearchParams())).toEqual(DEFAULT_QUERY_STATE);
-    expect(parseQueryState({ q: undefined, page: undefined })).toEqual(DEFAULT_QUERY_STATE);
+    expect(parseQueryState({ q: undefined, view: undefined })).toEqual(DEFAULT_QUERY_STATE);
   });
   it("배열 값은 첫 원소, 빈 배열은 기본값", () => {
     expect(parseQueryState({ status: ["fail", "clear"] }).status).toBe("fail");
@@ -275,11 +233,13 @@ describe("parseQueryState", () => {
     for (const v of ["newest", "RECENT", ""]) expect(parseQueryState({ sort: v }).sort).toBe("recent");
     expect(parseQueryState({ sort: "name" }).sort).toBe("name");
   });
-  it("잘못된 page는 1", () => {
-    for (const v of ["0", "-1", "1.5", "01", "1e3", "abc", "", "9999999"]) {
-      expect(parseQueryState({ page: v }).page).toBe(1);
-    }
-    expect(parseQueryState({ page: "999999" }).page).toBe(999999);
+  it("view는 grid|diary만 허용, 나머지는 grid", () => {
+    for (const v of ["DIARY", "list", ""]) expect(parseQueryState({ view: v }).view).toBe("grid");
+    expect(parseQueryState({ view: "diary" }).view).toBe("diary");
+  });
+  it("예전 공유 링크의 page는 무시한다(연도 챕터로 바뀌어 페이지가 없다)", () => {
+    expect(parseQueryState({ page: "3" })).toEqual(DEFAULT_QUERY_STATE);
+    expect(serializeQueryState(parseQueryState(new URLSearchParams("status=clear&page=2")))).toBe("status=clear");
   });
   it("q는 trim하고 100자로 자른다", () => {
     expect(parseQueryState({ q: "  스텔라  " }).q).toBe("스텔라");
@@ -295,10 +255,10 @@ describe("serializeQueryState", () => {
     expect(serializeQueryState(DEFAULT_QUERY_STATE)).toBe("");
   });
   it("기본값과 다른 키만, 정해진 순서로", () => {
-    expect(serializeQueryState({ ...DEFAULT_QUERY_STATE, page: 2, status: "clear" })).toBe("status=clear&page=2");
+    expect(serializeQueryState({ ...DEFAULT_QUERY_STATE, view: "diary", status: "clear" })).toBe("status=clear&view=diary");
     expect(serializeQueryState({ ...DEFAULT_QUERY_STATE, status: "fail" })).toBe("status=fail");
-    expect(serializeQueryState({ q: "a", status: "clear", year: "none", sort: "name", page: 3 })).toBe(
-      "q=a&status=clear&year=none&sort=name&page=3",
+    expect(serializeQueryState({ q: "a", status: "clear", year: "none", sort: "name", view: "diary" })).toBe(
+      "q=a&status=clear&year=none&sort=name&view=diary",
     );
   });
   it("공백뿐인 q는 생략", () => {
@@ -310,9 +270,9 @@ describe("serializeQueryState", () => {
   it("왕복: parse(serialize(s)) === s", () => {
     const states: GamesQueryState[] = [
       DEFAULT_QUERY_STATE,
-      { q: "스텔라 블레이드", status: "clear", year: "2025", sort: "old", page: 2 },
-      { q: "a&b=c?", status: "fail", year: "none", sort: "name", page: 10 },
-      { q: "", status: "unknown", year: "2024", sort: "recent", page: 1 },
+      { q: "스텔라 블레이드", status: "clear", year: "2025", sort: "old", view: "diary" },
+      { q: "a&b=c?", status: "fail", year: "none", sort: "name", view: "grid" },
+      { q: "", status: "unknown", year: "2024", sort: "recent", view: "diary" },
     ];
     for (const s of states) {
       expect(parseQueryState(new URLSearchParams(serializeQueryState(s)))).toEqual(s);
@@ -321,16 +281,11 @@ describe("serializeQueryState", () => {
 });
 
 describe("applyFilterChange", () => {
-  const s: GamesQueryState = { ...DEFAULT_QUERY_STATE, page: 3 };
-  it("필터·정렬·검색을 바꾸면 1페이지로 돌아간다", () => {
-    expect(applyFilterChange(s, { status: "fail" }).page).toBe(1);
-    expect(applyFilterChange(s, { sort: "name" }).page).toBe(1);
-    expect(applyFilterChange(s, { q: "x" })).toMatchObject({ q: "x", page: 1 });
-    expect(applyFilterChange(s, { year: "none" }).page).toBe(1);
-  });
-  it("page만 넘기면 그 페이지로 이동한다", () => {
-    expect(applyFilterChange(s, { page: 5 }).page).toBe(5);
-    expect(applyFilterChange(DEFAULT_QUERY_STATE, { page: 3 }).page).toBe(3);
+  const s: GamesQueryState = { ...DEFAULT_QUERY_STATE, view: "diary" };
+  it("바꾼 값만 덮어쓰고 나머지(보기 포함)는 유지한다", () => {
+    expect(applyFilterChange(s, { status: "fail" })).toEqual({ ...s, status: "fail" });
+    expect(applyFilterChange(s, { q: "x", sort: "name" })).toEqual({ ...s, q: "x", sort: "name" });
+    expect(applyFilterChange(s, { view: "grid" }).view).toBe("grid");
   });
   it("입력 상태를 변경하지 않는다", () => {
     const before = { ...s };
@@ -482,57 +437,34 @@ describe("indexGames", () => {
   });
 });
 
-describe("selectPage", () => {
+describe("selectGames", () => {
   const many = indexGames(
-    Array.from({ length: 30 }, (_, i) => g(`g${i}`, `게임${i}`, `2025-01-${String(i + 1).padStart(2, "0")}`, "clear")),
+    Array.from({ length: 30 }, (_, i) => g(`g${i}`, `게임${i}`, `2025-01-${String(i + 1).padStart(2, "0")}`, i % 3 === 0 ? "fail" : "clear")),
   );
-  it("필터 → 정렬 → 페이지 순으로 적용한다", () => {
-    const p = selectPage(many, { ...DEFAULT_QUERY_STATE, sort: "old", page: 2 });
-    expect(p.total).toBe(30);
-    expect(p.items.map((x) => x.id)).toEqual(["g24", "g25", "g26", "g27", "g28", "g29"]);
+  it("필터 → 정렬 순으로 적용하고 나누지 않는다(전부 돌려준다)", () => {
+    const out = selectGames(many, { ...DEFAULT_QUERY_STATE, sort: "old" });
+    expect(out).toHaveLength(30);
+    expect(out.slice(0, 2).map((x) => x.id)).toEqual(["g0", "g1"]);
+    expect(selectGames(many, { ...DEFAULT_QUERY_STATE, status: "fail" })).toHaveLength(10);
   });
-  it("범위를 넘는 page는 마지막으로 clamp되고 반환 page로 확인된다", () => {
-    const p = selectPage(many, { ...DEFAULT_QUERY_STATE, page: 99 });
-    expect(p.page).toBe(2);
-    expect(p.items).toHaveLength(6);
-  });
-  it("pageSize를 지정할 수 있다", () => {
-    expect(selectPage(many, DEFAULT_QUERY_STATE, 10).pageCount).toBe(3);
-  });
-  it("결과 0건", () => {
-    const p = selectPage(many, { ...DEFAULT_QUERY_STATE, q: "없는게임" });
-    expect(p).toMatchObject({ total: 0, page: 1, pageCount: 1, start: 0, end: 0 });
+  it("결과 0건은 빈 배열", () => {
+    expect(selectGames(many, { ...DEFAULT_QUERY_STATE, q: "없는게임" })).toEqual([]);
   });
 });
 
-describe("pageWindow", () => {
-  it("7쪽 이하면 모두 나열한다", () => {
-    expect(pageWindow(1, 1)).toEqual([1]);
-    expect(pageWindow(2, 3)).toEqual([1, 2, 3]);
-    expect(pageWindow(4, 7)).toEqual([1, 2, 3, 4, 5, 6, 7]);
-  });
-  it("앞쪽에서는 뒤를 생략한다", () => {
-    expect(pageWindow(1, 20)).toEqual([1, 2, 3, 4, 5, "gap", 20]);
-    expect(pageWindow(4, 20)).toEqual([1, 2, 3, 4, 5, "gap", 20]);
-  });
-  it("뒤쪽에서는 앞을 생략한다", () => {
-    expect(pageWindow(20, 20)).toEqual([1, "gap", 16, 17, 18, 19, 20]);
-    expect(pageWindow(17, 20)).toEqual([1, "gap", 16, 17, 18, 19, 20]);
-  });
-  it("가운데에서는 양쪽을 생략한다", () => {
-    expect(pageWindow(10, 20)).toEqual([1, "gap", 9, 10, 11, "gap", 20]);
-  });
-  it("경계: 8쪽", () => {
-    expect(pageWindow(4, 8)).toEqual([1, 2, 3, 4, 5, "gap", 8]);
-    expect(pageWindow(5, 8)).toEqual([1, "gap", 4, 5, 6, 7, 8]);
-  });
-  it("범위 밖 current는 clamp, 비정상 count는 [1]", () => {
-    expect(pageWindow(99, 3)).toEqual([1, 2, 3]);
-    expect(pageWindow(-5, 3)).toEqual([1, 2, 3]);
-    expect(pageWindow(NaN, 3)).toEqual([1, 2, 3]);
-    expect(pageWindow(1, 0)).toEqual([1]);
-    expect(pageWindow(1, -3)).toEqual([1]);
-    expect(pageWindow(1, NaN)).toEqual([1]);
+describe("statusCounts", () => {
+  const gs: Game[] = [
+    g("a", "가", "2026-01-01", "clear"),
+    g("b", "나", "2026-02-01", "fail"),
+    g("c", "다", "2025-01-01", "clear"),
+    g("d", "라", null, "endless"),
+  ];
+  it("상태 버튼마다 그 상태를 골랐을 때의 개수(검색·연도는 반영, 지금 고른 상태는 무시)", () => {
+    expect(statusCounts(gs, DEFAULT_QUERY_STATE)).toEqual({ all: 4, clear: 2, fail: 1, endless: 1, unknown: 0 });
+    expect(statusCounts(gs, { ...DEFAULT_QUERY_STATE, status: "fail", year: "2026" })).toEqual({
+      all: 2, clear: 1, fail: 1, endless: 0, unknown: 0,
+    });
+    expect(statusCounts(gs, { ...DEFAULT_QUERY_STATE, q: "다" }).all).toBe(1);
   });
 });
 
@@ -626,7 +558,7 @@ describe("parseDetailId", () => {
 
 describe("detailQuery", () => {
   it("목록 상태를 유지하고 game을 붙인다", () => {
-    const state = { ...DEFAULT_QUERY_STATE, q: "힐", status: "clear" as const, page: 2 };
+    const state = { ...DEFAULT_QUERY_STATE, q: "힐", status: "clear" as const, view: "diary" as const };
     const qs = new URLSearchParams(detailQuery(state, "silent-hill-f"));
     expect(qs.get("game")).toBe("silent-hill-f");
     expect(parseQueryState(qs)).toEqual(state);
@@ -649,8 +581,8 @@ describe("detailQuery", () => {
     detailQuery(state, "cuphead");
     expect(state.q).toBe("a");
   });
-  it("serializeQueryState는 game을 넣지 않는다(필터·페이지 변경 시 상세가 닫힌다)", () => {
-    expect(serializeQueryState(parseQueryState(new URLSearchParams("game=cuphead&page=2")))).toBe("page=2");
+  it("serializeQueryState는 game을 넣지 않는다(필터·보기 변경 시 상세가 닫힌다)", () => {
+    expect(serializeQueryState(parseQueryState(new URLSearchParams("game=cuphead&view=diary")))).toBe("view=diary");
   });
 });
 

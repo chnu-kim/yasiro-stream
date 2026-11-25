@@ -39,7 +39,7 @@
   display: grid;
   place-items: center;
   background: transparent;
-  border: 1px solid var(--border-strong);
+  border: 0;
   border-radius: var(--radius-sm);
   color: var(--text);
   cursor: pointer;
@@ -99,7 +99,7 @@
     left: 0;
     right: 0;
     top: 52px;
-    border-top: 1px dashed var(--border);
+    border-top: 1px solid var(--border);
   }
 
   .close {

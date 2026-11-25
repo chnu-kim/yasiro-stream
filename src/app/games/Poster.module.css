@@ -12,6 +12,29 @@
   border: 1px solid var(--border);
   box-shadow: var(--shadow-sm);
   background: var(--tone);
+  /* 표본 라벨이 포스터 폭에 맞춰 접히도록(목록 카드는 화면 폭과 상관없이 좁다) */
+  container-type: inline-size;
+}
+
+/* 좁은 포스터(목록 5열·모바일 3열): "SPECIMEN NO.000"이 한 줄에 안 들어가 번호만, 꼬리말은 접는다 */
+@container (max-width: 180px) {
+  .labelKind,
+  .labelFoot {
+    display: none;
+  }
+
+  .label {
+    gap: 4px;
+    padding: 7px 7px 8px;
+  }
+
+  .labelName {
+    font-size: 14px;
+  }
+
+  .empty {
+    padding: 8px;
+  }
 }
 
 :global([data-theme="dark"]) .cover {
@@ -181,7 +204,7 @@
 
 .labelFoot {
   padding-top: 6px;
-  border-top: 1px dashed var(--border-strong);
+  border-top: 1px solid var(--border);
   font-size: var(--fs-xs);
   color: var(--text-dim);
 }

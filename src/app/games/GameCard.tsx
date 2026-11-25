@@ -24,7 +24,7 @@ export default function GameCard({
   return (
     <li className={game.hidden ? `${styles.card} ${styles.isHidden}` : styles.card}>
       <div className={styles.cardCover}>
-        <Poster game={game} stampTopWhenEmpty />
+        <Poster game={game} showNo={false} stampTopWhenEmpty />
       </div>
       <div className={styles.cardBody}>
         <Title className={styles.cardTitle}>
@@ -39,11 +39,13 @@ export default function GameCard({
             {game.name}
           </button>
         </Title>
+        {/* 기록 한 줄: 탐험 번호 · 첫 플레이 · (정복 못함·끝없는 탐험). 정복은 포스터 도장이 맡고 글자는 스크린리더용 */}
         <p className={styles.cardMeta}>
           {game.hidden && <span className={styles.hiddenChip}>숨김</span>}
+          <span className={styles.no}>NO.{game.no}</span>
           <span className={styles.date}>{formatDate(game.firstPlayed)}</span>
-          {game.status === 'fail' && <span className={styles.failChip}>정복 못함</span>}
-          {game.status === 'endless' && <span className={styles.endlessChip}>끝없는 탐험</span>}
+          {game.status === 'fail' && <span className={styles.statusText}>정복 못함</span>}
+          {game.status === 'endless' && <span className={`${styles.statusText} ${styles.isEndless}`}>끝없는 탐험</span>}
           {game.status === 'clear' && <span className={styles.srOnly}>정복</span>}
         </p>
       </div>

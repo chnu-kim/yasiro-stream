@@ -109,7 +109,7 @@ export default function GameDetailDialog({
                 <dt>첫 플레이</dt>
                 <dd className={styles.factDate}>{formatDate(game.firstPlayed)}</dd>
               </div>
-              <div className={`${styles.fact} ${styles.factRight}`}>
+              <div className={styles.fact}>
                 <dt>정복 여부</dt>
                 <dd className={game.status === 'clear' ? `${styles.factStatus} ${styles.isClear}` : styles.factStatus}>
                   {STATUS_TEXT[game.status]}

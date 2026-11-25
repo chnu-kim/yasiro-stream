@@ -1,0 +1,309 @@
+/* 일지 보기. 월 배지(왼쪽, 스크롤을 따라옴) + 기록 행(가는 선 사이). 좁은 화면은 배지가 위쪽 가로 띠가 된다 */
+.month {
+  display: grid;
+  grid-template-columns: 64px minmax(0, 1fr);
+  column-gap: var(--space-4);
+}
+
+.month + .month {
+  border-top: 1px solid var(--border-strong);
+}
+
+.badge {
+  position: sticky;
+  top: calc(var(--nav-h) + var(--rail-h, 0px) + var(--space-3));
+  align-self: start;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  margin: var(--space-3) 0;
+  padding: var(--space-2) 0;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-sm);
+  background: var(--paper-hi);
+  line-height: 1.2;
+}
+
+.badge b {
+  font: 600 17px 'Fredoka', sans-serif;
+  letter-spacing: 0.06em;
+}
+
+.badge span {
+  font: 500 var(--fs-xs) 'Fredoka', sans-serif;
+  color: var(--text-dim);
+}
+
+.badge .badgeNone {
+  padding: 0 4px;
+  font: 500 var(--fs-xs) / 1.3 'Noto Sans KR', sans-serif;
+  text-align: center;
+  word-break: keep-all;
+}
+
+.rows {
+  list-style: none;
+}
+
+.row {
+  position: relative;
+  display: grid;
+  grid-template-columns: 32px 36px 40px minmax(0, 1fr) 80px 92px;
+  align-items: center;
+  column-gap: var(--space-3);
+  min-height: 76px;
+  padding: var(--space-2) 0;
+  /* 화면 밖 줄은 배치·그리기를 미룬다 */
+  content-visibility: auto;
+  contain-intrinsic-size: auto 76px;
+}
+
+.row + .row {
+  border-top: 1px solid var(--border);
+}
+
+/* 이름순(월 묶음 없음)은 날짜 칸에 전체 날짜 */
+.flat .row {
+  grid-template-columns: 84px 36px 40px minmax(0, 1fr) 80px 92px;
+}
+
+.day {
+  font: 600 22px 'Fredoka', sans-serif;
+  font-variant-numeric: tabular-nums;
+}
+
+.dayWide {
+  font-size: var(--fs-sm);
+  font-weight: 500;
+  color: var(--text-dim);
+}
+
+.no {
+  font: 600 var(--fs-xs) 'Fredoka', sans-serif;
+  letter-spacing: 0.08em;
+  color: var(--accent-text);
+}
+
+.thumb {
+  display: block;
+  width: 40px;
+  aspect-ratio: 3 / 4;
+  overflow: hidden;
+  border: 1px solid var(--border);
+  border-radius: 2px;
+  background: var(--surface);
+}
+
+.thumb img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.nameCell {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.name {
+  font: 400 18px / 1.3 var(--font-display);
+  word-break: keep-all;
+  overflow-wrap: anywhere;
+}
+
+/* 줄 전체가 클릭 영역. 제목 버튼의 ::after가 li를 덮는다 */
+.open {
+  all: unset;
+  cursor: pointer;
+  transition: color var(--dur-fast);
+}
+
+.open::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+}
+
+.row:hover .open {
+  color: var(--accent-text);
+}
+
+.open:focus-visible::after {
+  outline: 2px solid var(--focus);
+  outline-offset: -2px;
+}
+
+.orig {
+  font-size: var(--fs-sm);
+  color: var(--text-dim);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.status {
+  font-size: var(--fs-sm);
+  color: var(--text-dim);
+  white-space: nowrap;
+}
+
+/* 정복은 도장과 같은 인주색을 큰 글자로(작은 글자에는 --stamp를 쓰지 않는다: AA 미달) */
+.status[data-status='clear'] {
+  font: 400 18px var(--font-display);
+  color: var(--stamp);
+}
+
+.status[data-status='endless'] {
+  color: var(--accent-text);
+}
+
+/* 다시보기 링크는 줄 덮개 위로 올린다 */
+.vod {
+  position: relative;
+  z-index: 1;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  justify-self: start;
+  min-height: var(--tap);
+  padding: 0 var(--space-2);
+  margin-left: calc(-1 * var(--space-2));
+  font-size: var(--fs-sm);
+  font-weight: 500;
+  color: var(--accent-text);
+  text-decoration: none;
+  border-radius: var(--radius-sm);
+  transition: background var(--dur-fast);
+}
+
+.vod:hover {
+  background: var(--accent-bg);
+}
+
+.vod:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+}
+
+.noVod {
+  color: var(--text-dim);
+}
+
+.isHidden {
+  opacity: 0.55;
+}
+
+.srOnly {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+}
+
+/* 좁은 화면: 배지는 위쪽 가로 띠(스크롤을 따라옴), 줄은 날짜 · 표지 · 이름/결과 · 재생 */
+@media (max-width: 640px) {
+  .month {
+    display: block;
+  }
+
+  .month + .month {
+    border-top: 0;
+  }
+
+  .badge {
+    top: calc(var(--nav-h) + var(--rail-h, 0px));
+    z-index: 2;
+    flex-direction: row;
+    align-items: baseline;
+    gap: var(--space-2);
+    margin: 0;
+    padding: var(--space-2) 0;
+    border: 0;
+    border-bottom: 1px solid var(--border-strong);
+    border-radius: 0;
+    background: var(--bg);
+  }
+
+  .row,
+  .flat .row {
+    grid-template-columns: 26px 40px minmax(0, 1fr) var(--tap);
+    column-gap: var(--space-3);
+    min-height: 68px;
+  }
+
+  .flat .row {
+    grid-template-columns: 0 40px minmax(0, 1fr) var(--tap);
+    column-gap: var(--space-3) ;
+  }
+
+  .flat .day {
+    display: none;
+  }
+
+  .day {
+    font-size: 17px;
+  }
+
+  .no {
+    display: none;
+  }
+
+  .name {
+    font-size: 16px;
+  }
+
+  .orig {
+    display: none;
+  }
+
+  .status {
+    grid-column: 3;
+    grid-row: 2;
+    font-size: var(--fs-xs);
+  }
+
+  .status[data-status='clear'] {
+    font: 600 var(--fs-xs) 'Noto Sans KR', sans-serif;
+    color: var(--text-dim);
+  }
+
+  .nameCell {
+    grid-column: 3;
+    grid-row: 1;
+  }
+
+  .thumb {
+    grid-row: 1 / 3;
+    width: 40px;
+  }
+
+  .day {
+    grid-row: 1 / 3;
+  }
+
+  .vod,
+  .noVod {
+    grid-column: 4;
+    grid-row: 1 / 3;
+    justify-content: center;
+    justify-self: end;
+    margin: 0;
+  }
+
+  .vod {
+    width: var(--tap);
+    padding: 0;
+  }
+
+  .vodText {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+  }
+}

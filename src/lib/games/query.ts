@@ -8,18 +8,17 @@ import type {
   SortKey,
   StatusFilter,
   YearFilter,
+  ViewKey,
   YearOptions,
-  Page,
 } from "./types.ts";
 
-export const PAGE_SIZE = 24;
 export const Q_MAX = 100;
 export const DEFAULT_QUERY_STATE: Readonly<GamesQueryState> = Object.freeze({
   q: "",
   status: "all",
   year: "all",
   sort: "recent",
-  page: 1,
+  view: "grid",
 });
 
 export function normalize(s: string): string {
@@ -71,36 +70,10 @@ export function filterGames<T extends Game>(
   });
 }
 
-export function paginate<T>(
-  items: readonly T[],
-  page: number,
-  pageSize: number = PAGE_SIZE,
-): Page<T> {
-  if (!Number.isInteger(pageSize) || pageSize < 1) {
-    throw new RangeError(`pageSize must be a positive integer: ${pageSize}`);
-  }
-  const total = items.length;
-  const pageCount = Math.max(1, Math.ceil(total / pageSize));
-  let current = Number.isInteger(page) && page >= 1 ? page : 1;
-  if (current > pageCount) current = pageCount;
-  const start = total === 0 ? 0 : (current - 1) * pageSize;
-  const end = Math.min(start + pageSize, total);
-  return { items: items.slice(start, end), page: current, pageCount, total, start, end };
-}
-
-/** 번호 페이지네이션에 그릴 항목. 7쪽 이하면 전부, 넘으면 항상 7칸(양끝 + 현재 주변 + "gap") */
-export function pageWindow(current: number, pageCount: number): Array<number | "gap"> {
-  const count = Number.isInteger(pageCount) && pageCount >= 1 ? pageCount : 1;
-  const cur = Number.isInteger(current) ? Math.min(Math.max(current, 1), count) : 1;
-  if (count <= 7) return Array.from({ length: count }, (_, i) => i + 1);
-  if (cur <= 4) return [1, 2, 3, 4, 5, "gap", count];
-  if (cur >= count - 3) return [1, "gap", count - 4, count - 3, count - 2, count - 1, count];
-  return [1, "gap", cur - 1, cur, cur + 1, "gap", count];
-}
-
 /** UI 노출 순서 그대로 */
 export const STATUS_FILTERS: readonly StatusFilter[] = ["all", ...GAME_STATUSES];
 export const SORT_KEYS: readonly SortKey[] = ["recent", "old", "name"];
+export const VIEW_KEYS: readonly ViewKey[] = ["grid", "diary"];
 
 type Year = `${number}`;
 const isYear = (s: string): s is Year => /^\d{4}$/.test(s);
@@ -131,13 +104,14 @@ export function parseSortKey(v: string | undefined): SortKey {
 
 export function parseQueryState(input: QueryInput): GamesQueryState {
   const status = pick(input, "status");
-  const page = pick(input, "page");
+  const view = pick(input, "view");
+  // 예전 공유 링크의 page는 읽지 않는다(연도 챕터로 바뀌어 페이지가 없다). 다시 쓸 때 사라진다
   return {
     q: normalizeQ(pick(input, "q") ?? ""),
     status: STATUS_FILTERS.find((v) => v === status) ?? "all",
     year: parseYearFilter(pick(input, "year")),
     sort: parseSortKey(pick(input, "sort")),
-    page: page !== undefined && /^[1-9]\d{0,5}$/.test(page) ? Number(page) : 1,
+    view: VIEW_KEYS.find((v) => v === view) ?? "grid",
   };
 }
 
@@ -161,7 +135,7 @@ export function serializeQueryState(state: GamesQueryState): string {
   if (state.status !== DEFAULT_QUERY_STATE.status) params.set("status", state.status);
   if (state.year !== DEFAULT_QUERY_STATE.year) params.set("year", state.year);
   if (state.sort !== DEFAULT_QUERY_STATE.sort) params.set("sort", state.sort);
-  if (state.page !== DEFAULT_QUERY_STATE.page) params.set("page", String(state.page));
+  if (state.view !== DEFAULT_QUERY_STATE.view) params.set("view", state.view);
   return params.toString();
 }
 
@@ -182,7 +156,7 @@ export function applyFilterChange(
   state: GamesQueryState,
   patch: Partial<GamesQueryState>,
 ): GamesQueryState {
-  return { ...state, page: 1, ...patch };
+  return { ...state, ...patch };
 }
 
 export function countStats(games: readonly Game[]): GameStats {
@@ -232,12 +206,19 @@ export function indexGames(games: readonly Game[]): IndexedGame[] {
   });
 }
 
-export function selectPage<T extends IndexedGame>(
-  indexed: readonly T[],
-  state: GamesQueryState,
-  pageSize?: number,
-): Page<T> {
-  return paginate(sortGames(filterGames(indexed, state), state.sort), state.page, pageSize);
+/** 필터 → 정렬. 나누지 않고 전부 돌려준다(연도 챕터는 yearChapters가 묶는다) */
+export function selectGames<T extends Game>(games: readonly T[], state: GamesQueryState): T[] {
+  return sortGames(filterGames(games, state), state.sort);
+}
+
+/** 상태 버튼에 적을 개수: 그 상태를 골랐을 때의 결과 수. 검색어·연도는 반영하고 지금 고른 상태는 무시한다 */
+export function statusCounts(games: readonly Game[], state: GamesQueryState): Record<StatusFilter, number> {
+  const out: Record<StatusFilter, number> = { all: 0, clear: 0, fail: 0, endless: 0, unknown: 0 };
+  for (const game of filterGames(games, { q: state.q, year: state.year, status: "all" })) {
+    out.all += 1;
+    out[game.status] += 1;
+  }
+  return out;
 }
 
 /** 숨기지 않은 게임만 indexGames 규칙으로 번호를 매기고, 숨긴 게임은 ordinal 0·no "—"로 붙인다. 입력 순서는 상관없음 */

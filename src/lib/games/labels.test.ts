@@ -11,7 +11,7 @@ import {
   yearLabel,
 } from "./labels.ts";
 import { DEFAULT_QUERY_STATE } from "./query.ts";
-import type { GamesQueryState, Page } from "./types.ts";
+import type { GamesQueryState } from "./types.ts";
 
 const state = (patch: Partial<GamesQueryState> = {}): GamesQueryState => ({
   ...DEFAULT_QUERY_STATE,
@@ -64,8 +64,8 @@ describe("hasActiveFilter / hasFilterSelection", () => {
     expect(hasFilterSelection(state({ year: "2025" }))).toBe(true);
   });
   it("정렬과 페이지는 영향 없음", () => {
-    expect(hasActiveFilter(state({ sort: "name", page: 3 }))).toBe(false);
-    expect(hasFilterSelection(state({ sort: "name", page: 3 }))).toBe(false);
+    expect(hasActiveFilter(state({ sort: "name", view: "diary" }))).toBe(false);
+    expect(hasFilterSelection(state({ sort: "name", view: "diary" }))).toBe(false);
   });
 });
 
@@ -87,21 +87,15 @@ describe("describeConditions", () => {
 });
 
 describe("resultSummary", () => {
-  const page = (total: number, start: number, end: number): Page<unknown> => ({
-    items: [],
-    page: 1,
-    pageCount: 1,
-    total,
-    start,
-    end,
+  it("연도 구분과 같은 형식: 개수 · 정복 수", () => {
+    expect(resultSummary(371, 242, state())).toBe("371개 · 정복 242");
+    expect(resultSummary(1, 0, state({ q: "x" }))).toBe("1개 · 정복 0");
   });
-  it("범위 문구", () => {
-    expect(resultSummary(page(30, 0, 24))).toBe("30개 중 1–24번째");
-    expect(resultSummary(page(30, 24, 30))).toBe("30개 중 25–30번째");
-    expect(resultSummary(page(1, 0, 1))).toBe("1개 중 1–1번째");
+  it("상태 필터가 걸리면 정복 수를 적지 않는다", () => {
+    expect(resultSummary(73, 0, state({ status: "fail" }))).toBe("73개");
   });
   it("0건", () => {
-    expect(resultSummary(page(0, 0, 0))).toBe("일치하는 게임 0개");
+    expect(resultSummary(0, 0, state({ q: "없는게임" }))).toBe("일치하는 게임 0개");
   });
 });
 
