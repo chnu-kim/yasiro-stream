@@ -1,7 +1,8 @@
 import type { Metadata } from 'next';
 import ArtImage from '@/components/ArtImage';
+import { ViewTransition } from 'react';
 import Link from 'next/link';
-import { PAGE_TRANSITION } from '@/lib/page-transition';
+import { HERO_FIGURE, HERO_FIGURE_SHARE, PAGE_TRANSITION } from '@/lib/page-transition';
 import styles from './page.module.css';
 import Button from '@/components/Button';
 import { ArrowIcon } from '@/components/icons';
@@ -81,6 +82,7 @@ export default async function Home() {
             ))}
           </dl>
 
+          <ViewTransition name={HERO_FIGURE} share={HERO_FIGURE_SHARE} default="none">
           <div className={styles.figure}>
             <ArtImage
               name="yasiro1"
@@ -93,6 +95,7 @@ export default async function Home() {
               className={styles.char}
             />
           </div>
+          </ViewTransition>
         </div>
       </section>
 

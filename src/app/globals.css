@@ -197,6 +197,24 @@ a {
   animation: vtFadeUp var(--dur-base) var(--ease-out) 80ms both;
 }
 
+/* 홈 히어로 ↔ /about 그림판(같은 이름 yasiro-figure): 캐릭터 상자가 자리를 옮기는 동안 두 그림을 겹쳐 바꾼다.
+   그림이 서로 달라(상반신·전신) 중간에 살짝 흐려 겹침을 감춘다.
+   z-index: template의 새 본문 그룹(page-in)은 옛 페이지에 없던 이름이라 늘 맨 위에 붙는다. 그 스냅샷은 그림 자리를 바탕색으로 칠해
+   그림 그룹을 덮으므로(페이드인할수록 그림이 사라진다) 그림 그룹을 위로 올린다 */
+::view-transition-group(.figure-morph) {
+  z-index: 1;
+  animation-duration: 450ms;
+  animation-timing-function: var(--ease-out);
+}
+
+::view-transition-image-pair(.figure-morph) {
+  animation: vtBlurVia 450ms var(--ease-out);
+}
+
+@keyframes vtBlurVia {
+  40% { filter: blur(4px); }
+}
+
 @keyframes vtFadeOut {
   to { opacity: 0; }
 }
