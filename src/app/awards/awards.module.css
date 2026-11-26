@@ -1212,14 +1212,15 @@
 
 .titleShade {
   color: #120a06;
-  transform: translateY(3px);
-  filter: blur(1px);
-  opacity: 0.85;
+  transform: translateY(2px);
+  filter: blur(0.5px); /* 명조의 가는 획이 그림자 번짐에 묻히지 않게(11-27) */
+  opacity: 0.5;
 }
 
 .titleFill {
   color: var(--gala-gold-hi);
-  background: linear-gradient(100deg, #3a201c 0%, #8a6a2c 20%, #c9a24a 42%, #e6d29a 50%, #c9a24a 58%, #8a6a2c 80%, #3a201c 100%);
+  /* 끝단을 예전(#3a201c·#8a6a2c)보다 밝혀 명조의 가는 획이 어두운 배경에 묻히지 않게(11-27) */
+  background: linear-gradient(100deg, #7a5a2e 0%, #a8843e 20%, #cfa952 42%, #ead6a0 50%, #cfa952 58%, #a8843e 80%, #7a5a2e 100%);
   background-size: 400% 100%;
   background-position: 100% 0;
   -webkit-background-clip: text;
