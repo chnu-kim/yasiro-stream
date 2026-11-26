@@ -151,7 +151,6 @@ const STAGE_TOP = 1.6;
 const TROPHY_SCALE = 1.55;
 /** 새 트로피(glb, 높이 3.19m)를 예전 트로피 높이(약 6.6)에 맞추는 배율 */
 const TROPHY_GLB_SCALE = 2.07;
-const TROPHY_TOP_Y = STAGE_TOP + 4.25 * TROPHY_SCALE;
 const GLOBE_Y = STAGE_TOP + 2.5 * TROPHY_SCALE;
 const TILE_W = 2.1;
 const TILE_H = 2.8;
