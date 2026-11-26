@@ -68,6 +68,8 @@ export interface StageTimeline {
   spot: number;
   /** 금 웅덩이 컨셉: 트로피가 수면을 뚫고 솟기 시작하는 시각(2.8초 동안) */
   rise: number;
+  /** 빛이 꿀붕이에서 단으로 번지기 시작(키·림·보조광·단 금선). 이전 컨셉은 임팩트와 같다 */
+  spread: number;
   pillars: number;
   open: number;
   hold: number;
@@ -81,21 +83,27 @@ export interface StageTimeline {
 /** 입장 컨셉(11-26 재구상): 'corridor' = 후보작 포스터 통로(A안), 'ballroom' = 볼룸 비행, 'pool' = 조사 ①안 금 웅덩이,
  *  'lattice' = 조사 ②안(그래미 2026 응용) 트로피 지구본의 금 격자 안에서 시작해 틈으로 빠져나오며 그것이 트로피였음이 드러난다.
  *  볼룸 소품은 실시간 디테일이 모자라 싸구려 세트처럼 보였고(사용자 피드백), 금 웅덩이는 액체로 읽히지 않아 품질이 낮았다(11-27) */
-const CONCEPT = 'lattice' as 'corridor' | 'ballroom' | 'pool' | 'lattice';
+const CONCEPT = 'spot' as 'corridor' | 'ballroom' | 'pool' | 'lattice' | 'spot';
 const POOL = CONCEPT === 'pool';
 const CORRIDOR = CONCEPT === 'corridor';
 const LATTICE = CONCEPT === 'lattice';
+/** 공통 언어(11-27) 오프닝: 어둠 → 위에서 스포트가 꿀붕이에 열림 → 빛이 단으로 번짐 → 헤일로·벽 → 제목. 카메라는 한 번의 느린 접근 */
+const SPOT = CONCEPT === 'spot';
 
 export const STAGE_TIMELINES: Record<StageIntro, StageTimeline> = {
   // 금 웅덩이(11-26, 조사 ①안): 어둠 속 웅덩이가 은은히 빛나다(0.3) → 스포트라이트 하나(1.6) → 트로피가 수면을 뚫고 솟음(2.4~5.2)
   // → 임팩트(5.4: 헤일로·충격파·꽃가루) → 빛이 퍼짐 → 제목. 카메라는 처음부터 한 방향으로 천천히 물러나 9.6초에 심사위원석. SetupScreen CUES도 같이
   // 금 격자(11-27, 조사 ②안): 어둠 속 격자 안(0) → 위에서 빛 한 줄기(0.6) → 카메라가 격자 틈으로 빠져나와 물러남 → 트로피 전체가 드러남
   // → 임팩트(6.2: 지구본 속 심이 켜지고 헤일로) → 제목. 카메라는 한 방향으로 물러나 12초에 심사위원석
-  full: LATTICE
-    ? { house: -99, spot: 0.6, rise: -99, pillars: 6.8, open: 6.2, hold: 7.4, impact: 6.2, band: 6.4, wall: 7.6, title: 8.4, call: 11.1 }
-    : { house: -99, spot: 1.6, rise: 2.4, pillars: 6.0, open: 5.4, hold: 6.6, impact: 5.4, band: 5.6, wall: 6.8, title: 7.6, call: 10.3 },
-  short: { house: -99, spot: 0, rise: -99, pillars: 0, open: 0, hold: 0.15, impact: 0.4, band: 0.5, wall: 0.9, title: 1.4, call: 2.0 },
-  none: { house: -99, spot: -99, rise: -99, pillars: -99, open: -99, hold: -99, impact: -99, band: -99, wall: -99, title: -99, call: -99 },
+  // 스포트(11-27, 공통 언어): 어둠(0~0.8) → 스포트가 꿀붕이에 열림(0.8) → 빛이 단으로 번짐(2.4~3.8) → 헤일로·벽·빔(4.2~) → 제목(5.6).
+  // 카메라는 0.3초부터 9초까지 한 번 느리게 다가가 지금의 최종 자리에 멈춘다. SetupScreen CUES도 같이
+  full: SPOT
+    ? { house: -99, spot: 0.8, spread: 2.4, rise: -99, pillars: 4.8, open: 4.2, hold: 5.4, impact: 4.2, band: 4.4, wall: 4.6, title: 5.6, call: 8.3 }
+    : LATTICE
+    ? { house: -99, spot: 0.6, spread: 6.2, rise: -99, pillars: 6.8, open: 6.2, hold: 7.4, impact: 6.2, band: 6.4, wall: 7.6, title: 8.4, call: 11.1 }
+    : { house: -99, spot: 1.6, spread: 5.4, rise: 2.4, pillars: 6.0, open: 5.4, hold: 6.6, impact: 5.4, band: 5.6, wall: 6.8, title: 7.6, call: 10.3 },
+  short: { house: -99, spot: 0, spread: 0.4, rise: -99, pillars: 0, open: 0, hold: 0.15, impact: 0.4, band: 0.5, wall: 0.9, title: 1.4, call: 2.0 },
+  none: { house: -99, spot: -99, spread: -99, rise: -99, pillars: -99, open: -99, hold: -99, impact: -99, band: -99, wall: -99, title: -99, call: -99 },
 };
 
 /** 밝기 예산. 노출·bloom 상한은 올리지 않는다(사용자 눈부심 지적). 효과를 더할 때는 여기 값을 먼저 정한다 */
@@ -171,7 +179,23 @@ const CAM_JUDGE = new THREE.Vector3(0, 5.0, 19.8); // 11-26: 21.5에서 당김. 
 const LOOK_JUDGE = new THREE.Vector3(0, 5.2, 0);
 /** 입장 컨셉(11-26 재구상): 'corridor' = 어둠 속 후보작 포스터 통로를 지나 문이 갈라지며 무대(A안), 'ballroom' = 이전 볼룸 비행.
  *  볼룸의 테이블·하객·레드카펫·샹들리에는 실시간 디테일이 모자라 싸구려 세트처럼 보였다(사용자 피드백) */
-const ENTRY_SPEC: EntryCameraSpec = LATTICE
+const ENTRY_SPEC: EntryCameraSpec = SPOT
+  ? {
+      // 정면에서 한 번 느리게 다가가 심사위원석(지금의 최종 자리)에 멈춘다. 시선은 처음엔 꼭대기 꿀붕이, 빛이 단으로 번지며 무대 가운데로 내려온다
+      points: [
+        [0, 4.6, 26.0],
+        [0, 4.7, 24.2],
+        [0, 4.8, 22.6],
+        [0, 4.9, 21.2],
+      ],
+      landTangent: [0, 0.07, -1.0],
+      end: [CAM_JUDGE.x, CAM_JUDGE.y, CAM_JUDGE.z],
+      times: { start: 0.3, peak: 3.2, land: 6.2, stop: 9.0 },
+      decel: 2.4,
+      look: { from: [0, 7.8, 0], to: [LOOK_JUDGE.x, LOOK_JUDGE.y, LOOK_JUDGE.z], start: 2.2, duration: 5.5 },
+      heading: { weight: 0, onStart: 0, onDuration: 1, offStart: 0, offDuration: 1 },
+    }
+  : LATTICE
   ? {
       // 지구본 격자 안(가운데 조금 앞)에서 뒤쪽 안벽을 보며 출발 → 적도 위 틈(경선 사이, 위선 사이)으로 빠져나옴 → 한 방향으로 물러나 심사위원석.
       // 시선은 처음부터 지구본 쪽(뒤로 걷는 돌리 아웃)이라 고개를 돌리지 않는다. 틈 높이는 LATTICE_EXIT_Y
@@ -287,9 +311,9 @@ export function createStage(canvas: HTMLCanvasElement, opts: StageOptions): Stag
   const pmrem = new THREE.PMREMGenerator(renderer);
   // 반사 환경: 격자 컨셉은 검은 방 + 길쭉한 조명판(금속감은 밝기가 아니라 어두운 바탕과 좁은 하이라이트의 대비에서 나온다, 조사 P10).
   // 바탕이 검어서 세기를 올려도 화면 전체는 밝아지지 않고 금에만 줄무늬 반사가 생긴다
-  const envSource = LATTICE ? studioEnvironment() : new RoomEnvironment();
+  const envSource = LATTICE || SPOT ? studioEnvironment() : new RoomEnvironment();
   const envTex = pmrem.fromScene(envSource, 0.02).texture;
-  if (LATTICE) envSource.traverse((o) => (o as THREE.Mesh).geometry?.dispose());
+  if (LATTICE || SPOT) envSource.traverse((o) => (o as THREE.Mesh).geometry?.dispose());
   scene.environment = envTex;
   scene.environmentIntensity = 0.02;
   // 안개는 비행 첫 장면(볼룸 높은 곳, 약 60 거리)에서도 무대가 보일 만큼 옅게
@@ -783,7 +807,7 @@ export function createStage(canvas: HTMLCanvasElement, opts: StageOptions): Stag
   }
   for (const side of [-1, 1]) addBeam('wash', new THREE.Vector3(side * 6, 22, 10), side * 2.1, 0xdfe6f0, BRIGHTNESS.washAlpha, 0.11);
   if (!compact) for (const side of [-1, 1]) addBeam('back', new THREE.Vector3(side * 5, 12, -12), side * 3.3, 0xf3d58e, BRIGHTNESS.backBeamAlpha, 0.05);
-  if (POOL || LATTICE) addBeam('pool', new THREE.Vector3(0, 21, 1.0), 0, 0xf3cf86, BRIGHTNESS.beamAlpha, 0.075);
+  if (POOL || LATTICE || SPOT) addBeam('pool', new THREE.Vector3(0, 21, 1.0), 0, 0xf3cf86, BRIGHTNESS.beamAlpha, 0.075);
 
   // ── 안개 막: 트로피 앞뒤 반투명 판(느리게 흐르는 잡음). 빛줄기가 겹을 통과하는 깊이 ──
   const hazeMats = [-2.5, 7].map((z) => {
@@ -913,10 +937,12 @@ export function createStage(canvas: HTMLCanvasElement, opts: StageOptions): Stag
       look.set(e.look[0], e.look[1], e.look[2]);
       rollNow = 0;
       // 걷는 구간: 스테디캠처럼 아주 느린 흔들림(서로 다른 주기의 사인을 섞어 기계적으로 반복되지 않게)
-      const walkW = LATTICE ? 0 : e.walk; // 격자 컨셉은 틈을 빠져나가므로 흔들지 않는다
+      const walkW = LATTICE || SPOT ? 0 : e.walk; // 격자 컨셉은 틈을 빠져나가므로 흔들지 않는다
       out.x += (Math.sin(t * 0.83) * 0.6 + Math.sin(t * 1.37 + 1.1) * 0.4) * 0.035 * walkW;
       out.y += (Math.sin(t * 1.21 + 2.3) * 0.6 + Math.sin(t * 0.57) * 0.4) * 0.018 * walkW;
       // 시야: 비행은 넓게 → 걷기 → 무대 앞에 멈춘 뒤 임팩트까지 천천히 좁혀 들어가며 긴장을 모은다(임팩트의 돌리 줌이 다시 펼친다)
+      // 스포트 컨셉은 시야를 바꾸지 않는다(다가가며 줌까지 겹치면 확대가 두 번으로 느껴진다)
+      if (SPOT) return fovAt(FOV_WIDE);
       return fovAt(THREE.MathUtils.lerp(FLIGHT_FOV, FOV_WIDE, smooth(ENTRY_SPEC.times.peak, ENTRY_SPEC.times.stop - 1, t)));
     }
     rollNow = 0;
@@ -975,19 +1001,25 @@ export function createStage(canvas: HTMLCanvasElement, opts: StageOptions): Stag
   function applyLights(t: number) {
     const tl = timeline;
     const impactK = ramp(t, tl.impact, 0.3);
-    // 역광 림: 처음부터 아주 천천히(p²) 차오른다
-    back.intensity = BRIGHTNESS.back * ramp(t, -0.2, 1.8);
-    key.intensity = BRIGHTNESS.key * impactK;
-    for (const r of rims) r.intensity = BRIGHTNESS.rimSide * impactK;
-    fill.intensity = BRIGHTNESS.fill * impactK;
+    // 빛이 번지는 정도: 스포트 컨셉은 1.4초에 걸쳐 천천히(켜짐이 곧 등장), 이전 컨셉은 임팩트와 함께 0.3초
+    const spreadK = ramp(t, tl.spread, SPOT ? 1.4 : 0.3);
+    // 역광 림: 이전 컨셉은 처음부터, 스포트 컨셉은 스포트가 열린 뒤 아주 천천히(p²) 차오른다(첫 순간은 완전한 어둠)
+    back.intensity = BRIGHTNESS.back * ramp(t, SPOT ? tl.spot + 0.4 : -0.2, 1.8);
+    key.intensity = BRIGHTNESS.key * spreadK;
+    for (const r of rims) r.intensity = BRIGHTNESS.rimSide * spreadK;
+    fill.intensity = BRIGHTNESS.fill * spreadK;
     // 객석 조명: 처음엔 켜져 있다가(쇼 전 볼룸) 암전 큐에 꺼진다. 쇼가 끝난 뒤에도 아주 약하게만 남는다
     const houseOn = 1 - easeInOutCubic((t - tl.house) / 1.2);
     const houseUp = tl.house < 0 ? 0.25 : Math.max(houseOn * ramp(t, -0.3, 0.8), 0.25 * ramp(t, tl.impact, 1));
     houseLight.intensity = BRIGHTNESS.house * houseUp;
     for (const pool of housePools) pool.intensity = BRIGHTNESS.housePool * (tl.house < 0 ? 0 : houseOn * ramp(t, -0.3, 0.8));
-    scene.environmentIntensity = LATTICE ? BRIGHTNESS.envBase * ramp(t, 0, 1.5) + BRIGHTNESS.envImpact * impactK : 0.02 + 0.3 * impactK;
+    scene.environmentIntensity = SPOT
+      ? BRIGHTNESS.envBase * ramp(t, tl.spot, 1.2) + BRIGHTNESS.envImpact * spreadK
+      : LATTICE
+      ? BRIGHTNESS.envBase * ramp(t, 0, 1.5) + BRIGHTNESS.envImpact * impactK
+      : 0.02 + 0.3 * impactK;
     // 위에서 떨어지는 단 하나의 빛(웅덩이·격자 컨셉). 임팩트 뒤 다른 빛들이 켜지면 한 걸음 물러난다
-    poolSpot.intensity = POOL || LATTICE ? BRIGHTNESS.poolSpot * ramp(t, tl.spot, 0.9) * (1 - 0.45 * ramp(t, tl.impact + 0.8, 1.5)) : 0;
+    poolSpot.intensity = POOL || LATTICE || SPOT ? BRIGHTNESS.poolSpot * ramp(t, tl.spot, 0.9) * (1 - 0.45 * ramp(t, tl.impact + 0.8, 1.5)) : 0;
     if (LATTICE) {
       // 격자 안의 빛: 처음부터 은은히(안쪽 면이 보이게) → 임팩트에 심이 켜지며 밝아졌다가 조금 가라앉는다
       const coreK = ramp(t, tl.impact - 0.15, 0.35);
@@ -1000,7 +1032,7 @@ export function createStage(canvas: HTMLCanvasElement, opts: StageOptions): Stag
       const on = ramp(t, tl.pillars + p.cue, 0.35);
       p.mat.color.copy(pillarOn).multiplyScalar(BRIGHTNESS.pillar * on * (0.8 + 0.2 * Math.sin(t * 0.6 + p.phase)));
     }
-    edgeMat.color.copy(edgeOn).multiplyScalar(BRIGHTNESS.edge * impactK);
+    edgeMat.color.copy(edgeOn).multiplyScalar(BRIGHTNESS.edge * spreadK);
     haloMat.color.copy(haloOn).multiplyScalar(BRIGHTNESS.halo * ramp(t, tl.impact + 0.08, 0.3));
     lampMat.color.setRGB(0.95, 0.62, 0.25).multiplyScalar(BRIGHTNESS.lamp * ramp(t, -0.4, 1.2));
     // 샹들리에: 쇼 전에는 볼룸 조명으로 반짝이고, 암전 때 낮아졌다가 임팩트 뒤 다시 은은하게
