@@ -241,9 +241,9 @@ html:active-view-transition-type(page) [data-vt] {
   z-index: 4;
 }
 
-/* rise: 제목 → 영문·소개 문구 → 버튼·목차 → 정보 줄 순서로 60ms 간격. 떠날 때는 본문보다 살짝 먼저, 위로 빠진다 */
+/* rise: 제목 → 영문·소개 문구 → 버튼·목차 → 정보 줄 순서로 60ms 간격. 떠날 때는 옛 본문과 같은 시간에 위로 빠진다 */
 ::view-transition-old(.vt-rise) {
-  animation: vtRiseOut 160ms ease-in both;
+  animation: vtRiseOut var(--dur-fast) ease-in both;
 }
 
 ::view-transition-new(.vt-rise) {
@@ -254,9 +254,10 @@ html:active-view-transition-type(page) [data-vt] {
 ::view-transition-new(.vt-rise-2) { animation-delay: 200ms; }
 ::view-transition-new(.vt-rise-3) { animation-delay: 260ms; }
 
-/* band: 위에서 아래로 쓸며 그려지고, 떠날 때는 아래에서 위로 접힌다 */
+/* band: 위에서 아래로 쓸며 그려지고, 떠날 때는 아래에서 위로 접힌다.
+   떠날 때는 옛 본문(page-out)과 같은 시간에 끝낸다. 따로 떼어 낸 층이라 더 길면 다음 페이지 위에 띠만 남는다(소개 → 게임) */
 ::view-transition-old(.vt-band) {
-  animation: vtWipeUp 240ms ease-in both;
+  animation: vtWipeUp var(--dur-fast) ease-in both;
 }
 
 ::view-transition-new(.vt-band) {
