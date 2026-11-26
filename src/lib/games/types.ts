@@ -90,13 +90,6 @@ export interface GameStats {
   undated: number;
 }
 
-export interface YearOptions {
-  /** 실재하는 연도(문자열) 내림차순, 중복 없음 */
-  years: `${number}`[];
-  /** firstPlayed === null 게임이 하나라도 있는가 ("none" 옵션 노출 여부) */
-  hasUndated: boolean;
-}
-
 // ---------- 검증(schema.ts) ----------
 
 export interface ValidationIssue {
@@ -130,7 +123,7 @@ export interface ChzzkCategory {
 export type FetchLike = (input: string, init?: RequestInit) => Promise<Response>;
 
 // ====================================================================================
-// D1 전환 + 관리자 수정 (contract: scratchpad/games-admin-contract.md)
+// D1 전환 + 관리자 수정
 // ====================================================================================
 
 // ---------- D1 최소 인터페이스 ----------
@@ -399,26 +392,6 @@ export type ApiErrorCode =
   | "upstream"
   | "unavailable";
 
-export interface ApiError {
-  error: { code: ApiErrorCode; message: string };
-}
-
-/** 422 */
-export interface ApiInvalid extends ApiError {
-  issues: ValidationIssue[];
-}
-
-/** 409. message 예: "관리자가 방금(14:02) 이 게임을 먼저 고쳤어요." */
-export interface ApiConflict extends ApiError {
-  latest: GameRecord;
-}
-
-/** GET /api/games */
-export interface ListGamesResponse {
-  /** 방문자·비관리자: Game[] (숨김 제외). 관리자 + ?includeHidden=1: GameRecord[] */
-  games: Game[] | GameRecord[];
-}
-
 /** POST /api/games 본문 */
 export interface CreateGameRequest {
   input: GameInput;
@@ -433,13 +406,6 @@ export interface UpdateGameRequest {
 /** POST /api/games/[id]/hidden 본문 */
 export interface SetHiddenRequest {
   hidden: boolean;
-}
-
-/** POST(201)·PATCH(200)·hidden(200) 응답 */
-export interface GameWriteResponse {
-  game: GameRecord;
-  /** false = 바뀐 것이 없어 쓰지 않음(version 그대로) */
-  changed: boolean;
 }
 
 /** GET /api/games/[id]/changes */
@@ -458,9 +424,6 @@ export interface CategorySearchItem {
 export interface CategorySearchResponse {
   results: CategorySearchItem[];
 }
-
-/** GET /api/games/youtube?url= */
-export type YoutubeMetaResponse = YoutubeMeta;
 
 /** /games 서버 컴포넌트 → 클라이언트 */
 export type GamesPageData =
