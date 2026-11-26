@@ -1,5 +1,5 @@
 // 관리자 UI가 쓰는 응답 해석·문구. 순수 함수(fetch 자체는 컴포넌트 쪽 얇은 래퍼가 한다).
-import { issuesToFormIssues } from "./patch.ts";
+import { gameToForm, issuesToFormIssues } from "./patch.ts";
 import { conflictMessage } from "./diff.ts";
 import { formatDate } from "./query.ts";
 import type { FormIssue, GameForm, GameRecord, ValidationIssue } from "./types.ts";
@@ -106,11 +106,7 @@ export function classifyFailure(status: number, body: unknown, form: GameForm | 
   }
   if (status === 422 && isObj(body) && Array.isArray(body.issues)) {
     const issues = body.issues.filter(isIssue);
-    return { kind: "invalid", message, issues: issuesToFormIssues(issues, form ?? emptyForm()) };
+    return { kind: "invalid", message, issues: issuesToFormIssues(issues, form ?? gameToForm(null)) };
   }
   return { kind: "other", message };
-}
-
-function emptyForm(): GameForm {
-  return { name: "", originalTitle: "", category: null, firstPlayed: "", undated: false, lastPlayed: "", status: "unknown", vods: [] };
 }

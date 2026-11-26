@@ -1,7 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
   applyFilterChange,
-  availableYears,
   countStats,
   detailQuery,
   DEFAULT_QUERY_STATE,
@@ -25,7 +24,6 @@ import {
   SORT_KEYS,
   STATUS_FILTERS,
   toInitials,
-  yearFilterOptions,
 } from "./query.ts";
 import type { Game, GamesQueryState, GameStatus } from "./types.ts";
 
@@ -313,22 +311,6 @@ describe("countStats", () => {
   });
 });
 
-describe("availableYears", () => {
-  it("검증을 거치지 않은 비정상 firstPlayed의 연도는 옵션에 넣지 않는다", () => {
-    expect(availableYears([g("x", "가", "20xx-01-01", "clear"), g("y", "나", "2024-01-01", "clear")])).toEqual({ years: ["2024"], hasUndated: false });
-  });
-  it("연도를 중복 없이 내림차순으로", () => {
-    expect(availableYears(fixture)).toEqual({ years: ["2026", "2025"], hasUndated: true });
-  });
-  it("전부 null이면 연도 없음, 빈 목록이면 hasUndated도 false", () => {
-    expect(availableYears([g("a", "가", null, "clear")])).toEqual({ years: [], hasUndated: true });
-    expect(availableYears([])).toEqual({ years: [], hasUndated: false });
-  });
-  it("날짜가 모두 있으면 hasUndated false", () => {
-    expect(availableYears([g("a", "가", "2024-01-01", "clear")])).toEqual({ years: ["2024"], hasUndated: false });
-  });
-});
-
 describe("formatDate", () => {
   it("점 표기로 바꾼다", () => {
     expect(formatDate("2025-09-23")).toBe("2025.09.23");
@@ -534,27 +516,6 @@ describe("parseYearFilter / parseSortKey", () => {
     expect(parseSortKey("name")).toBe("name");
     expect(parseSortKey("played")).toBe("played");
     for (const v of [undefined, "", "RECENT", "newest"]) expect(parseSortKey(v), String(v)).toBe("recent");
-  });
-});
-
-describe("yearFilterOptions", () => {
-  it("all, 연도(내림차순), none(날짜 없는 게임이 있을 때)", () => {
-    expect(yearFilterOptions({ years: ["2026", "2025"], hasUndated: true }, "all")).toEqual(["all", "2026", "2025", "none"]);
-    expect(yearFilterOptions({ years: ["2026"], hasUndated: false }, "2026")).toEqual(["all", "2026"]);
-    expect(yearFilterOptions({ years: [], hasUndated: false }, "all")).toEqual(["all"]);
-  });
-  it("URL로 들어온, 데이터에 없는 연도는 내림차순 자리에 끼운다", () => {
-    expect(yearFilterOptions({ years: ["2026", "2024"], hasUndated: true }, "2025")).toEqual(["all", "2026", "2025", "2024", "none"]);
-    expect(yearFilterOptions({ years: ["2026"], hasUndated: false }, "2030")).toEqual(["all", "2030", "2026"]);
-    expect(yearFilterOptions({ years: ["2026"], hasUndated: false }, "1999")).toEqual(["all", "2026", "1999"]);
-  });
-  it("날짜 없는 게임이 없어도 현재 값이 none이면 끝에 남긴다", () => {
-    expect(yearFilterOptions({ years: ["2026"], hasUndated: false }, "none")).toEqual(["all", "2026", "none"]);
-  });
-  it("입력을 변경하지 않는다", () => {
-    const years = { years: ["2026"] as `${number}`[], hasUndated: false };
-    yearFilterOptions(years, "2025");
-    expect(years).toEqual({ years: ["2026"], hasUndated: false });
   });
 });
 

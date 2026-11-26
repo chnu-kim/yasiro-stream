@@ -8,7 +8,6 @@ import {
   HIGHLIGHT_MAX,
   isHighlightStart,
   isValidIsoDate,
-  isYoutubeUrl,
   parseGames,
   serializeGames,
   validateGames,
@@ -62,7 +61,7 @@ describe("isValidIsoDate", () => {
 
 const ID = "dQw4w9WgXcQ";
 
-describe("youtubeVideoId / isYoutubeUrl", () => {
+describe("youtubeVideoId", () => {
   it("extracts id from accepted forms", () => {
     expect(youtubeVideoId(`https://www.youtube.com/watch?v=${ID}`)).toBe(ID);
     expect(youtubeVideoId(`https://youtu.be/${ID}?si=abc`)).toBe(ID);
@@ -92,7 +91,6 @@ describe("youtubeVideoId / isYoutubeUrl", () => {
     ];
     for (const u of bad) {
       expect(youtubeVideoId(u), u).toBeNull();
-      expect(isYoutubeUrl(u), u).toBe(false);
     }
   });
   it("requires exactly 11 id chars with nothing before them, on both url forms", () => {
@@ -100,16 +98,10 @@ describe("youtubeVideoId / isYoutubeUrl", () => {
     for (const vid of badIds) {
       for (const u of [`https://www.youtube.com/watch?v=${vid}`, `https://youtu.be/${vid}`]) {
         expect(youtubeVideoId(u), u).toBeNull();
-        expect(isYoutubeUrl(u), u).toBe(false);
-      }
+        }
     }
     expect(youtubeVideoId("https://youtu.be/abcdefghijk")).toBe("abcdefghijk");
     expect(youtubeVideoId("https://youtube.com/watch?v=abcdefghijk")).toBe("abcdefghijk");
-  });
-  it("isYoutubeUrl is true for valid and false for non-strings", () => {
-    expect(isYoutubeUrl(`https://youtu.be/${ID}`)).toBe(true);
-    expect(isYoutubeUrl(42)).toBe(false);
-    expect(isYoutubeUrl(null)).toBe(false);
   });
 });
 

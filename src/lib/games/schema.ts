@@ -1,3 +1,4 @@
+import { sortVods } from "./rows.ts";
 import type { Game, GameStatus, ValidationIssue, ValidationResult, Vod } from "./types.ts";
 
 export const ID_PATTERN = /^[\p{Ll}\p{Lo}\p{Nd}]+(?:-[\p{Ll}\p{Lo}\p{Nd}]+)*$/u;
@@ -37,10 +38,6 @@ export function youtubeVideoId(url: string): string | null {
     id = u.pathname.slice(1);
   }
   return id !== null && VIDEO_ID.test(id) ? id : null;
-}
-
-export function isYoutubeUrl(url: unknown): url is string {
-  return typeof url === "string" && youtubeVideoId(url) !== null;
 }
 
 /** 치지직 다시보기를 넣으려 할 때의 안내. 수정 폼(patch.ts)과 API(youtube 프록시)가 같은 문구를 쓴다 */
@@ -294,14 +291,7 @@ export function serializeGames(games: readonly Game[]): string {
     // 없으면 키를 생략한다: 마지막 플레이가 없는 기록의 출력(시드·export 해시)이 바이트 단위로 같다
     if (g.lastPlayed !== undefined) o.lastPlayed = g.lastPlayed;
     o.status = g.status;
-    o.vods = [...g.vods]
-      .sort((x, y) => (x.date < y.date ? -1 : x.date > y.date ? 1 : 0))
-      .map((v) => {
-        const vo: Record<string, unknown> = { title: v.title, url: v.url, date: v.date };
-        // 없으면 키를 생략한다: 하이라이트가 없는 기록의 출력(시드·export 해시)이 바이트 단위로 같다
-        if (v.highlightStart !== undefined) vo.highlightStart = v.highlightStart;
-        return vo;
-      });
+    o.vods = sortVods(g.vods);
     return o;
   });
   return JSON.stringify(out, null, 2) + "\n";
