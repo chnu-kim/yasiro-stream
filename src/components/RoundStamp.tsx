@@ -34,7 +34,7 @@ export default function RoundStamp({
       <circle cx="60" cy="60" r="40" fill="none" stroke="currentColor" strokeWidth="1" />
       <text
         fill="currentColor"
-        style={{ fontFamily: "'Fredoka', sans-serif", fontSize: (12 * 120) / size, fontWeight: 600, letterSpacing: 0 }}
+        style={{ fontFamily: "var(--font-num)", fontSize: (12 * 120) / size, fontWeight: 600, letterSpacing: 0 }}
       >
         <textPath href={`#${pathId}`} textLength={circumference - 2} lengthAdjust="spacing">
           {text}
