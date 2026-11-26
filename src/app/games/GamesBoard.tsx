@@ -461,7 +461,8 @@ function Board({ data }: { data: Extract<GamesPageData, { ok: true }> }) {
                   검색·필터 초기화
                 </button>
               )}
-              <p role="status" className={styles.status}>{resultSummary(results.length, resultClear, state)}</p>
+              {/* 결과 수는 기록판(숫자·정복 여부 알약)과 챕터 머리에 이미 보여 눈에는 숨기고, 필터를 바꿀 때 화면 낭독기가 읽도록 남긴다 */}
+              <p role="status" className={styles.srOnly}>{resultSummary(results.length, resultClear, state)}</p>
               {/* 정렬은 이 목록의 순서라 필터가 아니라 보기 옆에 */}
               <label htmlFor="game-sort" className={styles.srOnly}>정렬</label>
               <span className={styles.selectWrap}>

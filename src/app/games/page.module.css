@@ -337,11 +337,6 @@
   min-width: 0;
 }
 
-.status {
-  font-size: var(--fs-sm);
-  color: var(--text-dim);
-}
-
 .linkBtn {
   min-height: var(--tap);
   padding: 0 12px;
@@ -787,15 +782,6 @@
   .contentBar {
     flex-wrap: nowrap;
     margin-bottom: var(--space-4);
-  }
-
-  /* 좁은 화면은 결과 요약을 화면에서 숨긴다(검색·필터를 바꾸면 스크린리더가 읽는다). 탭과 정렬만 한 줄에 */
-  .status {
-    position: absolute;
-    width: 1px;
-    height: 1px;
-    overflow: hidden;
-    clip-path: inset(50%);
   }
 
   /* 정복 여부 알약은 한 줄로 두고 가로로 밀어 본다 */
