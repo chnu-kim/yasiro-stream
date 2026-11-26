@@ -245,7 +245,8 @@
   display: flex;
   flex-direction: column;
   gap: var(--space-3);
-  animation: fadeUp var(--dur-base) var(--ease-out) both;
+  /* 판마다 key로 다시 붙어 떠오른다. backwards: 끝난 뒤 transform이 남으면 카드 안 절대 위치 요소의 기준 상자가 바뀐다 */
+  animation: fadeUp var(--dur-base) var(--ease-out) backwards;
 }
 
 .cardCover {
@@ -607,4 +608,11 @@
   font-variant-numeric: tabular-nums;
   text-align: right;
   color: var(--text-dim);
+}
+
+/* 키프레임은 이 모듈 안에 둔다. CSS Modules가 animation 이름을 해시해 globals의 fadeUp을 가리키지 못한다
+   (전에는 그래서 재생되지 않았다. lib/css-keyframes.test.ts가 검사) */
+@keyframes fadeUp {
+  from { opacity: 0; transform: translateY(16px); }
+  to { opacity: 1; transform: translateY(0); }
 }

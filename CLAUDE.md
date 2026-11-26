@@ -44,7 +44,7 @@ src/app/
   api/awards/           어워즈 API (draw·submit·rankings, 관리자 전용: AWARDS_PUBLIC). 핸들러는 얇게, 로직은 src/lib/awards/api.ts(repo·token·keys·limit·rankings)
 src/components/         Nav, SkipLink, ClearStamp, HeroFigure·NavigatedFlag(페이지 전환) (공유)
 scripts/games-{seed,export,edit}.ts   pnpm games:seed / games:export / games:edit 진입점 (얇게. 로직은 src/lib/games/seed.ts, ops.ts)
-src/lib/                순수 로직 + *.test.ts (session, auth-routes, http, chzzk-auth, page-transition·hero-morph(페이지 전환), chzzk-category(검색·slugify만), games/{schema,query,labels,rows,repo,admin,diff,patch,client,api,seed,youtube-meta,home,media,timecode,played}, awards/{entries,options,draw,tournament,flow,labels,verify,media,rng,keys,token,limit,repo,rankings,client,api,resume,hold})
+src/lib/                순수 로직 + *.test.ts (session, auth-routes, http, chzzk-auth, page-transition·hero-morph(페이지 전환), css-keyframes(모듈 keyframe 검사), chzzk-category(검색·slugify만), games/{schema,query,labels,rows,repo,admin,diff,patch,client,api,seed,youtube-meta,home,media,timecode,played}, awards/{entries,options,draw,tournament,flow,labels,verify,media,rng,keys,token,limit,repo,rankings,client,api,resume,hold})
 migrations/             D1 마이그레이션 (wrangler 관리)
 _design/                원본 디자인 핸드오프 (gitignored)
 ```
@@ -72,7 +72,7 @@ _design/                원본 디자인 핸드오프 (gitignored)
 
 - hover·transition·animation·blend-mode 같은 효과는 CSS Module에, layout·spacing·color 같은 정적 스타일은 inline style로 쓴다.
 - 토큰은 `globals.css`가 정본이다(색·type `--fs-*`·간격 `--space-*`·shadow·z-index·motion). 다크 값은 `[data-theme="dark"]`에서 덮어쓴다. `prefers-reduced-motion`은 globals에서 일괄 처리한다.
-- keyframe: `blink`, `float`(꿀붕이 부유), `fadeUp`(진입), `pinDrop`. **CSS Module 안에서 globals의 keyframe 이름을 쓰지 않는다**: Modules가 `animation` 이름을 해시해(`page-module__…__fadeUp`) 없는 키프레임을 가리키고, 애니메이션이 조용히 재생되지 않는다. 모듈 안에 `@keyframes`를 두거나(홈 `heroIn`, /games `countUp`·`stampIn`) globals에 클래스 없이 둘 수 있는 곳(전환 pseudo)에서만 쓴다. 같은 이유로 `view-transition-name`도 모듈에 쓰지 않는다(아래 '페이지 전환'). 알려진 미재생: `awards.module.css`(2곳)·`games/Toast.module.css`·`games/DialogFrame.module.css`의 `fadeUp`(2026-11 미수정)
+- keyframe: `blink`, `float`(꿀붕이 부유), `fadeUp`(진입), `pinDrop`. **CSS Module 안에서 globals의 keyframe 이름을 쓰지 않는다**: Modules가 `animation` 이름을 해시해(`page-module__…__fadeUp`) 없는 키프레임을 가리키고, 애니메이션이 조용히 재생되지 않는다. 모듈 안에 `@keyframes`를 두거나(홈 `heroIn`, /games `countUp`·`stampIn`) globals에 클래스 없이 둘 수 있는 곳(전환 pseudo)에서만 쓴다. 같은 이유로 `view-transition-name`도 모듈에 쓰지 않는다(아래 '페이지 전환'). `src/lib/css-keyframes.test.ts`가 모든 `*.module.css`에서 참조했지만 정의하지 않은 keyframe을 잡는다
 - 폰트는 `layout.tsx`의 Google Fonts `<link>` 한 줄로 로드한다. 현재 로드되는 폰트는 Gaegu, Fredoka(500–700), Noto Sans KR, Jua. 한국어 subset 문제 때문에 `next/font`는 쓰지 않는다. 새 폰트는 같은 URL에 추가하고, URL에 없는 폰트를 코드에 쓰지 않는다(조용히 폴백된다).
   - Jua(`var(--font-display)`): 제목·로고·큰 값 / Noto Sans KR: 본문·UI / Fredoka: 영문 라벨과 숫자(한글 글리프 없음)
   - Jua는 굵기가 400 하나뿐이다. `--font-display`를 쓰는 곳은 `font-weight: 400`으로 두고 600·700을 주지 않는다(가짜 볼드가 합성된다). 2026-11 Noto Serif KR에서 바꿨다
