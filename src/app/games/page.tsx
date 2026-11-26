@@ -1,4 +1,3 @@
-import { Suspense } from 'react';
 import { headers } from 'next/headers';
 import type { Metadata } from 'next';
 import { pageMetadata } from '@/lib/seo';
@@ -26,10 +25,10 @@ export default async function GamesPage() {
 
   return (
     <div className={styles.page}>
-      {/* useSearchParams를 쓰는 보드는 Suspense 경계 안에 둔다 */}
-      <Suspense fallback={null}>
-        <GamesBoard data={data} />
-      </Suspense>
+      {/* Suspense 경계로 감싸지 않는다. useSearchParams 때문에 경계가 필요한 것은 미리 렌더링되는 페이지뿐이고, 이 페이지는 headers()를 읽는
+          동적 페이지다. 경계가 있으면 사이트 안에서 이동해 올 때 보드가 준비되기 전에 빈 칸(fallback)이 먼저 붙어, 페이지 전환이 빈 화면을
+          찍고 보드는 전환이 끝난 뒤 툭 나타났다. 경계가 없으면 이동이 보드가 준비될 때까지 이전 화면을 유지한다 */}
+      <GamesBoard data={data} />
     </div>
   );
 }
