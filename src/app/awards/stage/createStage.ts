@@ -889,8 +889,9 @@ export function createStage(canvas: HTMLCanvasElement, opts: StageOptions): Stag
       look.lerpVectors(LOOK_STAIRS, LOOK_JUDGE, k);
       return fovAt(FOV_WIDE);
     }
-    if (t < tl.impact) {
-      // 입장: 승인된 카메라 사양(경로·속도·시선)을 그대로 따른다. 기울임(롤)은 0(조사 규칙: 롤은 0)
+    if (t < ENTRY_SPEC.times.stop) {
+      // 입장: 승인된 카메라 사양(경로·속도·시선)을 정지 시각까지 그대로 따른다. 기울임(롤)은 0(조사 규칙: 롤은 0).
+      // 예전에는 임팩트 시각에서 끊고 정착 자리로 건너뛰어, 남은 거리(약 10m)를 감쇠가 0.5초 만에 따라잡았다(11-27 "마지막에 갑자기 빨라짐", 초속 20m)
       const e = ENTRY.at(t);
       out.set(e.pos[0], e.pos[1], e.pos[2]);
       look.set(e.look[0], e.look[1], e.look[2]);
@@ -1072,7 +1073,7 @@ export function createStage(canvas: HTMLCanvasElement, opts: StageOptions): Stag
     const fov = cameraAt(t, camPos, lookPos);
     const settled = t > timeline.call + 2.0;
     // 대기: 트로피 둘레 느린 호(±3°, 40초) + 마우스 시차. 연출 중에는 시차를 작게
-    const idle = clamp01((t - timeline.call - 1.5) / 3);
+    const idle = smooth(timeline.call + 1.5, timeline.call + 4.5, t); // 정지 뒤 대기 호는 속도 0에서 천천히 붙는다
     const yaw = Math.sin((t * Math.PI * 2) / 40) * THREE.MathUtils.degToRad(3) * idle;
     // Y축으로 돌린다. 예전에는 x를 sin(yaw)·z로 덮어써서 입장 경로의 좌우 호가 사라지고 정중앙으로만 내려왔다(11-26)
     const bx = camPos.x;
