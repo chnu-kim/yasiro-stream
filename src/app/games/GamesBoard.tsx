@@ -28,6 +28,7 @@ import {
   hasFilterSelection,
   resultSummary,
   SORT_LABEL,
+  chapterAxisLabel,
   STATUS_FILTER_LABEL,
   VIEW_LABEL,
 } from '@/lib/games/labels';
@@ -49,7 +50,7 @@ import styles from './page.module.css';
 // 목록 상태(q, status, year, sort, page)의 정본은 URL이다. useSearchParams로 읽고
 // history.pushState/replaceState로 쓴다(Next가 둘을 라우터와 동기화한다).
 // 검색 입력은 타이핑마다 replaceState(히스토리 오염 방지), 필터·정렬·보기는 pushState.
-// 목록은 페이지로 나누지 않고 첫 플레이 연도 챕터로 묶는다. 연도 목차는 스크롤만 하고 URL을 바꾸지 않는다.
+// 목록은 페이지로 나누지 않고 정렬 기준 날짜(첫 플레이, 최근 플레이순이면 마지막 플레이)의 연도 챕터로 묶는다. 연도 목차는 스크롤만 하고 URL을 바꾸지 않는다.
 // 상세를 열며 쌓은 history 항목 표식. Next는 pushState data의 사용자 키를 보존한다.
 const DETAIL_ENTRY = 'yasiroGameDetail';
 
@@ -129,7 +130,7 @@ function Board({ data }: { data: Extract<GamesPageData, { ok: true }> }) {
   const results = useMemo(() => selectGames(source, state), [source, state]);
   const resultClear = useMemo(() => results.filter((g) => g.status === 'clear').length, [results]);
   const counts = useMemo(() => statusCounts(source, state), [source, state]);
-  // 날짜순이면 결과 전체를 첫 플레이 연도 챕터로 나눈다(이름순은 null). 숨김 보기에서는 숨긴 게임도 센다
+  // 날짜순이면 결과 전체를 기준 날짜(sortDate)의 연도 챕터로 나눈다(이름순은 null). 숨김 보기에서는 숨긴 게임도 센다
   const chapters = useMemo(() => yearChapters(results, state), [results, state]);
   const chapterKeys = useMemo(() => (chapters ?? []).map((c) => c.key), [chapters]);
   const spy = useChapterSpy(chapterKeys);
@@ -301,6 +302,7 @@ function Board({ data }: { data: Extract<GamesPageData, { ok: true }> }) {
       key={game.id}
       game={game}
       titleAs="h3"
+      sort={state.sort}
       onOpen={onOpen}
       admin={
         isAdmin
@@ -315,7 +317,11 @@ function Board({ data }: { data: Extract<GamesPageData, { ok: true }> }) {
 
   const renderItems = (items: BoardGame[], monthly: boolean) =>
     state.view === 'diary' ? (
-      monthly ? <DiaryList months={diaryMonths(items)} onOpen={onOpen} /> : <DiaryList flat={items} onOpen={onOpen} />
+      monthly ? (
+        <DiaryList months={diaryMonths(items, state.sort)} sort={state.sort} onOpen={onOpen} />
+      ) : (
+        <DiaryList flat={items} sort={state.sort} onOpen={onOpen} />
+      )
     ) : (
       <ul className={styles.wall}>{items.map(renderCard)}</ul>
     );
@@ -324,10 +330,10 @@ function Board({ data }: { data: Extract<GamesPageData, { ok: true }> }) {
   const rail = (where: 'board' | 'strip') =>
     chapters !== null &&
     chapters.length > 1 && (
-      <nav className={where === 'board' ? styles.rail : styles.railStrip} aria-label="첫 플레이 연도">
+      <nav className={where === 'board' ? styles.rail : styles.railStrip} aria-label={chapterAxisLabel(state.sort)}>
         {where === 'board' && (
           <span className={styles.groupLabel} aria-hidden="true">
-            첫 플레이 연도
+            {chapterAxisLabel(state.sort)}
           </span>
         )}
         {chapters.map((c) => (
@@ -455,7 +461,8 @@ function Board({ data }: { data: Extract<GamesPageData, { ok: true }> }) {
                   검색·필터 초기화
                 </button>
               )}
-              <p role="status" className={styles.status}>{resultSummary(results.length, resultClear, state)}</p>
+              {/* 결과 수는 기록판(숫자·정복 여부 알약)과 챕터 머리에 이미 보여 눈에는 숨기고, 필터를 바꿀 때 화면 낭독기가 읽도록 남긴다 */}
+              <p role="status" className={styles.srOnly}>{resultSummary(results.length, resultClear, state)}</p>
               {/* 정렬은 이 목록의 순서라 필터가 아니라 보기 옆에 */}
               <label htmlFor="game-sort" className={styles.srOnly}>정렬</label>
               <span className={styles.selectWrap}>

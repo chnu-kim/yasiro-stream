@@ -1,7 +1,8 @@
-// 일지 보기: 첫 플레이 월마다 배지(NOV / 2026)를 세우고, 한 줄에 날짜 · 탐험 번호 · 작은 표지 · 이름 · 결과 · 다시보기.
+// 일지 보기: 기준 날짜(첫 플레이, 최근 플레이순이면 마지막 플레이) 월마다 배지(NOV / 2026)를 세우고, 한 줄에 날짜 · 탐험 번호 · 작은 표지 · 이름 · 결과 · 다시보기.
 // 줄 전체가 상세를 여는 버튼이고(제목 버튼의 ::after가 줄을 덮는다), 다시보기 링크만 그 위에 올라온다.
 // 이름순(월 묶음 없음)이면 months 대신 rows만 받아 날짜 칸에 전체 날짜를 적는다.
-import { formatDate } from '@/lib/games/query';
+import { formatDate, sortDate } from '@/lib/games/query';
+import type { SortKey } from '@/lib/games/types';
 import { STATUS_TEXT } from '@/lib/games/labels';
 import type { DiaryMonth } from '@/lib/games/years';
 import type { BoardGame } from './boardTypes';
@@ -9,12 +10,12 @@ import styles from './DiaryList.module.css';
 
 type Open = (game: BoardGame, trigger: HTMLButtonElement) => void;
 
-export default function DiaryList({ months, flat, onOpen }: { months?: DiaryMonth<BoardGame>[]; flat?: BoardGame[]; onOpen: Open }) {
+export default function DiaryList({ months, flat, sort, onOpen }: { months?: DiaryMonth<BoardGame>[]; flat?: BoardGame[]; sort: SortKey; onOpen: Open }) {
   if (flat !== undefined) {
     return (
       <ol className={`${styles.rows} ${styles.flat}`}>
         {flat.map((game) => (
-          <Row key={game.id} game={game} day={formatDate(game.firstPlayed)} wideDay onOpen={onOpen} />
+          <Row key={game.id} game={game} day={formatDate(sortDate(game, sort))} date={sortDate(game, sort)} wideDay onOpen={onOpen} />
         ))}
       </ol>
     );
@@ -35,7 +36,7 @@ export default function DiaryList({ months, flat, onOpen }: { months?: DiaryMont
           </p>
           <ol className={styles.rows}>
             {m.rows.map((r) => (
-              <Row key={r.game.id} game={r.game} day={r.day} onOpen={onOpen} />
+              <Row key={r.game.id} game={r.game} day={r.day} date={sortDate(r.game, sort)} onOpen={onOpen} />
             ))}
           </ol>
         </section>
@@ -44,7 +45,7 @@ export default function DiaryList({ months, flat, onOpen }: { months?: DiaryMont
   );
 }
 
-function Row({ game, day, wideDay = false, onOpen }: { game: BoardGame; day: string | null; wideDay?: boolean; onOpen: Open }) {
+function Row({ game, day, date, wideDay = false, onOpen }: { game: BoardGame; day: string | null; date: string | null; wideDay?: boolean; onOpen: Open }) {
   const vod = game.vods[0];
   return (
     <li className={game.hidden ? `${styles.row} ${styles.isHidden}` : styles.row}>
@@ -70,7 +71,7 @@ function Row({ game, day, wideDay = false, onOpen }: { game: BoardGame; day: str
           >
             {game.name}
             <span className={styles.srOnly}>
-              , NO.{game.no}, {formatDate(game.firstPlayed)}, {STATUS_TEXT[game.status]}
+              , NO.{game.no}, {formatDate(date)}, {STATUS_TEXT[game.status]}
             </span>
           </button>
         </h3>

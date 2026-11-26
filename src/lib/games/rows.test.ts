@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { copyVod, rowsToRecords, rowToRecord, sortByDate, sortVods, toGame, toPublicGame, toSnapshot, GAME_COLUMNS, VOD_COLUMNS } from "./rows.ts";
+import { copyVod, rowsToRecords, rowToRecord, sortByDate, sortVods, toGame, toSnapshot, GAME_COLUMNS, VOD_COLUMNS } from "./rows.ts";
 import type { GameRow, VodRow } from "./types.ts";
 
 const row = (over: Partial<GameRow> = {}): GameRow => ({
@@ -148,13 +148,9 @@ describe("마지막 플레이 보정값(last_played, 0014)", () => {
     expect("lastPlayed" in rowToRecord(row(), [])).toBe(false);
     expect(rowToRecord(row({ first_played: "2025-01-01", last_played: "2026-02-02" }), []).lastPlayed).toBe("2026-02-02");
   });
-  it("toGame·toSnapshot은 담고, toPublicGame은 빼며 원본을 바꾸지 않는다", () => {
+  it("toGame·toSnapshot은 담는다", () => {
     const rec = rowToRecord(row({ last_played: "2026-02-02" }), []);
-    expect(toGame(rec).lastPlayed).toBe("2026-02-02");
+    expect(toGame(rec)).toEqual({ id: "a", name: "가", firstPlayed: null, status: "unknown", vods: [], lastPlayed: "2026-02-02" });
     expect(toSnapshot(rec, false).lastPlayed).toBe("2026-02-02");
-    const pub = toPublicGame(rec);
-    expect("lastPlayed" in pub).toBe(false);
-    expect(pub).toEqual({ id: "a", name: "가", firstPlayed: null, status: "unknown", vods: [] });
-    expect(rec.lastPlayed).toBe("2026-02-02");
   });
 });

@@ -95,6 +95,12 @@
   line-height: 1.2;
 }
 
+.factSub {
+  margin: 0;
+  font-size: var(--fs-sm);
+  color: var(--text-dim);
+}
+
 .factStatus {
   margin: 0;
   font-family: var(--font-display);

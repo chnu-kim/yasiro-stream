@@ -5,7 +5,7 @@ import { EyeOff, Eye, Pencil } from 'lucide-react';
 import SectionLabel from '@/components/SectionLabel';
 import { formatChangeTime } from '@/lib/games/diff';
 import { formatDate } from '@/lib/games/query';
-import { STATUS_TEXT, vodAriaLabel } from '@/lib/games/labels';
+import { lastPlayedFact, STATUS_TEXT, vodAriaLabel } from '@/lib/games/labels';
 import { gameToForm } from '@/lib/games/patch';
 import type { ChangesResponse, Game, GameRecord } from '@/lib/games/types';
 import { adminApi } from './adminApi';
@@ -108,6 +108,10 @@ export default function GameDetailDialog({
               <div className={styles.fact}>
                 <dt>첫 플레이</dt>
                 <dd className={styles.factDate}>{formatDate(game.firstPlayed)}</dd>
+                {lastPlayedFact(game) !== null && (
+                  // 칸을 늘리면 2열 기록지가 두 줄로 접혀 눈금이 어긋나므로, 첫 플레이 값 아래 작은 줄로 둔다
+                  <dd className={styles.factSub}>마지막 플레이 {lastPlayedFact(game)}</dd>
+                )}
               </div>
               <div className={styles.fact}>
                 <dt>정복 여부</dt>

@@ -1,5 +1,7 @@
-// /games 목록의 연도 챕터와 일지(월 묶음). 목록은 페이지로 나누지 않고 필터 결과 전체를 첫 플레이 연도별 챕터로 묶는다.
-import type { Game, GamesQueryState } from "./types.ts";
+// /games 목록의 연도 챕터와 일지(월 묶음). 목록은 페이지로 나누지 않고 필터 결과 전체를 정렬 기준 날짜(sortDate:
+// 최근 플레이순은 마지막 플레이, 나머지는 첫 플레이)의 연도별 챕터로 묶는다.
+import { sortDate } from "./query.ts";
+import type { Game, GamesQueryState, SortKey } from "./types.ts";
 
 export interface YearChapter<T> {
   /** React key·앵커. "2025" 또는 "none"(날짜 기록 없음) */
@@ -20,11 +22,10 @@ export interface YearChapter<T> {
   items: T[];
 }
 
-const yearKey = (game: Game): string => game.firstPlayed?.slice(0, 4) ?? "none";
 
 /**
  * 필터·정렬을 마친 목록(selectGames 결과)을 연도 챕터로 묶는다. 이름순이면 null(챕터 없음).
- * recent·old 모두 날짜 없는 게임이 맨 뒤라 연속 구간으로 묶으면 연도당 한 챕터가 된다.
+ * 날짜순 정렬은 모두 기준 날짜(sortDate) 순이고 날짜 없는 게임이 맨 뒤라, 같은 기준 날짜의 연도로 연속 구간을 묶으면 연도당 한 챕터가 된다.
  * 관리자가 "숨긴 게임 보기"를 켰을 때는 넘겨받은 목록에 숨긴 게임이 있어 그 연도 개수에도 들어간다(카드와 개수가 맞는다).
  */
 export function yearChapters<T extends Game>(
@@ -34,7 +35,7 @@ export function yearChapters<T extends Game>(
   if (state.sort === "name") return null;
   const chapters: YearChapter<T>[] = [];
   for (const item of items) {
-    const key = yearKey(item);
+    const key = sortDate(item, state.sort)?.slice(0, 4) ?? "none";
     let last = chapters.at(-1);
     if (last?.key !== key) {
       last = {
@@ -80,11 +81,12 @@ export interface DiaryMonth<T> {
   rows: DiaryRow<T>[];
 }
 
-/** 일지 보기: 정렬된 목록(한 연도 챕터의 items 등)을 첫 플레이 월별로 묶는다. 연속 구간으로 묶으므로 날짜순 목록에 쓴다 */
-export function diaryMonths<T extends Game>(items: readonly T[]): DiaryMonth<T>[] {
+/** 일지 보기: 정렬된 목록(한 연도 챕터의 items 등)을 기준 날짜(sortDate, 기본은 첫 플레이) 월별로 묶는다. 연속 구간으로 묶으므로 같은 정렬의 날짜순 목록에 쓴다 */
+export function diaryMonths<T extends Game>(items: readonly T[], sort: SortKey = "recent"): DiaryMonth<T>[] {
   const months: DiaryMonth<T>[] = [];
   for (const game of items) {
-    const key = game.firstPlayed?.slice(0, 7) ?? "none";
+    const date = sortDate(game, sort);
+    const key = date?.slice(0, 7) ?? "none";
     let last = months.at(-1);
     if (last?.key !== key) {
       const [y, m] = key.split("-");
@@ -94,9 +96,9 @@ export function diaryMonths<T extends Game>(items: readonly T[]): DiaryMonth<T>[
           : { key, kind: "month", month: MONTHS[Number(m) - 1], year: y, label: `${y}년 ${Number(m)}월`, rows: [] };
       months.push(last);
     }
-    const day = game.firstPlayed?.slice(8, 10) ?? null;
+    const day = date?.slice(8, 10) ?? null;
     const prev = last.rows.at(-1);
-    last.rows.push({ game, day: prev !== undefined && prev.game.firstPlayed === game.firstPlayed ? null : day });
+    last.rows.push({ game, day: prev !== undefined && sortDate(prev.game, sort) === date ? null : day });
   }
   return months;
 }

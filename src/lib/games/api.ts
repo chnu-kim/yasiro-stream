@@ -5,7 +5,7 @@ import { checkSameOrigin } from "../http.ts";
 import { searchCategories, ChzzkCategoryError } from "../chzzk-category.ts";
 import { conflictMessage } from "./diff.ts";
 import { createGame, getGame, listChanges, listGames, setHidden, updateGame } from "./repo.ts";
-import { toPublicGame } from "./rows.ts";
+import { toGame } from "./rows.ts";
 import { CHZZK_VOD_MESSAGE, ID_PATTERN } from "./schema.ts";
 import { fetchYoutubeMeta, YoutubeMetaError } from "./youtube-meta.ts";
 import type {
@@ -293,7 +293,7 @@ export function handleListGames(req: Request, deps: ApiDeps): Promise<Response> 
       const includeHidden = new URL(req.url).searchParams.get("includeHidden") === "1";
       return respond(200, { games: await listGames(deps.db, { includeHidden }) });
     }
-    return respond(200, { games: (await listGames(deps.db, { includeHidden: false })).map(toPublicGame) });
+    return respond(200, { games: (await listGames(deps.db, { includeHidden: false })).map(toGame) });
   });
 }
 
@@ -303,8 +303,8 @@ export async function loadGamesPageData(deps: ApiDeps, cookieHeader: string | nu
     if (state.kind === "admin") {
       return { ok: true, admin: { name: state.actor.name }, games: await listGames(deps.db, { includeHidden: true }) };
     }
-    // 방문자 props에는 마지막 플레이(lastPlayed, 관리자 전용)를 싣지 않는다(toPublicGame)
-    return { ok: true, admin: null, games: (await listGames(deps.db, { includeHidden: false })).map(toPublicGame) };
+    // 방문자 props는 관리 메타를 뺀 도메인 사본(toGame). 마지막 플레이는 최근 플레이순 정렬에 쓰여 담는다
+    return { ok: true, admin: null, games: (await listGames(deps.db, { includeHidden: false })).map(toGame) };
   } catch (error) {
     unexpected(deps, error);
     return { ok: false };

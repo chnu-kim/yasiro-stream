@@ -1,3 +1,4 @@
+import { lastPlayedOf } from "./played.ts";
 import { formatDate } from "./query.ts";
 import type {
   GamesQueryState,
@@ -29,7 +30,19 @@ export const SORT_LABEL: Readonly<Record<SortKey, string>> = {
   recent: "첫 플레이 최신순",
   old: "첫 플레이 오래된순",
   name: "이름순",
+  played: "최근 플레이순",
 };
+
+/** 상세의 "마지막 플레이" 칸 값("2026.11.23"). 첫 플레이와 같거나 둘 다 없으면 null(칸을 그리지 않는다) */
+export function lastPlayedFact(game: { firstPlayed: string | null; lastPlayed?: string }): string | null {
+  const last = lastPlayedOf(game);
+  return last === null || last === game.firstPlayed ? null : formatDate(last);
+}
+
+/** 연도 목차 이름(챕터를 무슨 날짜의 연도로 묶었나). 정렬 기준 날짜(sortDate)와 같은 축 */
+export function chapterAxisLabel(sort: SortKey): string {
+  return sort === "played" ? "마지막 플레이 연도" : "첫 플레이 연도";
+}
 
 export const VIEW_LABEL: Readonly<Record<ViewKey, string>> = {
   grid: "표지",

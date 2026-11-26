@@ -103,7 +103,7 @@ describe("마지막 플레이 보정값은 방문자에게 보내지 않는다",
   const USER = "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc";
   /** 다른 어디에도 없는 날짜(새면 바로 보인다) */
   const UNIQUE = "2026-12-17";
-  it("관리자 PATCH로 넣고 지우며, 익명·일반 사용자 응답·props에는 키도 값도 없다", async () => {
+  it("관리자 PATCH로 넣고 지우며, 익명·일반 사용자 응답·props에도 담긴다(최근 플레이순), 관리 메타는 없다", async () => {
     const created = await read(await handleCreateGame(req("POST", "/api/games", ADMIN, { input: INPUT }), deps()));
     const id: string = created.body.game.id;
     const ok = await read(await handleUpdateGame(req("PATCH", `/api/games/${id}`, ADMIN, { expectedVersion: 1, patch: { lastPlayed: UNIQUE } }), deps(), id));
@@ -117,9 +117,11 @@ describe("마지막 플레이 보정값은 방문자에게 보내지 않는다",
       expect(list.body.games).toHaveLength(1);
       const page = await loadGamesPageData(deps(), session === null ? null : `__Host-session=${session}`);
       expect(page).toMatchObject({ ok: true, admin: null });
-      const text = JSON.stringify([list.body, page]);
-      expect(text, String(session)).not.toContain("lastPlayed");
-      expect(text, String(session)).not.toContain(UNIQUE);
+      expect(list.body.games[0].lastPlayed, String(session)).toBe(UNIQUE);
+      expect(page.ok && page.games[0].lastPlayed, String(session)).toBe(UNIQUE);
+      expect(Object.keys(list.body.games[0]).sort(), String(session)).toEqual(Object.keys(page.ok ? page.games[0] : {}).sort());
+      expect(list.body.games[0], String(session)).not.toHaveProperty("version");
+      expect(list.body.games[0], String(session)).not.toHaveProperty("hidden");
     }
     const adminList = await read(await handleListGames(req("GET", "/api/games", ADMIN), deps()));
     expect(adminList.body.games[0].lastPlayed).toBe(UNIQUE);
