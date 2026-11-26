@@ -23,6 +23,8 @@ export default defineConfig({
         // 페이지 전환(홈 ↔ 소개 캐릭터 이동, 순차 등장 레이어). 연출 순서·계산은 컴포넌트가 아니라 여기서 검증한다
         "src/lib/hero-morph.ts": { lines: 100, branches: 100, functions: 100, statements: 100 },
         "src/lib/page-transition.ts": { lines: 100, branches: 100, functions: 100, statements: 100 },
+        // CSS Module keyframe 검사(모든 *.module.css를 css-keyframes.test.ts가 훑는다)
+        "src/lib/css-keyframes.ts": { lines: 100, branches: 100, functions: 100, statements: 100 },
       },
     },
   },

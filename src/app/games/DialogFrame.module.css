@@ -119,3 +119,10 @@
     width: 100%;
   }
 }
+
+/* 키프레임은 이 모듈 안에 둔다. CSS Modules가 animation 이름을 해시해 globals의 fadeUp을 가리키지 못한다
+   (전에는 그래서 재생되지 않았다. lib/css-keyframes.test.ts가 검사) */
+@keyframes fadeUp {
+  from { opacity: 0; transform: translateY(16px); }
+  to { opacity: 1; transform: translateY(0); }
+}
