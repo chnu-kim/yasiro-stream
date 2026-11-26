@@ -2,7 +2,7 @@
 
 import { useEffect, useId, useRef, useState, type MutableRefObject } from 'react';
 import { Plus, Trash2 } from 'lucide-react';
-import { classifyFailure, errorMessage, fixLabel, issueLinkLabel, loginHref, type WriteFailure } from '@/lib/games/client';
+import { classifyFailure, errorMessage, fixLabel, isYoutubeMeta, issueLinkLabel, loginHref, writtenGame, type WriteFailure } from '@/lib/games/client';
 import { formatDate } from '@/lib/games/query';
 import { sortByDate } from '@/lib/games/rows';
 import {
@@ -54,14 +54,6 @@ type AddState =
   | { kind: 'loading' }
   | { kind: 'error'; message: string }
   | { kind: 'ready'; meta: YoutubeMeta; date: string };
-
-function isMeta(v: unknown): v is YoutubeMeta {
-  return typeof v === 'object' && v !== null && typeof (v as YoutubeMeta).title === 'string' && typeof (v as YoutubeMeta).url === 'string';
-}
-
-function isRecord(v: unknown): v is GameRecord {
-  return typeof v === 'object' && v !== null && typeof (v as GameRecord).id === 'string' && typeof (v as GameRecord).version === 'number';
-}
 
 // 같은 상세 모달이 수정 모드로 바뀐 모습(B안). base=null이면 게임 추가의 2단계(빈 상세).
 export default function GameEditForm({
@@ -199,8 +191,8 @@ export default function GameEditForm({
   };
 
   const settle = async (status: number, body: unknown) => {
-    const game = (body as { game?: unknown } | null)?.game;
-    if ((status === 200 || status === 201) && isRecord(game)) {
+    const game = writtenGame(body);
+    if ((status === 200 || status === 201) && game !== null) {
       skipDraft.current = true;
       removeDraft(baseId);
       onSaved(game, status === 201);
@@ -254,7 +246,7 @@ export default function GameEditForm({
     } else {
       setAdd({ kind: 'loading' });
       const res = await adminApi.youtube(url);
-      if (res.status === 200 && isMeta(res.body)) {
+      if (res.status === 200 && isYoutubeMeta(res.body)) {
         const meta = res.body;
         const again = youtubeVideoId(meta.url);
         if (again !== null && form.vods.some((v) => youtubeVideoId(v.url) === again)) setAdd({ kind: 'error', message: '같은 영상이 이미 있어요.' });

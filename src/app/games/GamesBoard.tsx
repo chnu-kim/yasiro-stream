@@ -34,7 +34,7 @@ import {
 } from '@/lib/games/labels';
 import { diaryMonths, yearChapters } from '@/lib/games/years';
 import { SEEN_STATS_KEY, serializeSeenStats } from '@/lib/games/seen-stats';
-import { addedMessage, errorMessage, hiddenMessage, savedMessage, unhiddenMessage } from '@/lib/games/client';
+import { addedMessage, errorMessage, hiddenMessage, savedMessage, unhiddenMessage, writtenGame } from '@/lib/games/client';
 import type { GamesPageData, GamesQueryState, GameRecord } from '@/lib/games/types';
 import { adminApi } from './adminApi';
 import AddGameFlow from './AddGameFlow';
@@ -56,11 +56,6 @@ import styles from './page.module.css';
 const DETAIL_ENTRY = 'yasiroGameDetail';
 
 const TOAST_MS = 6000;
-
-function isWrite(v: unknown): v is { game: GameRecord } {
-  const g = (v as { game?: GameRecord } | null)?.game;
-  return typeof g === 'object' && g !== null && typeof g.id === 'string' && typeof g.version === 'number';
-}
 
 // D1이 없거나(pnpm dev) 조회가 실패한 경우. 빈 목록 "0개"로 보이지 않게 따로 안내한다.
 export default function GamesBoard({ data }: { data: GamesPageData }) {
@@ -248,12 +243,13 @@ function Board({ data }: { data: Extract<GamesPageData, { ok: true }> }) {
   // 숨김/다시 보이기. 실패하면 사용자에게 보일 문구를 돌려준다.
   const toggleHidden = async (game: AdminGame | BoardGame, hidden: boolean): Promise<string | null> => {
     const res = await adminApi.setHidden(game.id, hidden);
-    if (res.status !== 200 || !isWrite(res.body)) {
+    const written = writtenGame(res.body);
+    if (res.status !== 200 || written === null) {
       return res.status === 401
         ? '로그인이 만료됐어요. 새로 고친 뒤 다시 로그인해 주세요.'
         : errorMessage(res.body, '잠시 후 다시 시도해 주세요.');
     }
-    applyRecord(res.body.game);
+    applyRecord(written);
     router.refresh();
     if (hidden) {
       showToast(hiddenMessage(game.name), {

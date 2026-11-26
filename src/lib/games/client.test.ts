@@ -7,9 +7,13 @@ import {
   fixLabel,
   issueLinkLabel,
   hiddenMessage,
+  isCategorySearchResponse,
+  isChangesResponse,
+  isYoutubeMeta,
   loginHref,
   savedMessage,
   unhiddenMessage,
+  writtenGame,
 } from "./client.ts";
 import { gameToForm } from "./patch.ts";
 import type { GameRecord } from "./types.ts";
@@ -131,5 +135,70 @@ describe("fixLabel / issueLinkLabel", () => {
     expect(issueLinkLabel({ field: "vods.1.highlight", label: "하이라이트 시작", message: "x" })).toBe("하이라이트 시작 (2번째)");
     expect(issueLinkLabel({ field: "name", label: "이름", message: "x" })).toBe("이름");
     expect(issueLinkLabel({ field: "vods", label: "다시보기", message: "x" })).toBe("다시보기");
+  });
+});
+
+describe("writtenGame", () => {
+  it("game이 id(string)·version(number)을 가진 객체면 그 객체를 돌려준다", () => {
+    expect(writtenGame({ game: latest })).toBe(latest);
+    // 느슨한 검사: updatedAt·updatedByName이 없어도 통과(409 latest 검사와 다르다)
+    const loose = { id: "b", version: 1 };
+    expect(writtenGame({ game: loose })).toBe(loose);
+  });
+
+  it("배열 객체를 배제하지 않는다(옮기기 전 조건식 그대로)", () => {
+    const arr = Object.assign([], { id: "c", version: 2 });
+    expect(writtenGame({ game: arr })).toBe(arr);
+    const body = Object.assign([], { game: latest });
+    expect(writtenGame(body)).toBe(latest);
+  });
+
+  it("모양이 다르면 null", () => {
+    expect(writtenGame(null)).toBeNull();
+    expect(writtenGame(undefined)).toBeNull();
+    expect(writtenGame("x")).toBeNull();
+    expect(writtenGame(5)).toBeNull();
+    expect(writtenGame({})).toBeNull();
+    expect(writtenGame({ game: null })).toBeNull();
+    expect(writtenGame({ game: "a" })).toBeNull();
+    expect(writtenGame({ game: { id: 1, version: 1 } })).toBeNull();
+    expect(writtenGame({ game: { id: "a" } })).toBeNull();
+    expect(writtenGame({ game: { id: "a", version: "1" } })).toBeNull();
+  });
+});
+
+describe("isYoutubeMeta", () => {
+  it("title·url이 문자열인 객체만 통과", () => {
+    expect(isYoutubeMeta({ videoId: "v", url: "https://www.youtube.com/watch?v=v", title: "t", date: null })).toBe(true);
+    expect(isYoutubeMeta({ url: "u", title: "t" })).toBe(true);
+    expect(isYoutubeMeta(Object.assign([], { url: "u", title: "t" }))).toBe(true);
+    expect(isYoutubeMeta(null)).toBe(false);
+    expect(isYoutubeMeta("t")).toBe(false);
+    expect(isYoutubeMeta({ url: "u" })).toBe(false);
+    expect(isYoutubeMeta({ title: 1, url: "u" })).toBe(false);
+    expect(isYoutubeMeta({ title: "t" })).toBe(false);
+    expect(isYoutubeMeta({ title: "t", url: 1 })).toBe(false);
+  });
+});
+
+describe("isChangesResponse", () => {
+  it("changes가 배열인 객체만 통과", () => {
+    expect(isChangesResponse({ changes: [] })).toBe(true);
+    expect(isChangesResponse(Object.assign([], { changes: [] }))).toBe(true);
+    expect(isChangesResponse(null)).toBe(false);
+    expect(isChangesResponse(1)).toBe(false);
+    expect(isChangesResponse({})).toBe(false);
+    expect(isChangesResponse({ changes: {} })).toBe(false);
+  });
+});
+
+describe("isCategorySearchResponse", () => {
+  it("results가 배열인 객체만 통과", () => {
+    expect(isCategorySearchResponse({ results: [] })).toBe(true);
+    expect(isCategorySearchResponse(Object.assign([], { results: [] }))).toBe(true);
+    expect(isCategorySearchResponse(null)).toBe(false);
+    expect(isCategorySearchResponse("x")).toBe(false);
+    expect(isCategorySearchResponse({})).toBe(false);
+    expect(isCategorySearchResponse({ results: "x" })).toBe(false);
   });
 });
