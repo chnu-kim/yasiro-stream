@@ -10,7 +10,6 @@ import type {
   StatusFilter,
   YearFilter,
   ViewKey,
-  YearOptions,
 } from "./types.ts";
 
 export const Q_MAX = 100;
@@ -116,19 +115,6 @@ export function parseQueryState(input: QueryInput): GamesQueryState {
   };
 }
 
-/** 연도 select 옵션: all, 연도 내림차순, none(날짜 없는 게임이 있을 때).
- *  URL로 들어온, 데이터에 없는 현재 값도 select가 보여 줄 수 있게 제자리에 끼운다. */
-export function yearFilterOptions(options: YearOptions, current: YearFilter): YearFilter[] {
-  const years: Year[] = [...options.years];
-  if (current !== "all" && current !== "none" && !years.includes(current)) {
-    years.push(current);
-    years.sort().reverse();
-  }
-  const out: YearFilter[] = ["all", ...years];
-  if (options.hasUndated || current === "none") out.push("none");
-  return out;
-}
-
 export function serializeQueryState(state: GamesQueryState): string {
   const params = new URLSearchParams();
   const q = state.q.trim();
@@ -167,19 +153,6 @@ export function countStats(games: readonly Game[]): GameStats {
     if (game.firstPlayed === null) stats.undated += 1;
   }
   return stats;
-}
-
-export function availableYears(games: readonly Game[]): YearOptions {
-  const years = new Set<Year>();
-  let hasUndated = false;
-  for (const game of games) {
-    if (game.firstPlayed === null) hasUndated = true;
-    else {
-      const y = game.firstPlayed.slice(0, 4);
-      if (isYear(y)) years.add(y);
-    }
-  }
-  return { years: [...years].sort().reverse(), hasUndated };
 }
 
 export function formatDate(iso: string | null): string {
