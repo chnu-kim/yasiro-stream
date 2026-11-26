@@ -22,6 +22,8 @@ export default defineConfig({
         // games·awards API가 함께 쓰는 본문 읽기(413·400 응답 모양)
         "src/lib/json-body.ts": FULL,
         "src/lib/json.ts": FULL,
+        // 클라이언트 API 호출(adminApi·awardsApi 공용). 기본 fetch 경로도 테스트가 실행한다
+        "src/lib/api-client.ts": FULL,
         // 페이지 전환(홈 ↔ 소개 캐릭터 이동, 순차 등장 레이어). 연출 순서·계산은 컴포넌트가 아니라 여기서 검증한다
         "src/lib/hero-morph.ts": FULL,
         "src/lib/page-transition.ts": FULL,
