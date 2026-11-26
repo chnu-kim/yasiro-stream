@@ -125,7 +125,7 @@ export default async function Home() {
                 </span>
                 <span className={styles.featuredBody}>
                   <span className={styles.meta}>
-                    NO.{featured.no} · <time dateTime={featured.firstPlayed}>{shortDate(featured.firstPlayed)}</time>
+                    NO.{featured.no} · <time dateTime={featured.date}>{shortDate(featured.date)}</time>
                   </span>
                   <span className={styles.featuredName}>{featured.name}</span>
                   <Status status={featured.status} />
@@ -145,7 +145,7 @@ export default async function Home() {
                         <span className={styles.rowNo}>NO.{e.no}</span>
                         <span className={styles.rowName}>{e.name}</span>
                         <Status status={e.status} />
-                        <time dateTime={e.firstPlayed} className={styles.rowDate}>{shortDate(e.firstPlayed)}</time>
+                        <time dateTime={e.date} className={styles.rowDate}>{shortDate(e.date)}</time>
                         <span className={styles.srOnly}>(유튜브 다시보기, 새 탭에서 열림)</span>
                       </a>
                     </li>
