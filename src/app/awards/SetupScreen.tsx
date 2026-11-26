@@ -153,6 +153,8 @@ export default function SetupScreen({
     <section
       className={styles.ceremony}
       data-launch={drawing || undefined}
+      data-ceremony=""
+      data-playing={(!finished && !drawing) || undefined}
       data-finished={finished || undefined}
       onPointerDown={finished ? undefined : skip}
     >

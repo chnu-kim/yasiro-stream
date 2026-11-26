@@ -1131,7 +1131,8 @@
   position: relative;
   isolation: isolate;
   background: #000;
-  height: calc(100dvh - var(--nav-h));
+  /* nav가 무대 위에 투명하게 떠 있으므로(Nav.module.css data-ceremony) 무대가 화면 전체를 채운다 */
+  height: 100dvh;
   min-height: 560px;
   margin: calc(var(--space-8) * -1) calc(50% - 50vw) 0;
   overflow: hidden;
@@ -1179,7 +1180,8 @@
 }
 
 .ceremony[data-finished] .ceremonyTop {
-  top: clamp(16px, 4vh, 40px);
+  /* 끝나면 nav가 무대 위에 나타나므로 그 아래로 */
+  top: calc(var(--nav-h) + clamp(8px, 2vh, 24px));
 }
 
 .ceremonyTop[data-show] {
@@ -1597,7 +1599,7 @@
 }
 
 .ceremony[data-finished] .stageControl {
-  top: 16px;
+  top: calc(var(--nav-h) + 12px);
 }
 
 .stageControl:hover {

@@ -386,3 +386,39 @@
     box-shadow: var(--shadow-md);
   }
 }
+
+/* ─── /awards 시상식 입장 화면(data-ceremony): 무대에 몰입하도록 nav를 무대 위에 띄우고 투명하게 ───
+   배경·재봉선 없이 위쪽만 옅게 어둡혀 글자를 읽히게 한다. 연출 중(data-playing)에는 숨겼다가 끝나면 천천히 나타난다.
+   키보드로 들어오면(:focus-within) 연출 중에도 바로 보인다. 로고 글자는 시상식 제목과 같은 나눔명조, 늘 밤 무대라 테마 버튼은 숨긴다 */
+:global(:root:has([data-ceremony])) .nav {
+  position: fixed;
+  left: 0;
+  right: 0;
+  transition: opacity 1.2s ease;
+}
+
+:global(:root:has([data-ceremony])) .nav::before {
+  background: linear-gradient(to bottom, rgba(7, 7, 10, 0.55), rgba(7, 7, 10, 0));
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+}
+
+:global(:root:has([data-ceremony])) .nav::after {
+  display: none;
+}
+
+:global(:root:has([data-ceremony][data-playing])) .nav:not(:focus-within) {
+  opacity: 0;
+  pointer-events: none;
+}
+
+:global(:root:has([data-stage='gala'])) .logoText {
+  font-family: 'Nanum Myeongjo', serif;
+  font-weight: 800;
+  font-size: 19px;
+  letter-spacing: 0.04em;
+}
+
+:global(:root:has([data-stage='gala'])) .themeBtn {
+  display: none;
+}
