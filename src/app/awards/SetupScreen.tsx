@@ -87,6 +87,15 @@ export default function SetupScreen({
     }
   });
   const cues = CUES[intro];
+  // TEMP(결정 5 비교): 개발 중에만 localStorage['stage-look']으로 최종 화면 마감 시안을 고른다. 결정 뒤 지운다
+  const [look] = useState<string | undefined>(() => {
+    if (process.env.NODE_ENV === 'production') return undefined;
+    try {
+      return window.localStorage.getItem('stage-look') ?? undefined;
+    } catch {
+      return undefined;
+    }
+  });
 
   // 무대 시계가 출발한 뒤 경과 시간(초)을 큐 단위로 올린다. 건너뛰면 끝 시각으로
   const [elapsed, setElapsed] = useState(-1);
@@ -154,6 +163,7 @@ export default function SetupScreen({
       className={styles.ceremony}
       data-launch={drawing || undefined}
       data-finished={finished || undefined}
+      data-look={look}
       onPointerDown={finished ? undefined : skip}
     >
       <AwardsStage entries={nominees} intro={intro} launching={drawing} skipKey={skipKey} paused={paused} onReady={onReady} />
