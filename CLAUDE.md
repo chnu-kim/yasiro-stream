@@ -17,7 +17,7 @@ pnpm dev            # UI 개발. D1 바인딩 없음 → 세션 null, API 실패
 pnpm test           # vitest run
 pnpm lint
 pnpm typecheck      # next typegen && tsc --noEmit
-pnpm test:coverage  # 100% threshold 대상: src/lib/games/**, awards/**, chzzk-category, session, auth-routes, chzzk-auth, hero-morph, page-transition, css-keyframes (정본은 vitest.config.ts thresholds). 미달하면 exit 1
+pnpm test:coverage  # 100% threshold 대상: src/lib/games/**, awards/**, chzzk-category, session, auth-routes, chzzk-auth, hero-morph, page-transition, css-keyframes, json, json-body, api-client (정본은 vitest.config.ts thresholds). 미달하면 exit 1
 pnpm games:seed <input.json>   # 게임 JSON → migrations/0008 형태 시드 SQL (기존 파일은 --force 없이는 거부. 원격 적용 후엔 다시 만들지 않는다)
 pnpm -s games:export [--local|--remote] [--hidden] [--out file]  # D1 → games.json 형식 백업. stdout으로 받을 땐 `-s`(pnpm 배너 제거) 또는 --out. --remote는 사람이 실행. 기본은 보이는 게임만, --hidden은 숨긴 게임만(전체 백업은 두 번). 변경 기록은 담지 않는다
 pnpm -s games:edit --find <키워드> | --search <검색어> | <ops.json> [--apply]  # 운영 D1 게임 기록 고치기. 절차는 games-edit 스킬
@@ -45,7 +45,7 @@ src/app/
   api/awards/           어워즈 API (draw·submit·rankings, 관리자 전용: AWARDS_PUBLIC). 핸들러는 얇게, 로직은 src/lib/awards/api.ts(repo·token·keys·limit·rankings)
 src/components/         Nav, SkipLink, ClearStamp, HeroFigure·NavigatedFlag(페이지 전환) (공유)
 scripts/games-{seed,export,edit}.ts   pnpm games:seed / games:export / games:edit 진입점 (얇게. 로직은 src/lib/games/seed.ts, ops.ts)
-src/lib/                순수 로직 + *.test.ts (session, auth-routes, http, chzzk-auth, page-transition·hero-morph(페이지 전환), css-keyframes(모듈 keyframe 검사), chzzk-category(검색·slugify만), games/{schema,query,labels,rows,repo,admin,diff,patch,client,api,seed,youtube-meta,home,media,timecode,played}, awards/{entries,options,draw,tournament,flow,labels,verify,media,rng,keys,token,limit,repo,rankings,client,api,resume,hold})
+src/lib/                순수 로직 + *.test.ts (session, auth-routes, http, json(isRecord 객체 판별), json-body(요청 본문 읽기·크기 상한, games·awards 공용), api-client(클라이언트 fetch 래퍼 callApi, fetch 주입), chzzk-auth, page-transition·hero-morph(페이지 전환), css-keyframes(모듈 keyframe 검사), chzzk-category(검색·slugify만), games/{schema,query,labels,rows,repo,admin,diff,patch,client,api,seed,youtube-meta,home,media,timecode,played}, awards/{entries,options,draw,tournament,flow,labels,verify,media,rng,keys,token,limit,repo,rankings,client,api,resume,hold})
 migrations/             D1 마이그레이션 (wrangler 관리)
 _design/                원본 디자인 핸드오프 (gitignored)
 ```
@@ -149,7 +149,7 @@ _design/                원본 디자인 핸드오프 (gitignored)
 
 ## 워크플로우
 
-- 기능 추가·로직 변경: 브랜치 → worktree → TDD → PR → 머지.
+- 기능 추가·로직 변경: 브랜치 → worktree → TDD → PR → 머지. worktree의 `node_modules`를 메인 체크아웃으로 심볼릭 링크하면 `pnpm build:worker`(Turbopack)가 "points out of the filesystem root"로 실패한다. worktree에서는 `pnpm install --offline --frozen-lockfile`로 따로 설치한다.
 - 문구·URL처럼 한 파일 안에서 끝나는 단순 수정: main에 바로 커밋·푸시.
 - PR 생성과 push 전에 `gh auth switch --user chnu-kim`을 실행한다.
 
