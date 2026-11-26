@@ -11,6 +11,7 @@ import {
   changedLabels,
   fieldDomId,
   formPosterUrl,
+  hasVodVideo,
   unlinkKeepsPoster,
   formToInput,
   formToPatch,
@@ -20,8 +21,9 @@ import {
   normalizeHighlight,
   raiseLastPlayed,
   validateForm,
+  vodUrlIssue,
 } from '@/lib/games/patch';
-import { CHZZK_VOD_MESSAGE, isChzzkUrl, isValidIsoDate, youtubeVideoId } from '@/lib/games/schema';
+import { isValidIsoDate } from '@/lib/games/schema';
 import type {
   CategoryLink,
   CategorySearchItem,
@@ -236,29 +238,23 @@ export default function GameEditForm({
   // ---- 다시보기 ----
   const loadMeta = async () => {
     const url = addUrl.trim();
-    const dupId = youtubeVideoId(url);
-    if (url === '') {
-      setAdd({ kind: 'error', message: '유튜브 링크를 넣어 주세요.' });
-    } else if (isChzzkUrl(url)) {
-      setAdd({ kind: 'error', message: CHZZK_VOD_MESSAGE });
-    } else if (dupId !== null && form.vods.some((v) => youtubeVideoId(v.url) === dupId)) {
-      setAdd({ kind: 'error', message: '같은 영상이 이미 있어요.' });
-    } else {
-      setAdd({ kind: 'loading' });
-      const res = await adminApi.youtube(url);
-      if (res.status === 200 && isYoutubeMeta(res.body)) {
-        const meta = res.body;
-        const again = youtubeVideoId(meta.url);
-        if (again !== null && form.vods.some((v) => youtubeVideoId(v.url) === again)) setAdd({ kind: 'error', message: '같은 영상이 이미 있어요.' });
-        else setAdd({ kind: 'ready', meta, date: meta.date ?? '' });
-      } else if (res.status === 401) {
-        setAdd({ kind: 'error', message: '로그인이 만료됐어요. 입력한 내용은 이 기기에 남기고 다시 로그인해 주세요.' });
-      } else {
-        setAdd({ kind: 'error', message: errorMessage(res.body, '영상 정보를 불러오지 못했어요.') });
-      }
+    const issue = vodUrlIssue(url, form.vods);
+    if (issue !== null) {
+      setAdd({ kind: 'error', message: issue });
+      requestFocus(`${uid}-vod-url`);
       return;
     }
-    requestFocus(`${uid}-vod-url`);
+    setAdd({ kind: 'loading' });
+    const res = await adminApi.youtube(url);
+    if (res.status === 200 && isYoutubeMeta(res.body)) {
+      const meta = res.body;
+      if (hasVodVideo(form.vods, meta.url)) setAdd({ kind: 'error', message: '같은 영상이 이미 있어요.' });
+      else setAdd({ kind: 'ready', meta, date: meta.date ?? '' });
+    } else if (res.status === 401) {
+      setAdd({ kind: 'error', message: '로그인이 만료됐어요. 입력한 내용은 이 기기에 남기고 다시 로그인해 주세요.' });
+    } else {
+      setAdd({ kind: 'error', message: errorMessage(res.body, '영상 정보를 불러오지 못했어요.') });
+    }
   };
 
   const commitVod = () => {
