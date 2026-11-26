@@ -132,9 +132,7 @@ const GUEST_OFFSET = 0.18;
 /** 피부로 칠할 뼈(이 뼈들에 주로 붙은 삼각형은 옷이 아니라 피부) */
 const SKIN_BONES = /head|neck|hand|finger|thumb|index|middle|ring|pinky|eye|jaw/i;
 
-// 카메라 키프레임. 볼룸 위 비행 → 카펫 입구 눈높이 → 레드카펫을 걸어 무대 앞(CAM_STAIRS) → (돌리 줌) → 트로피 눈높이 심사위원석
-const EYE = 1.62;
-const CAM_STAIRS = new THREE.Vector3(0, EYE, 31);
+// 카메라: 볼룸 위 비행 → 카펫 위로 낮게 → 멈추지 않고 떠올라 심사위원석에 정착(ENTRY_SPEC)
 /** 입장 카메라(src/lib/awards/entry-camera.ts). Blender 프리비즈에서 승인된 4.1-a 사양을 실시간 좌표로 옮겼다:
  *  볼룸 왼쪽 뒤 높은 곳 → 샹들리에 아래로 호를 그리며 하강 → 카펫 착지(접선이 카펫 방향이라 꺾이지 않음) → 걷기 → 무대 앞 정지.
  *  속도 정점은 하나, 시선은 하강 중 진행 방향을 30% 따라봤다가 무대로. 바꾸면 work/blender/rt_entry_export.ts + camera_lint.py로 검사한다 */
@@ -143,7 +141,7 @@ const CAM_JUDGE = new THREE.Vector3(0, 5.0, 19.8); // 11-26: 21.5에서 당김. 
 const LOOK_JUDGE = new THREE.Vector3(0, 5.2, 0);
 /** 입장 컨셉(11-26 재구상): 'corridor' = 어둠 속 후보작 포스터 통로를 지나 문이 갈라지며 무대(A안), 'ballroom' = 이전 볼룸 비행.
  *  볼룸의 테이블·하객·레드카펫·샹들리에는 실시간 디테일이 모자라 싸구려 세트처럼 보였다(사용자 피드백) */
-const CONCEPT: 'corridor' | 'ballroom' = 'corridor';
+const CONCEPT = 'ballroom' as 'corridor' | 'ballroom'; // 11-26: 통로(A안)는 사용자가 기각해 볼룸으로 되돌림
 const CORRIDOR = CONCEPT === 'corridor';
 const ENTRY_SPEC: EntryCameraSpec = CORRIDOR
   ? {
@@ -163,18 +161,19 @@ const ENTRY_SPEC: EntryCameraSpec = CORRIDOR
       heading: { weight: 0.15, onStart: 0.6, onDuration: 3.0, offStart: 4.0, offDuration: 5.0 },
     }
   : {
+      // 볼룸 왼쪽 뒤 높은 곳 → 샹들리에 아래로 호를 그리며 하강 → 카펫 위에 낮게 닿아 멈추지 않고 완만히 떠올라 심사위원석에 정착
       points: [
         [-17, 14, 64],
         [-12.6, 8.6, 57.4],
-        [-3.0, 2.6, 49.5],
-        [0, EYE, 41],
+        [-3.2, 3.0, 47.0],
+        [0, 2.6, 38],
       ],
-      landTangent: [0, 0, -6],
-      end: [CAM_STAIRS.x, CAM_STAIRS.y, CAM_STAIRS.z],
-      times: { start: 0.2, peak: 3.0, land: 8.4, stop: 13.0 },
-      decel: 2.6,
-      look: { from: [0, 2, 20], to: [0, 5.5, 0], start: 0.8, duration: 10.5 },
-      heading: { weight: 0.3, onStart: 0.8, onDuration: 3.8, offStart: 4.6, offDuration: 5.6 },
+      landTangent: [0, 0.654, -4.957], // 착지 → 심사위원석 직선과 같은 방향
+      end: [CAM_JUDGE.x, CAM_JUDGE.y, CAM_JUDGE.z],
+      times: { start: 0.2, peak: 3.0, land: 8.4, stop: 15.0 },
+      decel: 4.0,
+      look: { from: [0, 2, 20], to: [LOOK_JUDGE.x, LOOK_JUDGE.y, LOOK_JUDGE.z], start: 0.6, duration: 14.4 },
+      heading: { weight: 0.3, onStart: 0.8, onDuration: 3.8, offStart: 4.6, offDuration: 6.5 },
     };
 const ENTRY = buildEntryCamera(ENTRY_SPEC);
 const FLIGHT_FOV = 40;
