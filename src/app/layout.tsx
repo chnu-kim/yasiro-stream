@@ -7,12 +7,14 @@ import SkipLink from '@/components/SkipLink';
 import { siteDefaults } from '@/lib/seo';
 import { SEEN_STATS_KEY } from '@/lib/games/seen-stats';
 import { SESSION_COOKIE, findSession, parseSessionId } from '@/lib/session';
+import { awardsNavVisible } from '@/lib/awards/api';
 
 export const dynamic = 'force-dynamic';
 
 export const metadata: Metadata = siteDefaults();
 
-async function getSessionUser() {
+// 세션 사용자 + Nav에 어워즈(관리자 전용) 링크를 보일지. D1이 없으면(pnpm dev) 비로그인으로 본다
+async function getSessionNav() {
   try {
     const { getCloudflareContext } = await import('@opennextjs/cloudflare');
     const { env } = await getCloudflareContext({ async: true });
@@ -21,15 +23,16 @@ async function getSessionUser() {
     const cookieStore = await cookies();
     const sessionId = parseSessionId(cookieStore.get(SESSION_COOKIE)?.value);
     const found = await findSession(db, sessionId, Math.floor(Date.now() / 1000));
-    if (found.state !== 'active') return null;
-    return found.session;
+    const user = found.state === 'active' ? found.session : null;
+    const showAwards = awardsNavVisible(user?.channelId ?? null, env.ADMIN_CHANNEL_IDS ?? process.env.ADMIN_CHANNEL_IDS);
+    return { user, showAwards };
   } catch {
-    return null;
+    return { user: null, showAwards: awardsNavVisible(null, undefined) };
   }
 }
 
 export default async function RootLayout({ children }: { children: React.ReactNode }) {
-  const user = await getSessionUser();
+  const { user, showAwards } = await getSessionNav();
 
   return (
     // data-scroll-behavior: globals의 smooth 스크롤은 페이지 안 앵커용. 페이지를 옮길 때는 Next가 잠시 끄고 바로 맨 위로 간다
@@ -39,7 +42,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
         <link
-          href="https://fonts.googleapis.com/css2?family=Gaegu:wght@300;400;700&family=Fredoka:wght@500;600;700&family=Noto+Sans+KR:wght@300;400;500;600;700&family=Jua&display=swap"
+          href="https://fonts.googleapis.com/css2?family=Gaegu:wght@300;400;700&family=Fredoka:wght@500;600;700&family=Noto+Sans+KR:wght@300;400;500;600;700&family=Jua&family=Cinzel:wght@600;700&display=swap"
           rel="stylesheet"
         />
         <script
@@ -51,7 +54,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
       </head>
       <body style={{ display: 'flex', flexDirection: 'column', minHeight: '100dvh' }}>
         <SkipLink />
-        <Nav initialUser={user} />
+        <Nav initialUser={user} showAwards={showAwards} />
         {/* 스킵 링크 대상. tabIndex -1이어야 Safari에서도 포커스가 실제로 옮겨 온다 */}
         <main id="main-content" tabIndex={-1} style={{ outline: 'none', flex: '1 0 auto' }}>
           {children}

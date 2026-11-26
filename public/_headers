@@ -1,3 +1,7 @@
 # 캐릭터 그림(AVIF/WebP). 파일 이름이 바뀌지 않으므로 그림을 고치면 /art/v2/로 올린다(ArtImage.tsx 참고)
 /art/*
   Cache-Control: public, max-age=31536000, immutable
+
+# /awards 3D 무대 모델(GLB, CC0 에셋을 gltf-transform으로 압축). 모델을 고치면 /stage/v2/로 올린다(stage/createStage.ts 참고)
+/stage/*
+  Cache-Control: public, max-age=31536000, immutable

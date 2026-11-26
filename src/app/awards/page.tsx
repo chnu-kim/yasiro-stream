@@ -24,7 +24,7 @@ export default async function AwardsPage() {
   if (result.kind !== 'ok') notFound();
 
   return (
-    <div className={styles.page}>
+    <div className={styles.page} data-stage="gala">
       <AwardsApp entries={result.entries} />
     </div>
   );

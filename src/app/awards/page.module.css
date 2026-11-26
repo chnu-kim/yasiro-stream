@@ -1,11 +1,51 @@
-/* /awards 관리자 전용 어워즈. 색은 전부 globals.css 토큰 */
+/* /awards 관리자 전용 어워즈. 골든글로브 시상식 패러디: 테마와 무관한 밤 무대(검정 + 금박).
+   사이트 토큰을 무대 값으로 덮는 일은 globals.css의 :root:has([data-stage="gala"])가 한다(Nav·푸터·Poster·Button 포함).
+   여기는 조명 배경만. 순위 페이지도 이 클래스를 쓴다 */
 .page {
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
   padding: var(--space-8) var(--page-x) var(--section-y);
   color: var(--text);
+  color-scheme: dark;
+  /* 무대 위에서 내려오는 금빛 조명 */
+  background:
+    radial-gradient(ellipse 55% 340px at 50% 0%, rgba(237, 207, 131, 0.16), transparent 75%),
+    var(--gala-bg);
+}
+
+/* 양옆에서 비스듬히 비추는 스포트라이트 두 줄기. 장식이라 클릭을 막지 않는다 */
+.page::before,
+.page::after {
+  content: '';
+  position: absolute;
+  top: -80px;
+  z-index: -1;
+  width: 46%;
+  height: 760px;
+  pointer-events: none;
+  background: linear-gradient(to bottom, rgba(237, 207, 131, 0.12), rgba(237, 207, 131, 0) 85%);
+  filter: blur(6px);
+}
+
+.page::before {
+  left: -6%;
+  clip-path: polygon(0 0, 34% 0, 100% 100%, 64% 100%);
+}
+
+.page::after {
+  right: -6%;
+  clip-path: polygon(66% 0, 100% 0, 36% 100%, 0 100%);
 }
 
 @media (max-width: 640px) {
   .page {
     padding-top: var(--space-6);
+  }
+
+  .page::before,
+  .page::after {
+    height: 520px;
+    width: 70%;
   }
 }

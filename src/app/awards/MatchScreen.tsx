@@ -1,9 +1,8 @@
-import { useRef, useState, type Ref } from 'react';
+import { useEffect, useRef, useState, type Ref } from 'react';
 import { Undo2 } from 'lucide-react';
 import Button from '@/components/Button';
-import SectionLabel from '@/components/SectionLabel';
 import { DIVISION_LABEL } from '@/lib/awards/entries';
-import { matchAnnouncement, PAGE_TITLE, progressLabel } from '@/lib/awards/labels';
+import { CATEGORY_CARD, DIVISION_AWARD, matchAnnouncement, PAGE_TITLE, progressLabel } from '@/lib/awards/labels';
 import { cardMedia } from '@/lib/awards/media';
 import { currentMatch, progress } from '@/lib/awards/tournament';
 import type { AwardEntry, TournamentState } from '@/lib/awards/types';
@@ -32,6 +31,15 @@ export default function MatchScreen({
   const a = byId.get(match.a)!;
   const b = byId.get(match.b)!;
   const label = progressLabel(p);
+
+  // 부문 카드: 대결 화면에 처음 들어올 때(첫 판) 약 1.6초 보이고 사라진다. 누르면 바로 닫힌다. 장식이라 aria-hidden(부문은 머리말에 있다)
+  const [card, setCard] = useState(() => run.picks.length === 0);
+  useEffect(() => {
+    if (!card) return;
+    const t = window.setTimeout(() => setCard(false), 1600);
+    return () => window.clearTimeout(t);
+  }, [card]);
+  const [cardEyebrow, cardTitle] = CATEGORY_CARD[run.division];
 
   // 재생 중인 카드. 판(pickIndex)이 바뀌면 active가 null이 되어 플레이어가 언마운트된다(재생 정지)
   const [playing, setPlaying] = useState<{ pickIndex: number; id: string } | null>(null);
@@ -65,11 +73,22 @@ export default function MatchScreen({
   return (
     <div className={styles.wrap}>
       <h1 className={styles.srOnly}>{PAGE_TITLE}</h1>
+      <div className={styles.fromBlack} aria-hidden="true" />
+      {card && (
+        <div className={styles.categoryCard} aria-hidden="true" onPointerDown={() => setCard(false)}>
+          <svg className={styles.categoryRing} viewBox="0 0 200 200" aria-hidden="true">
+            <circle cx="100" cy="100" r="92" />
+            <circle cx="100" cy="100" r="80" />
+          </svg>
+          <p className={styles.kicker}>{cardEyebrow}</p>
+          <p className={styles.categoryTitle}>{cardTitle}</p>
+        </div>
+      )}
       <header className={styles.matchHeader}>
         <div className={styles.matchTop}>
-          <SectionLabel style={{ marginBottom: 0 }}>{DIVISION_LABEL[run.division]}</SectionLabel>
+          <p className={styles.kicker}>Nominees · {DIVISION_AWARD[run.division]}</p>
           <p className={styles.overall}>
-            전체 <span className={styles.num}>{p.done}/{p.total}</span>
+            {DIVISION_LABEL[run.division]} · 전체 <span className={styles.num}>{p.done}/{p.total}</span>
           </p>
         </div>
         <h2 ref={headingRef} tabIndex={-1} className={styles.round}>
@@ -94,7 +113,8 @@ export default function MatchScreen({
         />
       )}
 
-      <div className={styles.versus}>
+      <div className={`${styles.versus} ${styles.versusIn}`}>
+        <span className={styles.spot} aria-hidden="true" />
         <AwardCard
           entry={a}
           matchKey={match.pickIndex}

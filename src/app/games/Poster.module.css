@@ -37,7 +37,9 @@
   }
 }
 
-:global([data-theme="dark"]) .cover {
+/* 다크 테마 + /awards 밤 무대(data-stage="gala", 테마와 무관하게 어둡다) */
+:global([data-theme="dark"]) .cover,
+:global([data-stage="gala"]) .cover {
   --tone-0: #3A2E20;
   --tone-1: #33301F;
   --tone-2: #3B2A22;

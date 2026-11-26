@@ -147,6 +147,9 @@
 :global([data-theme="dark"]) .iconDark  { display: flex; }
 :global([data-theme="dark"]) .iconLight { display: none; }
 
+/* /awards 밤 무대(data-stage="gala")는 테마와 무관하게 어두워서 테마 버튼이 아무것도 바꾸지 않는다. 그 페이지에서만 감춘다 */
+:global(:root:has([data-stage="gala"])) .themeBtn { display: none; }
+
 .account {
   display: flex;
   align-items: center;

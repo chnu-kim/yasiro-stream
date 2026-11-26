@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { fitText, PAGE_TITLE, RANKINGS_PAGE_TITLE, matchAnnouncement, placementLabel, progressLabel, resultSummary, sizeLabel, thirdPlaceNote } from "./labels.ts";
+import { CATEGORY_CARD, CEREMONY_EYEBROW, ceremonyLines, DIVISION_AWARD, JUDGE_SEAT_LABEL, fitText, JUDGE_TITLE, RESULTS_LINK_LABEL, SETTINGS_LABEL, settingsSummary, START_LABEL, PAGE_TITLE, RANKINGS_PAGE_TITLE, matchAnnouncement, placementLabel, progressLabel, resultSummary, sizeLabel, thirdPlaceNote } from "./labels.ts";
 import { sizeOptions } from "./options.ts";
 import type { Placement, Progress } from "./types.ts";
 
@@ -50,5 +50,36 @@ describe("페이지 제목", () => {
   it("어워즈·순위 페이지", () => {
     expect(PAGE_TITLE).toBe("2026 야시로 게임 어워즈");
     expect(RANKINGS_PAGE_TITLE).toBe("게임 어워즈 집계 순위");
+  });
+  it("부문 상 이름", () => {
+    expect(DIVISION_AWARD).toEqual({ alltime: "Best Game of All Time", "2026": "Best Game of 2026" });
+  });
+});
+
+describe("입장 화면 문구", () => {
+  it("자막 두 줄(후보 수는 강조)", () => {
+    expect(ceremonyLines(92)).toEqual([
+      ["올해 야시로가 탐험한 게임, ", "92편"],
+      ["그중 단 한 편만 이 트로피를 받습니다", ""],
+    ]);
+  });
+  it("버튼·링크·모달 제목", () => {
+    expect([START_LABEL, SETTINGS_LABEL, RESULTS_LINK_LABEL, JUDGE_TITLE]).toEqual([
+      "심사 시작하기",
+      "심사 방식 바꾸기",
+      "지금까지의 심사 결과",
+      "2026 야시로 게임 어워즈 심사위원",
+    ]);
+  });
+  it("의전 라벨·부문 카드", () => {
+    expect(CEREMONY_EYEBROW).toBe("The 2026 Yasiro Game Awards");
+    expect(JUDGE_SEAT_LABEL).toBe("Judge's Seat");
+    expect(CATEGORY_CARD).toEqual({ "2026": ["Best Game of 2026", "올해의 게임 부문"], alltime: ["All-Time", "역대 최고의 게임 부문"] });
+  });
+  it("심사 방식 한 줄", () => {
+    const o = sizeOptions(92)[1];
+    expect(settingsSummary("2026 부문", o, false)).toBe("2026 부문 · 16강");
+    expect(settingsSummary("2026 부문", o, true)).toBe("2026 부문 · 16강 · 3·4위전");
+    expect(settingsSummary("올타임 부문", undefined, false)).toBe("올타임 부문");
   });
 });

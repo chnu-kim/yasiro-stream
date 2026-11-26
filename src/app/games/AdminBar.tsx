@@ -1,8 +1,7 @@
 'use client';
 
 import type { Ref } from 'react';
-import Link from 'next/link';
-import { Pencil, Plus, Trophy } from 'lucide-react';
+import { Pencil, Plus } from 'lucide-react';
 import styles from './AdminBar.module.css';
 
 // 목록 위 "관리자 모드" 띠. 시안: Main
@@ -30,10 +29,6 @@ export default function AdminBar({
         </span>
       </p>
       <div className={styles.actions}>
-        <Link href="/awards" className={styles.link}>
-          <Trophy size={18} strokeWidth={1.8} aria-hidden="true" />
-          어워즈
-        </Link>
         <label className={styles.check}>
           <input type="checkbox" checked={showHidden} onChange={(e) => onShowHidden(e.target.checked)} />
           <span>

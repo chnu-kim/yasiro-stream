@@ -1,8 +1,9 @@
 // /api/awards Route Handler와 /awards 페이지의 로직. Route Handler는 이 함수들에 deps만 넘긴다.
 // 익명 규칙: award 테이블·응답·로그에 채널 ID·채널 이름·IP·IP 해시·토큰·drawId·picks를 넣지 않는다.
 // 로그는 "awards-api unavailable <error.name>", "awards-api secret missing", "awards-api token too large"뿐이다.
-import { getSessionActor, parseAdminIds } from "../games/admin.ts";
+import { getSessionActor, isAdminChannel, parseAdminIds } from "../games/admin.ts";
 import { listGames } from "../games/repo.ts";
+import { isChzzkPosterUrl } from "../games/schema.ts";
 import { checkSameOrigin } from "../http.ts";
 import { readJsonBody } from "../json-body.ts";
 import { DIVISIONS, toAwardEntries } from "./entries.ts";
@@ -31,6 +32,8 @@ export interface AwardsDeps {
   rng: () => number;
   /** 운영: console.error */
   log?: (message: string) => void;
+  /** 포스터 중계(handlePoster)만 쓴다. 운영: (i, init) => fetch(i, init) (그냥 넘기면 Workers에서 Illegal invocation) */
+  fetch?: (input: string, init?: RequestInit) => Promise<Response>;
 }
 
 export const DRAW_BODY_MAX_BYTES = 1024;
@@ -51,6 +54,7 @@ export type AwardsErrorCode =
   | "draw_expired"
   | "rate_limited"
   | "unconfigured"
+  | "upstream_failed"
   | "unavailable";
 
 // ---------- 응답 ----------
@@ -102,6 +106,13 @@ export function awardsAccess(state: SessionState, isPublic: boolean = AWARDS_PUB
     case "admin":
       return "ok";
   }
+}
+
+/** Nav에 "어워즈" 링크를 보일지. 페이지 게이트(awardsAccess)와 같은 규칙: 공개면 누구나, 아니면 허용 목록의 로그인 채널만.
+ *  channelId = 유효한 세션의 채널(없으면 null), rawAdminIds = Worker secret ADMIN_CHANNEL_IDS 원문 */
+export function awardsNavVisible(channelId: string | null, rawAdminIds: string | undefined, isPublic: boolean = AWARDS_PUBLIC): boolean {
+  if (isPublic) return true;
+  return channelId !== null && isAdminChannel(channelId, parseAdminIds(rawAdminIds));
 }
 
 export function awardsGate(state: SessionState, isPublic: boolean = AWARDS_PUBLIC): "ok" | Response {
@@ -314,4 +325,34 @@ export async function loadAwardsRankingsPage(deps: AwardsDeps, cookieHeader: str
   // 번호(no)는 전체 목록 기준이라 거르기 전에 만든다
   const entries = toAwardEntries(visible).filter((e) => ranked.has(e.id));
   return { kind: "ok", division, rankings, entries };
+}
+
+// ---------- 포스터 중계 ----------
+
+/** 중계하는 그림 한 장의 상한 */
+export const POSTER_MAX_BYTES = 5 * 1024 * 1024;
+
+/** GET /api/awards/poster?u=<치지직 포스터 주소>. /awards 3D 무대(WebGL)가 포스터를 텍스처로 쓰려면 같은 출처여야 하는데
+ *  치지직 포스터(pstatic.net)는 CORS 헤더가 없다. 그래서 어워즈 권한(awardsGate)을 통과한 요청만, 치지직 포스터 주소(isChzzkPosterUrl)만,
+ *  그림(image/*)이고 POSTER_MAX_BYTES 이하일 때만 그대로 돌려준다. 리다이렉트는 따라가지 않는다(다른 호스트로 새지 않게).
+ *  Steam·유튜브 썸네일은 CORS가 열려 있어 중계하지 않는다(lib/awards/orbit stageTextureUrl). 로그에 주소를 남기지 않는다 */
+export function handlePoster(req: Request, deps: AwardsDeps): Promise<Response> {
+  return guarded(deps, async () => {
+    const denied = await gate(req, deps);
+    if (denied !== null) return denied;
+    const target = new URL(req.url).searchParams.get("u");
+    if (!isChzzkPosterUrl(target) || deps.fetch === undefined) return badRequest();
+    const upstream = await deps.fetch(target, { redirect: "error", headers: { accept: "image/*" } });
+    const type = upstream.headers.get("content-type") ?? "";
+    const declared = Number(upstream.headers.get("content-length") ?? "0");
+    const upstreamFailed = () => fail(502, "upstream_failed", "그림을 가져오지 못했어요.");
+    if (!upstream.ok || !type.startsWith("image/") || declared > POSTER_MAX_BYTES) return upstreamFailed();
+    const body = await upstream.arrayBuffer();
+    if (body.byteLength > POSTER_MAX_BYTES) return upstreamFailed();
+    // 관리자 전용이라 공유 캐시에 두지 않는다(private). 같은 브라우저는 하루 동안 다시 받지 않는다
+    return new Response(body, {
+      status: 200,
+      headers: { "Content-Type": type, "Cache-Control": "private, max-age=86400", "X-Content-Type-Options": "nosniff" },
+    });
+  });
 }
