@@ -115,6 +115,9 @@ const BRIGHTNESS = {
   /** 격자 컨셉: 지구본 안 빛(cd, 반지름 약 1.3m 안쪽 면 기준)과 임팩트 때 켜지는 심(색 배율) */
   inner: 1.6,
   core: 0.9,
+  /** 격자 컨셉 반사 환경 세기(어둠 속 처음 / 임팩트 뒤 더하는 값) */
+  envBase: 0.35,
+  envImpact: 0.55,
   /** 금 웅덩이로 떨어지는 스포트라이트(실제 광원) */
   poolSpot: 180,
   /** 통로 포스터 최대 밝기(색 배율). 어둠 속에서 읽히되 눈부시지 않게 */
@@ -280,7 +283,11 @@ export function createStage(canvas: HTMLCanvasElement, opts: StageOptions): Stag
 
   const scene = new THREE.Scene();
   const pmrem = new THREE.PMREMGenerator(renderer);
-  const envTex = pmrem.fromScene(new RoomEnvironment(), 0.04).texture;
+  // 반사 환경: 격자 컨셉은 검은 방 + 길쭉한 조명판(금속감은 밝기가 아니라 어두운 바탕과 좁은 하이라이트의 대비에서 나온다, 조사 P10).
+  // 바탕이 검어서 세기를 올려도 화면 전체는 밝아지지 않고 금에만 줄무늬 반사가 생긴다
+  const envSource = LATTICE ? studioEnvironment() : new RoomEnvironment();
+  const envTex = pmrem.fromScene(envSource, 0.02).texture;
+  if (LATTICE) envSource.traverse((o) => (o as THREE.Mesh).geometry?.dispose());
   scene.environment = envTex;
   scene.environmentIntensity = 0.02;
   // 안개는 비행 첫 장면(볼룸 높은 곳, 약 60 거리)에서도 무대가 보일 만큼 옅게
@@ -969,7 +976,7 @@ export function createStage(canvas: HTMLCanvasElement, opts: StageOptions): Stag
     const houseUp = tl.house < 0 ? 0.25 : Math.max(houseOn * ramp(t, -0.3, 0.8), 0.25 * ramp(t, tl.impact, 1));
     houseLight.intensity = BRIGHTNESS.house * houseUp;
     for (const pool of housePools) pool.intensity = BRIGHTNESS.housePool * (tl.house < 0 ? 0 : houseOn * ramp(t, -0.3, 0.8));
-    scene.environmentIntensity = 0.02 + 0.3 * impactK;
+    scene.environmentIntensity = LATTICE ? BRIGHTNESS.envBase * ramp(t, 0, 1.5) + BRIGHTNESS.envImpact * impactK : 0.02 + 0.3 * impactK;
     // 위에서 떨어지는 단 하나의 빛(웅덩이·격자 컨셉). 임팩트 뒤 다른 빛들이 켜지면 한 걸음 물러난다
     poolSpot.intensity = POOL || LATTICE ? BRIGHTNESS.poolSpot * ramp(t, tl.spot, 0.9) * (1 - 0.45 * ramp(t, tl.impact + 0.8, 1.5)) : 0;
     if (LATTICE) {
@@ -1195,7 +1202,7 @@ export function createStage(canvas: HTMLCanvasElement, opts: StageOptions): Stag
   }
 
   // ── 포스터·모델 읽기(다 읽거나 실패하면 연출 시계 출발) ──
-  let pending = items.length + 2 + 5;
+  let pending = items.length + 2 + 5 + (LATTICE ? 1 : 0);
   const settled = () => {
     pending -= 1;
     if (pending === 0) void begin();
@@ -1267,6 +1274,29 @@ export function createStage(canvas: HTMLCanvasElement, opts: StageOptions): Stag
     undefined,
     settled,
   );
+  // 트로피 몸체(격자 컨셉, work/blender/build_trophy.py): 받침·명판·줄기·받침잔·금 격자 지구본. 원점과 단위는 코드 트로피와 같다.
+  // 읽으면 코드로 쌓은 임시 도형을 숨기고(꿀붕이·지구본 속 빛은 남긴다), 재질은 이름으로 이 장면의 재질을 끼운다
+  if (LATTICE) {
+    gltfLoader.load(
+      `${STAGE_ASSETS}/trophy-body.glb`,
+      (g) => {
+        trackModel(g.scene);
+        const byName: Record<string, THREE.Material> = { gold, goldSoft, goldDeep, marble };
+        g.scene.traverse((o) => {
+          const mesh = o as THREE.Mesh;
+          if (!mesh.isMesh) return;
+          const name = (mesh.material as THREE.Material).name;
+          if (byName[name]) mesh.material = byName[name];
+        });
+        for (const child of trophy.children) if (child !== kkul && child !== globe) child.visible = false;
+        for (const child of globe.children) if (child !== coreGlow && child !== innerLight) child.visible = false;
+        trophy.add(g.scene);
+        settled();
+      },
+      undefined,
+      settled,
+    );
+  }
   // 의자: 원점이 바닥. 금빛이 살짝 도는 색을 곱해 연회 의자처럼
   gltfLoader.load(
     `${STAGE_ASSETS}/chair.glb`,
@@ -1700,6 +1730,26 @@ function coreMaterial(): THREE.ShaderMaterial {
     blending: THREE.AdditiveBlending,
     depthWrite: false,
   });
+}
+
+/** 금속 반사용 스튜디오: 검은 방 안에 조명판(위 넓은 판, 양옆 세로 띠, 뒤 가로 띠). 화면에는 안 보이고 반사에만 쓰인다 */
+function studioEnvironment(): THREE.Scene {
+  const env = new THREE.Scene();
+  const room = new THREE.Mesh(new THREE.BoxGeometry(20, 12, 20), new THREE.MeshBasicMaterial({ color: 0x050403, side: THREE.BackSide }));
+  room.position.y = 4;
+  env.add(room);
+  const panel = (w: number, h: number, x: number, y: number, z: number, level: number, color = 0xfff1dc) => {
+    const m = new THREE.Mesh(new THREE.PlaneGeometry(w, h), new THREE.MeshBasicMaterial({ color: new THREE.Color(color).multiplyScalar(level), side: THREE.DoubleSide }));
+    m.position.set(x, y, z);
+    m.lookAt(0, 1.5, 0);
+    env.add(m);
+  };
+  panel(6, 1.4, 0, 9.5, 1, 6); // 위
+  panel(0.7, 7, -7.5, 4, 2.5, 4.5); // 왼쪽 세로 띠
+  panel(0.7, 7, 7.5, 4, -1.5, 3.5); // 오른쪽 세로 띠
+  panel(9, 0.5, 0, 6, -9, 3, 0xffd9a0); // 뒤 가로 띠(따뜻하게)
+  panel(4, 0.35, 0, 1.2, 9, 1.2); // 앞 낮은 띠(정면 몰딩에 가는 선)
+  return env;
 }
 
 function hazeMaterial(): THREE.ShaderMaterial {
