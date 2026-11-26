@@ -16,6 +16,7 @@
 pnpm dev            # UI 개발. D1 바인딩 없음 → 세션 null, API 실패 (D1이 필요하면 pnpm preview)
 pnpm test           # vitest run
 pnpm lint
+pnpm typecheck      # next typegen && tsc --noEmit
 pnpm test:coverage  # src/lib/games/**, src/lib/awards/**, chzzk-category.ts는 100% threshold. 미달하면 exit 1
 pnpm games:seed <input.json>   # 게임 JSON → migrations/0008 형태 시드 SQL (기존 파일은 --force 없이는 거부. 원격 적용 후엔 다시 만들지 않는다)
 pnpm -s games:export [--local|--remote] [--hidden] [--out file]  # D1 → games.json 형식 백업. stdout으로 받을 땐 `-s`(pnpm 배너 제거) 또는 --out. --remote는 사람이 실행. 기본은 보이는 게임만, --hidden은 숨긴 게임만(전체 백업은 두 번). 변경 기록은 담지 않는다
@@ -26,7 +27,7 @@ pnpm run deploy     # 수동 배포. `pnpm deploy`는 pnpm 예약어라 동작 �
 pnpm wrangler tail  # 운영 Worker 실시간 로그. 일반 터미널에서 실행한다(TTY가 아닌 셸·Claude Code `!`에서는 출력이 잡히지 않는다)
 ```
 
-main에 push하면 GitHub Actions(`.github/workflows/deploy.yml`)가 `pnpm test` → `pnpm run deploy`를 실행한다. 테스트가 깨지면 배포되지 않는다.
+PR마다 GitHub Actions `ci.yml`이 `pnpm lint --max-warnings 0` → `pnpm typecheck`(`next typegen && tsc --noEmit`) → `pnpm test:coverage` → `pnpm build:worker`를 돌린다. main에 push하면 `deploy.yml`이 같은 `ci.yml`을 먼저 부르고, 통과하면 `pnpm run deploy`를 실행한다(배포는 `deploy-production` 그룹으로 하나씩). 검사 하나라도 깨지면 배포되지 않으니 main에 바로 푸시할 때도 이 넷을 로컬에서 먼저 돌린다. 로컬 tsc가 지운 라우트(`.next/dev/types`)를 찾으면 `.next/dev/types`를 지우고 다시 돌린다.
 
 ## 구조
 
