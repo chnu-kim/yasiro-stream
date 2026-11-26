@@ -4,7 +4,7 @@
 import { slugify } from "../chzzk-category.ts";
 import { changeSummary, diffGames } from "./diff.ts";
 import { GAME_COLUMNS, rowsToRecords, sortVods, toGame, toSnapshot, VOD_COLUMNS, VOD_ORDER } from "./rows.ts";
-import { compareCanonical, ID_PATTERN, parseGames, validateCandidate, youtubeVideoId } from "./schema.ts";
+import { compareCanonical, parseGames, validateCandidate, youtubeVideoId } from "./schema.ts";
 import { normalizeYoutubeUrl } from "./youtube-meta.ts";
 import type {
   ChangeAction,
@@ -349,4 +349,3 @@ export async function listChanges(db: GamesDb, id: string, limit?: number): Prom
   return { changes, total: Number((count.results[0] as { total: number }).total) };
 }
 
-export { ID_PATTERN };
