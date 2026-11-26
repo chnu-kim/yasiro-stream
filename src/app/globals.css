@@ -254,10 +254,10 @@ html:active-view-transition-type(page) [data-vt] {
 ::view-transition-new(.vt-rise-2) { animation-delay: 200ms; }
 ::view-transition-new(.vt-rise-3) { animation-delay: 260ms; }
 
-/* band: 위에서 아래로 쓸며 그려지고, 떠날 때는 아래에서 위로 접힌다.
-   떠날 때는 옛 본문(page-out)과 같은 시간에 끝낸다. 따로 떼어 낸 층이라 더 길면 다음 페이지 위에 띠만 남는다(소개 → 게임) */
+/* band: 들어올 때는 위에서 아래로 쓸며 그려진다. 떠날 때는 따로 움직이지 않고 옛 본문(page-out)과 똑같이 흐려진다
+   (접히며 사라지게 했더니 페이지가 바뀐 뒤에도 띠만 움직여 거슬렸다) */
 ::view-transition-old(.vt-band) {
-  animation: vtWipeUp var(--dur-fast) ease-in both;
+  animation: vtFadeOut var(--dur-fast) ease-in both;
 }
 
 ::view-transition-new(.vt-band) {
@@ -300,11 +300,6 @@ html:active-view-transition-type(page) [data-vt] {
 @keyframes vtWipeDown {
   from { clip-path: inset(0 0 100% 0); }
   to { clip-path: inset(0); }
-}
-
-@keyframes vtWipeUp {
-  from { clip-path: inset(0); }
-  to { clip-path: inset(0 0 100% 0); }
 }
 
 @keyframes vtStamp {
