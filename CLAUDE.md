@@ -17,7 +17,7 @@ pnpm dev            # UI 개발. D1 바인딩 없음 → 세션 null, API 실패
 pnpm test           # vitest run
 pnpm lint
 pnpm typecheck      # next typegen && tsc --noEmit
-pnpm test:coverage  # src/lib/games/**, src/lib/awards/**, chzzk-category.ts는 100% threshold. 미달하면 exit 1
+pnpm test:coverage  # 100% threshold 대상: src/lib/games/**, awards/**, chzzk-category, session, auth-routes, chzzk-auth, hero-morph, page-transition, css-keyframes (정본은 vitest.config.ts thresholds). 미달하면 exit 1
 pnpm games:seed <input.json>   # 게임 JSON → migrations/0008 형태 시드 SQL (기존 파일은 --force 없이는 거부. 원격 적용 후엔 다시 만들지 않는다)
 pnpm -s games:export [--local|--remote] [--hidden] [--out file]  # D1 → games.json 형식 백업. stdout으로 받을 땐 `-s`(pnpm 배너 제거) 또는 --out. --remote는 사람이 실행. 기본은 보이는 게임만, --hidden은 숨긴 게임만(전체 백업은 두 번). 변경 기록은 담지 않는다
 pnpm -s games:edit --find <키워드> | --search <검색어> | <ops.json> [--apply]  # 운영 D1 게임 기록 고치기. 절차는 games-edit 스킬
@@ -73,7 +73,7 @@ _design/                원본 디자인 핸드오프 (gitignored)
 
 - hover·transition·animation·blend-mode 같은 효과는 CSS Module에, layout·spacing·color 같은 정적 스타일은 inline style로 쓴다.
 - 토큰은 `globals.css`가 정본이다(색·type `--fs-*`·간격 `--space-*`·shadow·z-index·motion). 다크 값은 `[data-theme="dark"]`에서 덮어쓴다. `prefers-reduced-motion`은 globals에서 일괄 처리한다.
-- keyframe: `blink`, `float`(꿀붕이 부유), `fadeUp`(진입), `pinDrop`. **CSS Module 안에서 globals의 keyframe 이름을 쓰지 않는다**: Modules가 `animation` 이름을 해시해(`page-module__…__fadeUp`) 없는 키프레임을 가리키고, 애니메이션이 조용히 재생되지 않는다. 모듈 안에 `@keyframes`를 두거나(홈 `heroIn`, /games `countUp`·`stampIn`) globals에 클래스 없이 둘 수 있는 곳(전환 pseudo)에서만 쓴다. 같은 이유로 `view-transition-name`도 모듈에 쓰지 않는다(아래 '페이지 전환'). `src/lib/css-keyframes.test.ts`가 모든 `*.module.css`에서 참조했지만 정의하지 않은 keyframe을 잡는다
+- keyframe: globals에는 페이지 전환용 `vt*` keyframe만 있다. 모듈 애니메이션은 모듈 안에 `@keyframes`를 둔다. **CSS Module 안에서 globals의 keyframe 이름을 쓰지 않는다**: Modules가 `animation` 이름을 해시해(`page-module__…__fadeUp`) 없는 키프레임을 가리키고, 애니메이션이 조용히 재생되지 않는다. 모듈 안에 `@keyframes`를 두거나(홈 `heroIn`, /games `countUp`·`stampIn`) globals에 클래스 없이 둘 수 있는 곳(전환 pseudo)에서만 쓴다. 같은 이유로 `view-transition-name`도 모듈에 쓰지 않는다(아래 '페이지 전환'). `src/lib/css-keyframes.test.ts`가 모든 `*.module.css`에서 참조했지만 정의하지 않은 keyframe을 잡는다
 - 폰트는 `layout.tsx`의 Google Fonts `<link>` 한 줄로 로드한다. 현재 로드되는 폰트는 Gaegu, Fredoka(500–700), Noto Sans KR, Jua. 한국어 subset 문제 때문에 `next/font`는 쓰지 않는다. 새 폰트는 같은 URL에 추가하고, URL에 없는 폰트를 코드에 쓰지 않는다(조용히 폴백된다).
   - Jua(`var(--font-display)`): 제목·로고·큰 값 / Noto Sans KR: 본문·UI / Fredoka: 영문 라벨과 숫자(한글 글리프 없음)
   - Jua는 굵기가 400 하나뿐이다. `--font-display`를 쓰는 곳은 `font-weight: 400`으로 두고 600·700을 주지 않는다(가짜 볼드가 합성된다). 2026-11 Noto Serif KR에서 바꿨다

@@ -1,7 +1,7 @@
 import type { CSSProperties } from 'react';
 
-// 사이트 안 페이지 이동 링크에 붙이는 transition type. layout의 <ViewTransition>이 이 타입일 때만 본문을 바꿔 그린다.
-// 게임 필터·페이지 번호처럼 같은 페이지 안의 URL 변경에는 붙이지 않는다(움직이지 않는다).
+// 사이트 안 페이지 이동 링크에 붙이는 transition type. template.tsx의 <ViewTransition>이 이 타입일 때만 본문을 바꿔 그린다.
+// 게임 필터·정렬처럼 같은 페이지 안의 URL 변경에는 붙이지 않는다(움직이지 않는다).
 export const PAGE_TRANSITION = ['page'];
 
 // 홈 히어로 그림과 /about 그림판이 같은 이름을 가져, 두 페이지를 오갈 때 캐릭터가 이어서 움직인다(shared element).
@@ -13,7 +13,7 @@ export const HERO_FIGURE_SHARE = { page: 'figure-morph', default: 'none' };
 // 페이지 이동 중에만 따로 움직이는 요소(전환 레이어). globals.css의 [data-vt] 규칙이 'page' 이동 동안
 // view-transition-name = --vt, view-transition-class = --vt-class로 붙인다. CSS Modules가 이름을 해시하지 않게 변수로 넘긴다.
 //  - rise: 제목·문구가 차례로 떠오른다(step 0부터 60ms 간격), 떠날 때는 짧게 올라가며 사라진다
-//  - band: /about 사선 띠가 위에서 아래로 쓸며 그려지고, 떠날 때는 거꾸로 접힌다
+//  - band: /about 사선 띠가 들어올 때 쓸며 그려지고, 떠날 때는 본문과 함께 흐려진다
 //  - label: /about 눈금자·장비 라벨. 띠 뒤에 나타난다(캐릭터 위 층)
 //  - stamp: /about 도장. 캐릭터가 도착할 즈음 찍힌다
 export const VT_LAYERS = ['rise', 'band', 'label', 'stamp'] as const;

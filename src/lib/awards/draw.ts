@@ -1,4 +1,4 @@
-// 대진 뽑기. 난수는 주입(rng: () => number, 계약 [0,1))한다. Math.random·DOM에 의존하지 않아 서버(PR3)에서 같은 rng로 다시 뽑을 수 있다.
+// 대진 뽑기. 난수는 주입(rng: () => number, 계약 [0,1))한다. Math.random·DOM에 의존하지 않아 서버(api.ts draw, crypto rng)와 테스트가 같은 함수를 쓴다.
 import { sizeEnabled } from "./options.ts";
 import type { Bracket } from "./types.ts";
 
@@ -46,7 +46,7 @@ function compareCodeUnits(a: string, b: string): number {
 }
 
 /** 대진 뽑기.
- *  1) ids를 코드 단위 오름차순으로 정렬(입력 순서와 무관하게 같은 rng → 같은 대진. PR3 재현용)
+ *  1) ids를 코드 단위 오름차순으로 정렬(입력 순서와 무관하게 같은 rng → 같은 대진. 결정성은 테스트가 고정)
  *  2) shuffle(sorted, rng)
  *  3) entrants = 앞 min(n, size)개
  *  4) byes = size − entrants.length, byeSet = byeMatches(size/2, byes)

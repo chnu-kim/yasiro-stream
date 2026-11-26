@@ -1,5 +1,5 @@
-// PR3 대비: 신뢰할 수 없는 입력(클라이언트가 보낸 JSON)을 검증하고 완료된 대진의 결과를 계산한다.
-// 부전승 위치가 byeMatches와 같은지, 대진이 서버가 뽑은 것인지는 보지 않는다(PR3의 서명이 보증한다).
+// 서버 제출 검증(api.ts handleSubmit): 신뢰할 수 없는 입력(클라이언트가 보낸 JSON)을 검증하고 완료된 대진의 결과를 계산한다.
+// 부전승 위치가 byeMatches와 같은지, 대진이 서버가 뽑은 것인지는 보지 않는다(대진 출처는 token.ts 서명이 보증한다).
 import { DIVISIONS } from "./entries.ts";
 import { thirdPlaceAvailable } from "./options.ts";
 import { entrantCount, placements, replay, tally } from "./tournament.ts";

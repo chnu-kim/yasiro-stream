@@ -1,9 +1,8 @@
 import { defineConfig } from "vitest/config";
 
-// /games 모듈(src/lib/games/**, src/lib/chzzk-category.ts)과 인증·세션 모듈(session, auth-routes, chzzk-auth)은 100% 커버리지를 강제한다.
-// src/lib/games/** 에 포함되는 D1 전환 모듈: rows, repo, admin, diff, patch, youtube-meta, seed, api.
-// 어워즈 대진·진행·결과·검증(src/lib/awards/**)도 100%다. 페이지 전환 lib(hero-morph, page-transition)도 100%다. PR3에서 서버가 같은 함수로 결과 제출을 검증한다.
-// test-d1.ts는 테스트 전용 D1 대역(node:sqlite)이라 제외한다(자체 동작은 test-d1.test.ts로 확인).
+// thresholds 키가 100% 강제 대상의 정본이다. test-d1.ts는 테스트 전용 D1 대역(node:sqlite)이라 제외한다(자체 동작은 test-d1.test.ts로 확인).
+const FULL = { lines: 100, branches: 100, functions: 100, statements: 100 };
+
 export default defineConfig({
   test: {
     include: ["src/**/*.test.ts"],
@@ -14,17 +13,17 @@ export default defineConfig({
       exclude: ["src/lib/**/*.test.ts", "src/lib/**/types.ts", "src/lib/games/test-d1.ts"],
       reporter: ["text", "json-summary"],
       thresholds: {
-        "src/lib/games/**": { lines: 100, branches: 100, functions: 100, statements: 100 },
-        "src/lib/awards/**": { lines: 100, branches: 100, functions: 100, statements: 100 },
-        "src/lib/chzzk-category.ts": { lines: 100, branches: 100, functions: 100, statements: 100 },
-        "src/lib/session.ts": { lines: 100, branches: 100, functions: 100, statements: 100 },
-        "src/lib/auth-routes.ts": { lines: 100, branches: 100, functions: 100, statements: 100 },
-        "src/lib/chzzk-auth.ts": { lines: 100, branches: 100, functions: 100, statements: 100 },
+        "src/lib/games/**": FULL,
+        "src/lib/awards/**": FULL,
+        "src/lib/chzzk-category.ts": FULL,
+        "src/lib/session.ts": FULL,
+        "src/lib/auth-routes.ts": FULL,
+        "src/lib/chzzk-auth.ts": FULL,
         // 페이지 전환(홈 ↔ 소개 캐릭터 이동, 순차 등장 레이어). 연출 순서·계산은 컴포넌트가 아니라 여기서 검증한다
-        "src/lib/hero-morph.ts": { lines: 100, branches: 100, functions: 100, statements: 100 },
-        "src/lib/page-transition.ts": { lines: 100, branches: 100, functions: 100, statements: 100 },
+        "src/lib/hero-morph.ts": FULL,
+        "src/lib/page-transition.ts": FULL,
         // CSS Module keyframe 검사(모든 *.module.css를 css-keyframes.test.ts가 훑는다)
-        "src/lib/css-keyframes.ts": { lines: 100, branches: 100, functions: 100, statements: 100 },
+        "src/lib/css-keyframes.ts": FULL,
       },
     },
   },
