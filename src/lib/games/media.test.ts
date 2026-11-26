@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   fieldPhoto,
-  firstYoutubeVod,
+  lastYoutubeVod,
   highlightVod,
   namedYoutubeVod,
   normalizeForMatch,
@@ -28,18 +28,18 @@ describe("youtubeThumbnailUrl", () => {
   });
 });
 
-describe("firstYoutubeVod", () => {
+describe("lastYoutubeVod", () => {
   it("다시보기가 없으면 null", () => {
-    expect(firstYoutubeVod(g([]))).toBeNull();
+    expect(lastYoutubeVod(g([]))).toBeNull();
   });
 
-  it("유튜브가 아닌 주소는 건너뛰고 첫 유튜브 영상과 ID를 돌려준다(제목은 보지 않는다)", () => {
-    const v = vod("bbbbbbbbbbb", "2026-11-02", "다른 게임 했어요");
-    expect(firstYoutubeVod(g([bad, v, vod("ccccccccccc", "2026-11-03")]))).toEqual({ vod: v, videoId: "bbbbbbbbbbb" });
+  it("유튜브가 아닌 주소는 건너뛰고 마지막 유튜브 영상과 ID를 돌려준다(제목은 보지 않는다)", () => {
+    const v = vod("ccccccccccc", "2026-11-03", "다른 게임 했어요");
+    expect(lastYoutubeVod(g([vod("bbbbbbbbbbb", "2026-11-02"), v, bad]))).toEqual({ vod: v, videoId: "ccccccccccc" });
   });
 
   it("유튜브 주소가 하나도 없으면 null", () => {
-    expect(firstYoutubeVod(g([bad]))).toBeNull();
+    expect(lastYoutubeVod(g([bad]))).toBeNull();
   });
 });
 
@@ -184,6 +184,12 @@ describe("namedYoutubeVod", () => {
 
   it("이름을 담은 영상이 없으면 null", () => {
     expect(namedYoutubeVod(g([vod("fffffffffff", "2026-11-01", "리그 오브 레전드 했어요")]))).toBeNull();
+  });
+
+  it("latest면 이름만 담은 가장 늦은 영상(뒤의 여러 게임 방송은 건너뛴다)", () => {
+    const mid = vod("kkkkkkkkkkk", "2026-11-03", "이름 2일차");
+    const game = g([vod("jjjjjjjjjjj", "2026-11-01", "이름 1일차"), mid, vod("lllllllllll", "2026-11-05", "이름 하고 리그 오브 레전드 했어요"), bad]);
+    expect(namedYoutubeVod(game, { latest: true })).toEqual({ vod: mid, videoId: "kkkkkkkkkkk" });
   });
 });
 

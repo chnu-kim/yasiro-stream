@@ -7,9 +7,9 @@ export function youtubeThumbnailUrl(videoId: string): string {
   return `https://i.ytimg.com/vi/${videoId}/hqdefault.jpg`;
 }
 
-/** 날짜 오름차순 vods에서 첫 유튜브 영상(= 첫 플레이 방송). 제목은 보지 않는다. 유튜브 주소가 없으면 null */
-export function firstYoutubeVod(game: Pick<Game, "vods">): { vod: Vod; videoId: string } | null {
-  for (const vod of game.vods) {
+/** 날짜 오름차순 vods에서 마지막 유튜브 영상(= 가장 최근 방송). 제목은 보지 않는다. 유튜브 주소가 없으면 null */
+export function lastYoutubeVod(game: Pick<Game, "vods">): { vod: Vod; videoId: string } | null {
+  for (const vod of [...game.vods].reverse()) {
     const videoId = youtubeVideoId(vod.url);
     if (videoId !== null) return { vod, videoId };
   }
@@ -112,12 +112,13 @@ export function titleNamesOnlyGame(title: string, game: Pick<Game, "name" | "ori
 
 /**
  * 제목이 이 게임 하나만 가리키는(titleNamesOnlyGame) 가장 이른 유튜브 다시보기. 포스터 유무는 보지 않는다. 없으면 null.
- * 앞 영상이 여러 게임 방송이면 뒤의 단독 방송으로 넘어간다
+ * 앞 영상이 여러 게임 방송이면 뒤의 단독 방송으로 넘어간다. latest면 가장 늦은 것(홈 최근 탐험: 가장 최근 방송 장면)
  */
 export function namedYoutubeVod(
   game: Pick<Game, "vods" | "name" | "originalTitle">,
+  { latest = false }: { latest?: boolean } = {},
 ): { vod: Vod; videoId: string } | null {
-  for (const vod of game.vods) {
+  for (const vod of latest ? [...game.vods].reverse() : game.vods) {
     const videoId = youtubeVideoId(vod.url);
     if (videoId !== null && titleNamesOnlyGame(vod.title, game)) return { vod, videoId };
   }
