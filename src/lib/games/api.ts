@@ -9,6 +9,7 @@ import { createGame, getGame, listChanges, listGames, setHidden, updateGame } fr
 import { toGame } from "./rows.ts";
 import { CHZZK_VOD_MESSAGE, ID_PATTERN } from "./schema.ts";
 import { fetchYoutubeMeta, YoutubeMetaError } from "./youtube-meta.ts";
+import { isRecord } from "../json.ts";
 import type {
   Actor,
   ApiErrorCode,
@@ -71,10 +72,6 @@ async function guarded(deps: ApiDeps, run: () => Promise<Response>): Promise<Res
 
 type Obj = Record<string, unknown>;
 
-function isObj(v: unknown): v is Obj {
-  return typeof v === "object" && v !== null && !Array.isArray(v);
-}
-
 function onlyKeys(o: Obj, allowed: readonly string[]): boolean {
   return Object.keys(o).every((k) => allowed.includes(k));
 }
@@ -85,7 +82,7 @@ function parseVods(v: unknown): Vod[] | null {
   if (!Array.isArray(v)) return null;
   const out: Vod[] = [];
   for (const item of v) {
-    if (!isObj(item) || !onlyKeys(item, VOD_KEYS)) return null;
+    if (!isRecord(item) || !onlyKeys(item, VOD_KEYS)) return null;
     const { title, url, date, highlightStart } = item;
     if (typeof title !== "string" || typeof url !== "string" || typeof date !== "string") return null;
     const vod: Vod = { title, url, date };
@@ -103,7 +100,7 @@ const INPUT_KEYS = ["name", "originalTitle", "categoryId", "posterUrl", "firstPl
 
 /** 모양(키 집합·타입)만 본다. 값의 의미는 repo의 validateCandidate가 검사한다 */
 export function parseGameInput(body: unknown): GameInput | null {
-  if (!isObj(body) || !onlyKeys(body, INPUT_KEYS)) return null;
+  if (!isRecord(body) || !onlyKeys(body, INPUT_KEYS)) return null;
   const { name, originalTitle, categoryId, posterUrl, firstPlayed, lastPlayed, status } = body;
   if (typeof name !== "string" || typeof status !== "string") return null;
   if (firstPlayed !== null && typeof firstPlayed !== "string") return null;
@@ -126,7 +123,7 @@ export function parseGameInput(body: unknown): GameInput | null {
 const PATCH_KEYS = ["name", "originalTitle", "category", "posterUrl", "firstPlayed", "lastPlayed", "status", "vods"];
 
 export function parseGamePatch(body: unknown): GamePatch | null {
-  if (!isObj(body) || !onlyKeys(body, PATCH_KEYS)) return null;
+  if (!isRecord(body) || !onlyKeys(body, PATCH_KEYS)) return null;
   const out: GamePatch = {};
   if ("name" in body) {
     if (typeof body.name !== "string") return null;
@@ -141,7 +138,7 @@ export function parseGamePatch(body: unknown): GamePatch | null {
     if (c === null) {
       out.category = null;
     } else {
-      if (!isObj(c) || !onlyKeys(c, ["categoryId", "posterUrl"])) return null;
+      if (!isRecord(c) || !onlyKeys(c, ["categoryId", "posterUrl"])) return null;
       if (typeof c.categoryId !== "string") return null;
       if (c.posterUrl !== null && typeof c.posterUrl !== "string") return null;
       out.category = { categoryId: c.categoryId, posterUrl: c.posterUrl };
@@ -273,7 +270,7 @@ export async function loadGamesPageData(deps: ApiDeps, cookieHeader: string | nu
 /** POST /api/games  { input } */
 export function handleCreateGame(req: Request, deps: ApiDeps): Promise<Response> {
   return writeHandler(req, deps, async (actor, body) => {
-    if (!isObj(body) || !onlyKeys(body, ["input"])) return badRequest();
+    if (!isRecord(body) || !onlyKeys(body, ["input"])) return badRequest();
     const input = parseGameInput(body.input);
     if (input === null) return badRequest();
     return writeResponse(await createGame(deps.db, input, writeContext(actor, deps)), 201);
@@ -283,7 +280,7 @@ export function handleCreateGame(req: Request, deps: ApiDeps): Promise<Response>
 /** PATCH /api/games/[id]  { expectedVersion, patch } */
 export function handleUpdateGame(req: Request, deps: ApiDeps, rawId: string): Promise<Response> {
   return writeHandler(req, deps, async (actor, body) => {
-    if (!isObj(body) || !onlyKeys(body, ["expectedVersion", "patch"])) return badRequest();
+    if (!isRecord(body) || !onlyKeys(body, ["expectedVersion", "patch"])) return badRequest();
     const { expectedVersion } = body;
     const patch = parseGamePatch(body.patch);
     if (!Number.isSafeInteger(expectedVersion) || (expectedVersion as number) < 1 || patch === null) return badRequest();
@@ -296,7 +293,7 @@ export function handleUpdateGame(req: Request, deps: ApiDeps, rawId: string): Pr
 /** POST /api/games/[id]/hidden  { hidden } */
 export function handleSetHidden(req: Request, deps: ApiDeps, rawId: string): Promise<Response> {
   return writeHandler(req, deps, async (actor, body) => {
-    if (!isObj(body) || !onlyKeys(body, ["hidden"]) || typeof body.hidden !== "boolean") return badRequest();
+    if (!isRecord(body) || !onlyKeys(body, ["hidden"]) || typeof body.hidden !== "boolean") return badRequest();
     const id = decodeId(rawId);
     if (id === null) return notFound();
     return writeResponse(await setHidden(deps.db, id, body.hidden, writeContext(actor, deps)), 200);

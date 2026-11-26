@@ -3,6 +3,7 @@
 import { DIVISIONS } from "./entries.ts";
 import { SIZE_LADDER } from "./options.ts";
 import { isValidBracket } from "./verify.ts";
+import { isRecord } from "../json.ts";
 import type { Bracket, Division } from "./types.ts";
 
 export const TOKEN_VERSION = "v1";
@@ -66,13 +67,9 @@ export async function signDraw(key: CryptoKey, claims: DrawClaims): Promise<stri
   return token;
 }
 
-function isPlainObject(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null && !Array.isArray(value);
-}
-
 /** 서명이 맞은 payload의 모양 검사. 틀리면 null */
 function toClaims(value: unknown): DrawClaims | null {
-  if (!isPlainObject(value)) return null;
+  if (!isRecord(value)) return null;
   const keys = Object.keys(value).sort();
   if (keys.length !== PAYLOAD_KEYS.length || keys.some((k, i) => k !== PAYLOAD_KEYS[i])) return null;
   const { v, id, d, b, t, iat, exp } = value;

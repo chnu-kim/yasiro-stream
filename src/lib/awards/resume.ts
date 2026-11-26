@@ -2,10 +2,10 @@
 // 순수 함수만. localStorage 읽고 쓰기는 src/app/awards/AwardsApp.tsx가 맡는다.
 // 대진 자체가 '시드'다: bracket·thirdPlace는 token payload와 같아야 하고, 진행은 picks를 replay해 다시 계산한다.
 // 서명은 서버만 확인할 수 있으니 여기서는 만료·대진 일치·picks 유효성만 본다(조작돼도 제출 때 서버가 거부한다).
-import { DIVISIONS } from "./entries.ts";
 import { peekDrawClaims } from "./token.ts";
 import { isComplete, replay } from "./tournament.ts";
-import { isValidBracket } from "./verify.ts";
+import { isRecord } from "../json.ts";
+import { isRunShape } from "./verify.ts";
 import type { TournamentState } from "./types.ts";
 
 export const SAVED_RUN_KEY = "yasiro-awards-run";
@@ -19,21 +19,6 @@ export interface RestoredRun {
 
 export function serializeRun(run: TournamentState, token: string): string {
   return JSON.stringify({ v: 1, token, run });
-}
-
-const isRecord = (v: unknown): v is Record<string, unknown> => typeof v === "object" && v !== null && !Array.isArray(v);
-
-function isRunShape(v: unknown): v is TournamentState {
-  return (
-    isRecord(v) &&
-    v.v === 1 &&
-    typeof v.division === "string" &&
-    (DIVISIONS as readonly string[]).includes(v.division) &&
-    typeof v.thirdPlace === "boolean" &&
-    Array.isArray(v.picks) &&
-    v.picks.every((p) => typeof p === "string") &&
-    isValidBracket(v.bracket)
-  );
 }
 
 /**
