@@ -1,4 +1,5 @@
 import { ID_PATTERN, isPosterUrl } from "./games/schema.ts";
+import { isRecord } from "./json.ts";
 import type { ChzzkCategory, ChzzkCategoryConfig, FetchLike } from "./games/types.ts";
 
 export const CHZZK_OPEN_API = "https://openapi.chzzk.naver.com";
@@ -135,10 +136,6 @@ export async function searchCategories(
     });
   });
   return games;
-}
-
-function isRecord(v: unknown): v is Record<string, unknown> {
-  return typeof v === "object" && v !== null && !Array.isArray(v);
 }
 
 function isFilled(v: unknown): v is string {

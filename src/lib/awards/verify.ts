@@ -1,6 +1,7 @@
 // 서버 제출 검증(api.ts handleSubmit): 신뢰할 수 없는 입력(클라이언트가 보낸 JSON)을 검증하고 완료된 대진의 결과를 계산한다.
 // 부전승 위치가 byeMatches와 같은지, 대진이 서버가 뽑은 것인지는 보지 않는다(대진 출처는 token.ts 서명이 보증한다).
 import { DIVISIONS } from "./entries.ts";
+import { isRecord } from "../json.ts";
 import { thirdPlaceAvailable } from "./options.ts";
 import { entrantCount, placements, replay, tally } from "./tournament.ts";
 import type { Bracket, Division, TournamentState, VerifyResult } from "./types.ts";
@@ -38,6 +39,20 @@ export function isValidBracket(value: unknown): value is Bracket {
     seen.add(s);
   }
   return nulls < size / 2;
+}
+
+/** 대진 상태의 모양만(최상위는 느슨한 객체 판별). picks는 문자열 배열이기만 하면 된다(길이·내용은 replay가 검증한다) */
+export function isRunShape(v: unknown): v is TournamentState {
+  return (
+    isRecord(v) &&
+    v.v === 1 &&
+    typeof v.division === "string" &&
+    (DIVISIONS as readonly string[]).includes(v.division) &&
+    typeof v.thirdPlace === "boolean" &&
+    Array.isArray(v.picks) &&
+    v.picks.every((p) => typeof p === "string") &&
+    isValidBracket(v.bracket)
+  );
 }
 
 /** 신뢰할 수 없는 입력(JSON)을 검증하고 완료된 대진의 결과를 계산한다.

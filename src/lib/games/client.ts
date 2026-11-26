@@ -2,6 +2,7 @@
 import { gameToForm, issuesToFormIssues } from "./patch.ts";
 import { conflictMessage } from "./diff.ts";
 import { formatDate } from "./query.ts";
+import { isRecord as isObj } from "../json.ts";
 import type { FormIssue, GameForm, GameRecord, ValidationIssue } from "./types.ts";
 
 /** 받침이 있다고 읽는 숫자(영·일·삼·육·칠·팔) */
@@ -66,10 +67,6 @@ export type WriteFailure =
   | { kind: "invalid"; message: string; issues: FormIssue[] }
   | { kind: "missing"; message: string }
   | { kind: "other"; message: string };
-
-function isObj(v: unknown): v is Record<string, unknown> {
-  return typeof v === "object" && v !== null && !Array.isArray(v);
-}
 
 /** 오류 응답 본문의 error.message. 없으면 fallback */
 export function errorMessage(body: unknown, fallback: string): string {

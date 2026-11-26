@@ -1,37 +1,22 @@
 // /api/awards 응답 해석과 화면 문구(클라이언트). 순수 함수만. fetch는 src/app/awards/awardsApi.ts가 맡는다.
-import { DIVISIONS } from "./entries.ts";
 import { SUBMIT_LIMIT_PER_DAY } from "./limit.ts";
 import { MIN_DECIDED_MATCHES, type TallyRow } from "./rankings.ts";
 import { DRAW_TTL_SECONDS } from "./token.ts";
-import { isValidBracket } from "./verify.ts";
+import { isRecord } from "../json.ts";
+import { isRunShape } from "./verify.ts";
 import type { TournamentState } from "./types.ts";
-
-const isRecord = (v: unknown): v is Record<string, unknown> => typeof v === "object" && v !== null && !Array.isArray(v);
 
 // ---------- 대진 뽑기 ----------
 
 export type DrawFailure = "network" | "login" | "forbidden" | "unconfigured" | "size" | "stale" | "unknown";
 export type DrawOutcome = { ok: true; run: TournamentState; token: string } | { ok: false; reason: DrawFailure };
 
-function isRunShape(v: unknown): v is TournamentState {
-  return (
-    isRecord(v) &&
-    v.v === 1 &&
-    typeof v.division === "string" &&
-    (DIVISIONS as readonly string[]).includes(v.division) &&
-    typeof v.thirdPlace === "boolean" &&
-    Array.isArray(v.picks) &&
-    v.picks.length === 0 &&
-    isValidBracket(v.bracket)
-  );
-}
-
 /** status 0 = 네트워크. 200이어도 run·token 모양이 틀리면 unknown.
  *  대진의 게임 중 knownIds(이 화면이 가진 entries)에 없는 것이 있으면 stale(대결 화면이 이름을 못 찾아 깨지는 것을 막는다) */
 export function classifyDraw(status: number, body: unknown, knownIds: ReadonlySet<string>): DrawOutcome {
   if (status === 0) return { ok: false, reason: "network" };
   if (status === 200) {
-    if (!isRecord(body) || typeof body.token !== "string" || !isRunShape(body.run)) return { ok: false, reason: "unknown" };
+    if (!isRecord(body) || typeof body.token !== "string" || !isRunShape(body.run) || body.run.picks.length !== 0) return { ok: false, reason: "unknown" };
     const run = body.run;
     if (run.bracket.slots.some((id) => id !== null && !knownIds.has(id))) return { ok: false, reason: "stale" };
     return { ok: true, run, token: body.token };

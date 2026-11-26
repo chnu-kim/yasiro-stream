@@ -3,6 +3,7 @@ import { diffGames, FIELD_LABEL, FIELD_ORDER } from "./diff.ts";
 import { formatDate } from "./query.ts";
 import { CHZZK_VOD_MESSAGE, GAME_STATUSES, isChzzkPosterUrl, isChzzkUrl, isValidIsoDate, validateCandidate } from "./schema.ts";
 import { formatTimecode, parseTimecode } from "./timecode.ts";
+import { isRecord } from "../json.ts";
 import type {
   CategoryLink,
   Game,
@@ -298,13 +299,9 @@ function isStr(v: unknown): v is string {
   return typeof v === "string";
 }
 
-function isObj(v: unknown): v is Record<string, unknown> {
-  return typeof v === "object" && v !== null && !Array.isArray(v);
-}
-
 function parseCategory(v: unknown): CategoryLink | null | undefined {
   if (v === null) return null;
-  if (!isObj(v) || !isStr(v.categoryId) || !(v.posterUrl === null || isStr(v.posterUrl))) return undefined;
+  if (!isRecord(v) || !isStr(v.categoryId) || !(v.posterUrl === null || isStr(v.posterUrl))) return undefined;
   return { categoryId: v.categoryId, posterUrl: v.posterUrl };
 }
 
@@ -312,7 +309,7 @@ function parseVods(v: unknown): FormVod[] | null {
   if (!Array.isArray(v)) return null;
   const out: FormVod[] = [];
   for (const x of v) {
-    if (!isObj(x) || !isStr(x.title) || !isStr(x.url) || !isStr(x.date)) return null;
+    if (!isRecord(x) || !isStr(x.title) || !isStr(x.url) || !isStr(x.date)) return null;
     // highlight가 없는 옛 초안(PR2 이전)은 ""로 채운다
     if (!(x.highlight === undefined || isStr(x.highlight))) return null;
     out.push({ title: x.title, url: x.url, date: x.date, highlight: x.highlight ?? "" });
@@ -328,7 +325,7 @@ export function parseDraft(raw: string | null): GameDraftStore | null {
   } catch {
     return null;
   }
-  if (!isObj(v) || !isObj(v.form)) return null;
+  if (!isRecord(v) || !isRecord(v.form)) return null;
   const f = v.form;
   const category = parseCategory(f.category);
   const vods = parseVods(f.vods);

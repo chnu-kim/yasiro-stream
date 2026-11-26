@@ -1,4 +1,5 @@
 import { sortVods } from "./rows.ts";
+import { isRecord } from "../json.ts";
 import type { Game, GameStatus, ValidationIssue, ValidationResult, Vod } from "./types.ts";
 
 export const ID_PATTERN = /^[\p{Ll}\p{Lo}\p{Nd}]+(?:-[\p{Ll}\p{Lo}\p{Nd}]+)*$/u;
@@ -62,10 +63,6 @@ const VOD_KEYS = new Set(["title", "url", "date", "highlightStart"]);
 export const GAME_STATUSES: readonly GameStatus[] = ["clear", "fail", "endless", "unknown"];
 const STATUSES: readonly string[] = GAME_STATUSES;
 
-function isPlainObject(v: unknown): v is Record<string, unknown> {
-  return typeof v === "object" && v !== null && !Array.isArray(v);
-}
-
 /** trim한 값이 1~max자면 그 값, 아니면 null. max를 생략하면 비어 있지 않기만 하면 된다 */
 function trimmedString(v: unknown, max: number = Number.POSITIVE_INFINITY): string | null {
   if (typeof v !== "string") return null;
@@ -108,7 +105,7 @@ function posterHost(v: unknown): string | null {
 
 function validateGame(raw: unknown, i: number, issues: ValidationIssue[]): Game | null {
   const at = `[${i}]`;
-  if (!isPlainObject(raw)) {
+  if (!isRecord(raw)) {
     issues.push({ path: at, message: "객체여야 합니다" });
     return null;
   }
@@ -166,7 +163,7 @@ function validateGame(raw: unknown, i: number, issues: ValidationIssue[]): Game 
     const seenVideos = new Map<string, number>();
     raw.vods.forEach((rv: unknown, j: number) => {
       const vat = `vods[${j}]`;
-      if (!isPlainObject(rv)) {
+      if (!isRecord(rv)) {
         add(vat, "객체여야 합니다");
         return;
       }
@@ -215,7 +212,7 @@ export function validateGames(input: unknown): ValidationResult {
   input.forEach((raw: unknown, i: number) => {
     const g = validateGame(raw, i, issues);
     if (g) games.push(g);
-    if (!isPlainObject(raw)) return;
+    if (!isRecord(raw)) return;
     const dup = (seen: Map<string, number>, key: unknown, field: string) => {
       if (typeof key !== "string" || key === "") return;
       const first = seen.get(key);

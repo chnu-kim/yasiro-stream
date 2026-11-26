@@ -8,6 +8,7 @@ import { copyVod } from "./rows.ts";
 import { isChzzkPosterUrl, youtubeVideoId } from "./schema.ts";
 import { sqlValue } from "./seed.ts";
 import { formatTimecode, parseTimecode } from "./timecode.ts";
+import { isRecord } from "../json.ts";
 import type { Actor, GameInput, GamePatch, GamesDb, GamesDbStatement, Vod, WriteContext, WriteResult } from "./types.ts";
 
 export type GameOp =
@@ -90,10 +91,6 @@ export function opsActor(raw: string | undefined): Actor {
 
 const OPS = new Set(["add", "update", "move-vods", "hide", "unhide", "highlight"]);
 
-function isObject(v: unknown): v is Record<string, unknown> {
-  return typeof v === "object" && v !== null && !Array.isArray(v);
-}
-
 function nonEmpty(v: unknown): v is string {
   return typeof v === "string" && v !== "";
 }
@@ -103,9 +100,9 @@ function isStringArray(v: unknown): boolean {
 }
 
 function opError(o: unknown): string | null {
-  if (!isObject(o)) return "객체가 아니에요.";
+  if (!isRecord(o)) return "객체가 아니에요.";
   if (!OPS.has(o.op as string)) return `알 수 없는 op '${String(o.op)}'`;
-  if (o.op === "add") return isObject(o.input) ? null : "input이 필요해요.";
+  if (o.op === "add") return isRecord(o.input) ? null : "input이 필요해요.";
   if (o.op === "move-vods") {
     if (!nonEmpty(o.from) || !nonEmpty(o.to)) return "from·to가 필요해요.";
     if (o.from === o.to) return "from과 to가 같아요.";
@@ -116,7 +113,7 @@ function opError(o: unknown): string | null {
     return null;
   }
   if (!nonEmpty(o.id)) return "id가 필요해요.";
-  if (o.op === "update" && !isObject(o.patch)) return "patch가 필요해요.";
+  if (o.op === "update" && !isRecord(o.patch)) return "patch가 필요해요.";
   if (o.op === "highlight") {
     if (!nonEmpty(o.url)) return "url이 필요해요.";
     if (!(o.start === null || typeof o.start === "string" || typeof o.start === "number")) return 'start는 "1:23:45" 같은 시각·초·null이어야 해요.';
