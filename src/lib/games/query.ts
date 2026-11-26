@@ -1,3 +1,4 @@
+import { lastPlayedOf } from "./played.ts";
 import { compareCanonical, compareName, GAME_STATUSES, ID_PATTERN } from "./schema.ts";
 import type {
   IndexedGame,
@@ -72,7 +73,7 @@ export function filterGames<T extends Game>(
 
 /** UI 노출 순서 그대로 */
 export const STATUS_FILTERS: readonly StatusFilter[] = ["all", ...GAME_STATUSES];
-export const SORT_KEYS: readonly SortKey[] = ["recent", "old", "name"];
+export const SORT_KEYS: readonly SortKey[] = ["recent", "played", "old", "name"];
 export const VIEW_KEYS: readonly ViewKey[] = ["grid", "diary"];
 
 type Year = `${number}`;
@@ -97,7 +98,7 @@ export function parseYearFilter(v: string | undefined): YearFilter {
   return v !== undefined && isYear(v) ? v : "all";
 }
 
-/** "recent" | "old" | "name". 나머지는 "recent" */
+/** "recent" | "played" | "old" | "name". 나머지는 "recent" */
 export function parseSortKey(v: string | undefined): SortKey {
   return SORT_KEYS.find((k) => k === v) ?? "recent";
 }
@@ -192,9 +193,31 @@ function compareOld(a: Game, b: Game): number {
   return a.firstPlayed < b.firstPlayed ? -1 : 1;
 }
 
+/** 그 정렬에서 기준이 되는 날짜. 최근 플레이순은 마지막 플레이(없으면 첫 플레이), 나머지는 첫 플레이.
+ *  연도 챕터·일지 월 묶음·카드와 일지 줄의 날짜가 모두 이 값을 쓴다(정렬과 묶음 축이 어긋나면 같은 연도 챕터가 여러 번 생긴다) */
+export function sortDate(game: Game, sort: SortKey): string | null {
+  return sort === "played" ? lastPlayedOf(game) : game.firstPlayed;
+}
+
+/** 마지막 플레이 최신순. 같으면 첫 플레이 최신순(compareCanonical), 날짜가 없으면 맨 뒤 */
+function comparePlayed(a: Game, b: Game): number {
+  const x = lastPlayedOf(a);
+  const y = lastPlayedOf(b);
+  if (x === y) return compareCanonical(a, b);
+  if (x === null) return 1;
+  if (y === null) return -1;
+  return x > y ? -1 : 1;
+}
+
+const COMPARE: Readonly<Record<SortKey, (a: Game, b: Game) => number>> = {
+  recent: compareCanonical,
+  played: comparePlayed,
+  old: compareOld,
+  name: compareName,
+};
+
 export function sortGames<T extends Game>(games: readonly T[], sort: SortKey): T[] {
-  const compare =
-    sort === "recent" ? compareCanonical : sort === "old" ? compareOld : compareName;
+  const compare = COMPARE[sort];
   return [...games].sort(compare);
 }
 

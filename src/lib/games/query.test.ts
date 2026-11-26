@@ -10,6 +10,7 @@ import {
   indexGames,
   indexWithHidden,
   selectGames,
+  sortDate,
   sortGames,
   statusCounts,
   parseDetailId,
@@ -361,9 +362,30 @@ describe("sortGames", () => {
     expect(ids(sortGames(tie, "old"))).toEqual(["b", "a"]);
     expect(ids(sortGames(tie, "name"))).toEqual(["b", "a"]);
   });
+  it("played: 마지막 플레이 최신순(없으면 첫 플레이), 같으면 첫 플레이 최신순, 날짜 없음은 맨 뒤", () => {
+    const list: Game[] = [
+      g("new", "새 게임", "2026-11-20", "clear"),
+      { ...g("old-back", "옛 게임", "2024-06-21", "fail"), lastPlayed: "2026-11-23" },
+      { ...g("lol", "롤", "2025-12-17", "endless"), lastPlayed: "2026-11-20" },
+      g("mid", "중간", "2025-05-01", "clear"),
+      { ...g("lp-only", "마지막만", null, "unknown"), lastPlayed: "2025-07-01" },
+      g("none", "날짜 없음", null, "unknown"),
+    ];
+    expect(ids(sortGames(list, "played"))).toEqual(["old-back", "new", "lol", "lp-only", "mid", "none"]);
+    expect(ids(sortGames([...list].reverse(), "played"))).toEqual(["old-back", "new", "lol", "lp-only", "mid", "none"]);
+  });
+  it("sortDate: played면 마지막 플레이(없으면 첫 플레이), 나머지는 첫 플레이", () => {
+    const back = { ...g("x", "x", "2024-06-21", "fail"), lastPlayed: "2026-11-23" };
+    expect(sortDate(back, "played")).toBe("2026-11-23");
+    expect(sortDate(back, "recent")).toBe("2024-06-21");
+    expect(sortDate(back, "old")).toBe("2024-06-21");
+    expect(sortDate(back, "name")).toBe("2024-06-21");
+    expect(sortDate(g("y", "y", "2025-01-01", "clear"), "played")).toBe("2025-01-01");
+    expect(sortDate(g("z", "z", null, "clear"), "played")).toBeNull();
+  });
   it("날짜와 이름이 같으면 id 순", () => {
     const tie = ["m", "z", "a", "q"].map((id) => g(id, "같음", "2025-01-01", "clear"));
-    for (const key of ["recent", "old", "name"] as const) {
+    for (const key of ["recent", "old", "name", "played"] as const) {
       expect(ids(sortGames(tie, key))).toEqual(["a", "m", "q", "z"]);
       expect(ids(sortGames([...tie].reverse(), key))).toEqual(["a", "m", "q", "z"]);
     }
@@ -496,7 +518,7 @@ describe("normalizeQ", () => {
 describe("STATUS_FILTERS / SORT_KEYS", () => {
   it("UI 노출 순서 그대로", () => {
     expect(STATUS_FILTERS).toEqual(["all", "clear", "fail", "endless", "unknown"]);
-    expect(SORT_KEYS).toEqual(["recent", "old", "name"]);
+    expect(SORT_KEYS).toEqual(["recent", "played", "old", "name"]);
   });
 });
 
@@ -510,6 +532,7 @@ describe("parseYearFilter / parseSortKey", () => {
   it("sort: recent|old|name, 나머지는 recent", () => {
     expect(parseSortKey("old")).toBe("old");
     expect(parseSortKey("name")).toBe("name");
+    expect(parseSortKey("played")).toBe("played");
     for (const v of [undefined, "", "RECENT", "newest"]) expect(parseSortKey(v), String(v)).toBe("recent");
   });
 });

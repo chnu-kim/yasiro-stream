@@ -42,7 +42,7 @@ export interface Game {
   /** 첫 플레이 날짜 YYYY-MM-DD. null = 날짜 기록 없음 */
   firstPlayed: string | null;
   /** 마지막 플레이 YYYY-MM-DD(≥ firstPlayed, 0014). 정본이다(다시보기 날짜는 보지 않는다, #60). 없으면 키를 두지 않는다(null 금지).
-   *  없으면 첫 플레이로 대신한다(played.ts lastPlayedOf). 방문자에게 보내지 않는다(rows.ts toPublicGame) */
+   *  없으면 첫 플레이로 대신한다(played.ts lastPlayedOf). /games 방문자에게도 보낸다(최근 플레이순 정렬). 홈·/awards에는 싣지 않는다 */
   lastPlayed?: string;
   status: GameStatus;
   /** 날짜 오름차순(serializeGames가 정렬). 빈 배열 가능 */
@@ -54,7 +54,7 @@ export interface Game {
 export type StatusFilter = "all" | GameStatus;
 /** "all" | "YYYY" | "none"(날짜 기록 없음) */
 export type YearFilter = "all" | "none" | `${number}`;
-export type SortKey = "recent" | "old" | "name";
+export type SortKey = "recent" | "old" | "name" | "played";
 /** 표지 격자(grid) 또는 날짜순 일지(diary) */
 export type ViewKey = "grid" | "diary";
 

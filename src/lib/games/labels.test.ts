@@ -2,6 +2,8 @@ import { describe, expect, it } from "vitest";
 import {
   describeConditions,
   hasActiveFilter,
+  chapterAxisLabel,
+  lastPlayedFact,
   hasFilterSelection,
   resultSummary,
   SORT_LABEL,
@@ -36,7 +38,24 @@ describe("라벨 상수", () => {
       recent: "첫 플레이 최신순",
       old: "첫 플레이 오래된순",
       name: "이름순",
+      played: "최근 플레이순",
     });
+  });
+  it("연도 목차·챕터의 기준 날짜 이름", () => {
+    expect(chapterAxisLabel("recent")).toBe("첫 플레이 연도");
+    expect(chapterAxisLabel("old")).toBe("첫 플레이 연도");
+    expect(chapterAxisLabel("name")).toBe("첫 플레이 연도");
+    expect(chapterAxisLabel("played")).toBe("마지막 플레이 연도");
+  });
+});
+
+describe("lastPlayedFact", () => {
+  it("첫 플레이와 다를 때만 마지막 플레이 날짜", () => {
+    expect(lastPlayedFact({ firstPlayed: "2024-06-21", lastPlayed: "2026-11-23" })).toBe("2026.11.23");
+    expect(lastPlayedFact({ firstPlayed: null, lastPlayed: "2026-11-23" })).toBe("2026.11.23");
+    expect(lastPlayedFact({ firstPlayed: "2026-11-23", lastPlayed: "2026-11-23" })).toBeNull();
+    expect(lastPlayedFact({ firstPlayed: "2026-11-23" })).toBeNull();
+    expect(lastPlayedFact({ firstPlayed: null })).toBeNull();
   });
 });
 

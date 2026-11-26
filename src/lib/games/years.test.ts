@@ -50,6 +50,23 @@ describe("yearChapters", () => {
     expect(chapters[1].items.map((i) => i.id)).toEqual(["e25", "d25", "c25"]);
   });
 
+  it("최근 플레이순: 마지막 플레이 연도로 묶는다(다시 한 옛 게임은 그 해로)", () => {
+    const source: Game[] = [
+      g("new", "2026-10-01", "clear"),
+      { ...g("back", "2024-06-21", "fail"), lastPlayed: "2026-11-23" },
+      { ...g("spans", "2025-03-01", "clear"), lastPlayed: "2025-12-01" },
+      g("old", "2024-01-01", "clear"),
+      g("n", null, "unknown"),
+    ];
+    const chapters = run(st({ sort: "played" }), source)!;
+    expect(chapters.map((c) => [c.key, c.items.map((x) => x.id)])).toEqual([
+      ["2026", ["back", "new"]],
+      ["2025", ["spans"]],
+      ["2024", ["old"]],
+      ["none", ["n"]],
+    ]);
+  });
+
   it("정복 0인 연도도 0으로 적는다", () => {
     expect(run(st({}))![2].countText).toBe("1개 · 정복 0");
   });
@@ -113,6 +130,20 @@ describe("diaryMonths", () => {
     const none = diaryMonths(items).at(-1)!;
     expect(none).toMatchObject({ kind: "none", month: null, year: null, label: "날짜 기록 없음" });
     expect(none.rows).toEqual([{ game: items[5], day: null }]);
+  });
+
+  it("최근 플레이순이면 마지막 플레이 날짜로 묶고 같은 날을 접는다", () => {
+    const list: Game[] = [
+      { ...g("back", "2024-06-21", "fail"), lastPlayed: "2026-11-23" },
+      { ...g("lol", "2025-12-17", "endless"), lastPlayed: "2026-11-23" },
+      g("new", "2026-10-02", "clear"),
+    ];
+    const months = diaryMonths(list, "played");
+    expect(months.map((m) => [m.key, m.rows.map((r) => [r.game.id, r.day])])).toEqual([
+      ["2026-11", [["back", "23"], ["lol", null]]],
+      ["2026-10", [["new", "02"]]],
+    ]);
+    expect(diaryMonths(list).map((m) => m.key)).toEqual(["2024-06", "2025-12", "2026-10"]);
   });
 
   it("빈 목록은 빈 배열", () => {

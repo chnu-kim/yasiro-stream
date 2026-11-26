@@ -1,5 +1,6 @@
 import { Eye, Pencil } from 'lucide-react';
-import { formatDate } from '@/lib/games/query';
+import { formatDate, sortDate } from '@/lib/games/query';
+import type { SortKey } from '@/lib/games/types';
 import type { BoardGame } from './boardTypes';
 import Poster from './Poster';
 import styles from './GameCard.module.css';
@@ -13,9 +14,12 @@ export default function GameCard({
   game,
   onOpen,
   admin,
+  sort,
   titleAs: Title = 'h2',
 }: {
   game: BoardGame;
+  /** 카드에 적는 날짜의 기준(sortDate): 최근 플레이순이면 마지막 플레이, 그 밖에는 첫 플레이 */
+  sort: SortKey;
   /** 연도 구분선(h2) 아래에서는 h3 */
   titleAs?: 'h2' | 'h3';
   onOpen: (game: BoardGame, trigger: HTMLButtonElement) => void;
@@ -39,11 +43,11 @@ export default function GameCard({
             {game.name}
           </button>
         </Title>
-        {/* 기록 한 줄: 탐험 번호 · 첫 플레이 · (정복 못함·끝없는 탐험). 정복은 포스터 도장이 맡고 글자는 스크린리더용 */}
+        {/* 기록 한 줄: 탐험 번호 · 기준 날짜(첫 플레이, 최근 플레이순이면 마지막 플레이) · (정복 못함·끝없는 탐험). 정복은 포스터 도장이 맡고 글자는 스크린리더용 */}
         <p className={styles.cardMeta}>
           {game.hidden && <span className={styles.hiddenChip}>숨김</span>}
           <span className={styles.no}>NO.{game.no}</span>
-          <span className={styles.date}>{formatDate(game.firstPlayed)}</span>
+          <span className={styles.date}>{formatDate(sortDate(game, sort))}</span>
           {game.status === 'fail' && <span className={styles.statusText}>정복 못함</span>}
           {game.status === 'endless' && <span className={`${styles.statusText} ${styles.isEndless}`}>끝없는 탐험</span>}
           {game.status === 'clear' && <span className={styles.srOnly}>정복</span>}
