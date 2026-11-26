@@ -2,9 +2,9 @@
 // 익명 규칙: award 테이블·응답·로그에 채널 ID·채널 이름·IP·IP 해시·토큰·drawId·picks를 넣지 않는다.
 // 로그는 "awards-api unavailable <error.name>", "awards-api secret missing", "awards-api token too large"뿐이다.
 import { getSessionActor, parseAdminIds } from "../games/admin.ts";
-import { readJsonBody } from "../games/api.ts";
 import { listGames } from "../games/repo.ts";
 import { checkSameOrigin } from "../http.ts";
+import { readJsonBody } from "../json-body.ts";
 import { DIVISIONS, toAwardEntries } from "./entries.ts";
 import { newRun } from "./flow.ts";
 import { deriveAwardKeys } from "./keys.ts";

@@ -19,6 +19,8 @@ export default defineConfig({
         "src/lib/session.ts": FULL,
         "src/lib/auth-routes.ts": FULL,
         "src/lib/chzzk-auth.ts": FULL,
+        // games·awards API가 함께 쓰는 본문 읽기(413·400 응답 모양)
+        "src/lib/json-body.ts": FULL,
         // 페이지 전환(홈 ↔ 소개 캐릭터 이동, 순차 등장 레이어). 연출 순서·계산은 컴포넌트가 아니라 여기서 검증한다
         "src/lib/hero-morph.ts": FULL,
         "src/lib/page-transition.ts": FULL,
