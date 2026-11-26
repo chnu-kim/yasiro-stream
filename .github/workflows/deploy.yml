@@ -4,9 +4,21 @@ on:
   push:
     branches: [main]
 
+# 배포가 겹치면 먼저 시작한 것부터 끝까지 간다(중간 취소 없음).
+concurrency:
+  group: deploy-production
+  cancel-in-progress: false
+
 jobs:
+  ci:
+    uses: ./.github/workflows/ci.yml
+    permissions:
+      contents: read
+
   deploy:
+    needs: ci
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     permissions:
       contents: read
       deployments: write
@@ -24,8 +36,6 @@ jobs:
           cache: pnpm
 
       - run: pnpm install --frozen-lockfile
-
-      - run: pnpm test
 
       - name: Build & Deploy
         run: pnpm run deploy

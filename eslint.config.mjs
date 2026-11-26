@@ -24,6 +24,10 @@ const eslintConfig = defineConfig([
     ".wrangler/**",
     // 하이라이트 작업 폴더(git 무시, venv 안의 남의 JS가 있다). highlight-pick 스킬 참고
     "work/**",
+    // 로컬 전용 산출물·원본 디자인 핸드오프(git 무시)
+    "_design/**",
+    "coverage/**",
+    "screenshots/**",
   ]),
 ]);
 
