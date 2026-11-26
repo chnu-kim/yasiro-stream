@@ -25,12 +25,12 @@
 }
 
 .badge b {
-  font: 600 17px 'Fredoka', sans-serif;
+  font: 600 17px var(--font-num);
   letter-spacing: 0.06em;
 }
 
 .badge span {
-  font: 500 var(--fs-xs) 'Fredoka', sans-serif;
+  font: 500 var(--fs-xs) var(--font-num);
   color: var(--text-dim);
 }
 
@@ -68,7 +68,7 @@
 }
 
 .day {
-  font: 600 22px 'Fredoka', sans-serif;
+  font: 600 22px var(--font-num);
   font-variant-numeric: tabular-nums;
 }
 
@@ -79,7 +79,7 @@
 }
 
 .no {
-  font: 600 var(--fs-xs) 'Fredoka', sans-serif;
+  font: 600 var(--fs-xs) var(--font-num);
   letter-spacing: 0.08em;
   color: var(--accent-text);
 }

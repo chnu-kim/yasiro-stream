@@ -74,7 +74,7 @@
 
 .stat dd {
   margin: 0;
-  font-family: 'Fredoka', sans-serif;
+  font-family: var(--font-num);
   font-weight: 600;
   font-size: 34px;
   line-height: 1.15;
@@ -207,7 +207,7 @@
 }
 
 .chipCount {
-  font: 600 var(--fs-xs) 'Fredoka', sans-serif;
+  font: 600 var(--fs-xs) var(--font-num);
   color: var(--text-dim);
 }
 
@@ -389,7 +389,7 @@
 }
 
 .railNo {
-  font: 600 13px 'Fredoka', sans-serif;
+  font: 600 13px var(--font-num);
   color: var(--accent-text);
 }
 
@@ -403,7 +403,7 @@
 }
 
 .railCount {
-  font: 500 13px 'Fredoka', sans-serif;
+  font: 500 13px var(--font-num);
   color: var(--text-dim);
 }
 
@@ -438,7 +438,7 @@
 
 .chapterNo {
   flex-shrink: 0;
-  font-family: 'Fredoka', sans-serif;
+  font-family: var(--font-num);
   font-size: 0.55em;
   font-weight: 600;
   color: var(--accent-text);

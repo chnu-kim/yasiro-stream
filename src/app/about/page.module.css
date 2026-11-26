@@ -71,7 +71,7 @@
 
 .chapterNo {
   flex-shrink: 0;
-  font-family: 'Fredoka', sans-serif;
+  font-family: var(--font-num);
   font-size: 0.6em;
   font-weight: 600;
   letter-spacing: 0;
@@ -110,7 +110,7 @@
 }
 
 .railNo {
-  font-family: 'Fredoka', sans-serif;
+  font-family: var(--font-num);
   font-weight: 600;
 }
 
@@ -276,7 +276,7 @@
 
 .roman {
   margin: var(--space-2) 0 var(--space-5);
-  font-family: 'Fredoka', sans-serif;
+  font-family: var(--font-num);
   font-size: 22px;
   font-weight: 600;
   letter-spacing: 0.32em;
@@ -374,7 +374,7 @@
 }
 
 .num {
-  font-family: 'Fredoka', sans-serif;
+  font-family: var(--font-num);
   font-weight: 600;
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
@@ -392,7 +392,7 @@
 .sub {
   display: block;
   margin-top: 4px;
-  font: 600 var(--fs-xs) 'Fredoka', sans-serif;
+  font: 600 var(--fs-xs) var(--font-num);
   letter-spacing: 0.12em;
   color: var(--accent-text);
 }

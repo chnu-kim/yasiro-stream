@@ -52,10 +52,10 @@ export default function ClearStamp({
       <g filter={`url(#${ink})`} fill="currentColor" stroke="currentColor">
         <circle cx="50" cy="50" r="45.5" fill="none" strokeWidth="5.4" />
         <circle cx="50" cy="50" r="39.5" fill="none" strokeWidth="1.9" />
-        <text strokeWidth="0.35" strokeLinejoin="round" style={{ fontFamily: "'Fredoka', sans-serif", fontWeight: 600, fontSize: 8.6, letterSpacing: 1.4 }}>
+        <text strokeWidth="0.35" strokeLinejoin="round" style={{ fontFamily: "var(--font-num)", fontWeight: 600, fontSize: 8.6, letterSpacing: 1.4 }}>
           <textPath href={`#${top}`} startOffset="50%" textAnchor="middle">EXPEDITION CLEAR</textPath>
         </text>
-        <text strokeWidth="0.35" strokeLinejoin="round" dominantBaseline="hanging" style={{ fontFamily: "'Fredoka', sans-serif", fontWeight: 600, fontSize: 8.6, letterSpacing: 1.2 }}>
+        <text strokeWidth="0.35" strokeLinejoin="round" dominantBaseline="hanging" style={{ fontFamily: "var(--font-num)", fontWeight: 600, fontSize: 8.6, letterSpacing: 1.2 }}>
           <textPath href={`#${bottom}`} startOffset="50%" textAnchor="middle">★ NO.{no} ★</textPath>
         </text>
         <line x1="22" y1="40" x2="78" y2="40" strokeWidth="1.6" />

@@ -124,7 +124,7 @@
 }
 
 .num {
-  font-family: 'Fredoka', sans-serif;
+  font-family: var(--font-num);
   font-weight: 600;
   font-variant-numeric: tabular-nums;
 }
@@ -209,7 +209,7 @@
   transform: translate(-50%, -50%);
   padding: 4px 8px;
   background: var(--bg);
-  font-family: 'Fredoka', sans-serif;
+  font-family: var(--font-num);
   font-weight: 600;
   font-size: var(--fs-sm);
   letter-spacing: var(--tracking-label);
@@ -603,7 +603,7 @@
 .rankNo {
   flex: none;
   width: 2ch;
-  font-family: 'Fredoka', sans-serif;
+  font-family: var(--font-num);
   font-weight: 600;
   font-variant-numeric: tabular-nums;
   text-align: right;

@@ -176,7 +176,7 @@
 
 .label {
   display: block;
-  font-family: 'Fredoka', sans-serif;
+  font-family: var(--font-num);
   font-size: var(--fs-xs);
   font-weight: 600;
   letter-spacing: var(--tracking-label);
@@ -274,7 +274,7 @@
 .meta,
 .rowNo,
 .rowDate {
-  font-family: 'Fredoka', sans-serif;
+  font-family: var(--font-num);
   font-size: 13px;
   font-weight: 500;
   font-variant-numeric: tabular-nums;
@@ -423,7 +423,7 @@
   width: 100%;
   padding-bottom: 2px;
   border-bottom: 1px solid var(--border-strong);
-  font-family: 'Fredoka', sans-serif;
+  font-family: var(--font-num);
   font-weight: 600;
   font-size: var(--fs-lg);
   line-height: 1.2;

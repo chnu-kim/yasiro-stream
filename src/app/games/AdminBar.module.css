@@ -97,7 +97,7 @@
 }
 
 .count {
-  font-family: 'Fredoka', sans-serif;
+  font-family: var(--font-num);
   color: var(--text-dim);
 }
 

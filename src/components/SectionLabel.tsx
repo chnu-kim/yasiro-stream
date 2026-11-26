@@ -18,7 +18,7 @@ export default function SectionLabel({
         alignItems: 'center',
         gap: 8,
         marginBottom: 'var(--space-3)',
-        fontFamily: "'Fredoka', sans-serif",
+        fontFamily: "var(--font-num)",
         fontSize: 'var(--fs-xs)',
         fontWeight: 600,
         letterSpacing: 'var(--tracking-label)',

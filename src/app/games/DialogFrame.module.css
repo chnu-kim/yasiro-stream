@@ -89,7 +89,7 @@
     width: 40px;
     height: 4px;
     margin-left: -20px;
-    border-radius: 999px;
+    border-radius: var(--radius-pill);
     background: var(--border-strong);
   }
 

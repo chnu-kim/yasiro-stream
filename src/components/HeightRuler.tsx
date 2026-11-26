@@ -4,7 +4,7 @@
 import type { CSSProperties } from 'react';
 
 const label: CSSProperties = {
-  fontFamily: "'Fredoka', sans-serif",
+  fontFamily: "var(--font-num)",
   fontSize: 12,
   fontWeight: 600,
   letterSpacing: '0.04em',

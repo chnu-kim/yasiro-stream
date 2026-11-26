@@ -58,7 +58,7 @@
 }
 
 .catIdValue {
-  font-family: 'Fredoka', sans-serif;
+  font-family: var(--font-num);
   font-weight: 500;
   font-size: 14px;
   color: var(--text);
@@ -104,7 +104,7 @@
   display: flex;
   align-items: center;
   gap: 8px;
-  font-family: 'Fredoka', sans-serif;
+  font-family: var(--font-num);
   font-weight: 600;
   font-size: var(--fs-xs);
   letter-spacing: var(--tracking-label);
@@ -361,7 +361,7 @@
 }
 
 .num {
-  font-family: 'Fredoka', sans-serif;
+  font-family: var(--font-num);
 }
 
 .vodList {
@@ -428,7 +428,7 @@
   background: transparent;
   border: 1px solid transparent;
   border-radius: var(--radius-sm);
-  font-family: 'Fredoka', sans-serif;
+  font-family: var(--font-num);
   font-weight: 500;
   font-size: var(--fs-sm);
   color: var(--text-dim);
@@ -648,7 +648,7 @@
 }
 
 .changedNum {
-  font-family: 'Fredoka', sans-serif;
+  font-family: var(--font-num);
   font-weight: 600;
   color: var(--text);
 }
