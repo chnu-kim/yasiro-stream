@@ -41,7 +41,6 @@
 .heroHead {
   grid-area: head;
   align-self: end;
-  animation: fadeUp var(--dur-slow) var(--ease-out) both;
 }
 
 .eyebrow {
@@ -63,7 +62,6 @@
 .heroBody {
   grid-area: body;
   padding-top: var(--space-5);
-  animation: fadeUp var(--dur-slow) var(--ease-out) 60ms both;
 }
 
 .lead {
@@ -91,7 +89,6 @@
   border-top: 1px solid var(--border);
   border-bottom: 1px solid var(--border);
   max-width: 480px;
-  animation: fadeUp var(--dur-slow) var(--ease-out) 120ms both;
 }
 
 .fact {
@@ -126,7 +123,26 @@
   margin-left: calc(var(--space-5) * -1);
   -webkit-mask-image: linear-gradient(to bottom, #000 60%, transparent 97%);
   mask-image: linear-gradient(to bottom, #000 60%, transparent 97%);
-  animation: fadeUp var(--dur-slow) var(--ease-out) 120ms both;
+}
+
+/* 첫 로드 진입. 사이트 안에서 페이지를 옮겨 들어올 때는 페이지 전환이 등장을 맡는다(components/NavigatedFlag).
+   키프레임은 이 모듈 안에 둔다. CSS Modules가 animation 이름을 해시해 globals의 fadeUp을 가리키지 못한다(그래서 전에는 재생되지 않았다) */
+@keyframes heroIn {
+  from { opacity: 0; transform: translateY(16px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+:global(html:not([data-navigated])) .heroHead {
+  animation: heroIn var(--dur-slow) var(--ease-out) both;
+}
+
+:global(html:not([data-navigated])) .heroBody {
+  animation: heroIn var(--dur-slow) var(--ease-out) 60ms both;
+}
+
+:global(html:not([data-navigated])) .facts,
+:global(html:not([data-navigated])) .figure {
+  animation: heroIn var(--dur-slow) var(--ease-out) 120ms both;
 }
 
 .char {

@@ -142,9 +142,16 @@
   padding-left: calc(var(--page-x) + 96px); /* 왼쪽에 키 눈금자와 "149.8 cm" 라벨 자리 */
 }
 
-/* 띠 아래 끝은 바탕에 스며들게 한다. sticky가 풀릴 때 수평으로 잘린 끝이 보이지 않게(홈 히어로와 같은 처리) */
-.stage::before {
-  content: '';
+/* 띠 아래 끝은 바탕에 스며들게 한다. sticky가 풀릴 때 수평으로 잘린 끝이 보이지 않게(홈 히어로와 같은 처리).
+   ::before가 아니라 요소인 것은 페이지 전환에서 따로 이름을 붙이기 위해서다(globals.css data-vt) */
+.bandClip {
+  position: absolute;
+  inset: 0;
+  overflow: clip;
+  pointer-events: none;
+}
+
+.band {
   position: absolute;
   top: -10%;
   bottom: 0;
@@ -219,6 +226,9 @@
   inset: 0;
   pointer-events: none;
 }
+
+/* 홈 ↔ 소개 전환에서 띠·눈금자·장비 라벨은 캐릭터와 따로 움직인다. 이름 붙이기와 애니메이션은 globals.css(data-vt).
+   CSS Modules는 view-transition-name을 해시로 바꿔 globals의 ::view-transition-*() 규칙과 맞지 않으므로 여기서 이름을 붙이지 않는다 */
 
 /* ─── 소개 ─── */
 /* 이름 묶음. 도장 폭 104 + 간격 12 + 여유만큼 자리를 남겨 칼럼 밖으로 넘치지 않게 */

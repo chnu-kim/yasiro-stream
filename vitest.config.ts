@@ -2,7 +2,7 @@ import { defineConfig } from "vitest/config";
 
 // /games 모듈(src/lib/games/**, src/lib/chzzk-category.ts)과 인증·세션 모듈(session, auth-routes, chzzk-auth)은 100% 커버리지를 강제한다.
 // src/lib/games/** 에 포함되는 D1 전환 모듈: rows, repo, admin, diff, patch, youtube-meta, seed, api.
-// 어워즈 대진·진행·결과·검증(src/lib/awards/**)도 100%다. PR3에서 서버가 같은 함수로 결과 제출을 검증한다.
+// 어워즈 대진·진행·결과·검증(src/lib/awards/**)도 100%다. 페이지 전환 lib(hero-morph, page-transition)도 100%다. PR3에서 서버가 같은 함수로 결과 제출을 검증한다.
 // test-d1.ts는 테스트 전용 D1 대역(node:sqlite)이라 제외한다(자체 동작은 test-d1.test.ts로 확인).
 export default defineConfig({
   test: {
@@ -20,6 +20,9 @@ export default defineConfig({
         "src/lib/session.ts": { lines: 100, branches: 100, functions: 100, statements: 100 },
         "src/lib/auth-routes.ts": { lines: 100, branches: 100, functions: 100, statements: 100 },
         "src/lib/chzzk-auth.ts": { lines: 100, branches: 100, functions: 100, statements: 100 },
+        // 페이지 전환(홈 ↔ 소개 캐릭터 이동, 순차 등장 레이어). 연출 순서·계산은 컴포넌트가 아니라 여기서 검증한다
+        "src/lib/hero-morph.ts": { lines: 100, branches: 100, functions: 100, statements: 100 },
+        "src/lib/page-transition.ts": { lines: 100, branches: 100, functions: 100, statements: 100 },
       },
     },
   },

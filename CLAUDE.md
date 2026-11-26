@@ -42,9 +42,9 @@ src/app/
   auth/{login,callback,logout}/route.ts   치지직 OAuth (login?next=<경로>는 oauth_next 쿠키로 복귀). 로직은 src/lib/auth-routes.ts
   api/games/            관리자 API (route·[id]·[id]/hidden·[id]/changes·categories·youtube). 핸들러는 얇게, 로직은 src/lib/games/api.ts
   api/awards/           어워즈 API (draw·submit·rankings, 관리자 전용: AWARDS_PUBLIC). 핸들러는 얇게, 로직은 src/lib/awards/api.ts(repo·token·keys·limit·rankings)
-src/components/         Nav, SkipLink, ClearStamp (공유)
+src/components/         Nav, SkipLink, ClearStamp, HeroFigure·NavigatedFlag(페이지 전환) (공유)
 scripts/games-{seed,export,edit}.ts   pnpm games:seed / games:export / games:edit 진입점 (얇게. 로직은 src/lib/games/seed.ts, ops.ts)
-src/lib/                순수 로직 + *.test.ts (session, auth-routes, http, chzzk-auth, chzzk-category(검색·slugify만), games/{schema,query,labels,rows,repo,admin,diff,patch,client,api,seed,youtube-meta,home,media,timecode,played}, awards/{entries,options,draw,tournament,flow,labels,verify,media,rng,keys,token,limit,repo,rankings,client,api,resume,hold})
+src/lib/                순수 로직 + *.test.ts (session, auth-routes, http, chzzk-auth, page-transition·hero-morph(페이지 전환), chzzk-category(검색·slugify만), games/{schema,query,labels,rows,repo,admin,diff,patch,client,api,seed,youtube-meta,home,media,timecode,played}, awards/{entries,options,draw,tournament,flow,labels,verify,media,rng,keys,token,limit,repo,rankings,client,api,resume,hold})
 migrations/             D1 마이그레이션 (wrangler 관리)
 _design/                원본 디자인 핸드오프 (gitignored)
 ```
@@ -72,7 +72,7 @@ _design/                원본 디자인 핸드오프 (gitignored)
 
 - hover·transition·animation·blend-mode 같은 효과는 CSS Module에, layout·spacing·color 같은 정적 스타일은 inline style로 쓴다.
 - 토큰은 `globals.css`가 정본이다(색·type `--fs-*`·간격 `--space-*`·shadow·z-index·motion). 다크 값은 `[data-theme="dark"]`에서 덮어쓴다. `prefers-reduced-motion`은 globals에서 일괄 처리한다.
-- keyframe: `blink`, `float`(꿀붕이 부유), `fadeUp`(진입), `pinDrop`.
+- keyframe: `blink`, `float`(꿀붕이 부유), `fadeUp`(진입), `pinDrop`. **CSS Module 안에서 globals의 keyframe 이름을 쓰지 않는다**: Modules가 `animation` 이름을 해시해(`page-module__…__fadeUp`) 없는 키프레임을 가리키고, 애니메이션이 조용히 재생되지 않는다. 모듈 안에 `@keyframes`를 두거나(홈 `heroIn`, /games `countUp`·`stampIn`) globals에 클래스 없이 둘 수 있는 곳(전환 pseudo)에서만 쓴다. 같은 이유로 `view-transition-name`도 모듈에 쓰지 않는다(아래 '페이지 전환'). 알려진 미재생: `awards.module.css`(2곳)·`games/Toast.module.css`·`games/DialogFrame.module.css`의 `fadeUp`(2026-11 미수정)
 - 폰트는 `layout.tsx`의 Google Fonts `<link>` 한 줄로 로드한다. 현재 로드되는 폰트는 Gaegu, Fredoka(500–700), Noto Sans KR, Jua. 한국어 subset 문제 때문에 `next/font`는 쓰지 않는다. 새 폰트는 같은 URL에 추가하고, URL에 없는 폰트를 코드에 쓰지 않는다(조용히 폴백된다).
   - Jua(`var(--font-display)`): 제목·로고·큰 값 / Noto Sans KR: 본문·UI / Fredoka: 영문 라벨과 숫자(한글 글리프 없음)
   - Jua는 굵기가 400 하나뿐이다. `--font-display`를 쓰는 곳은 `font-weight: 400`으로 두고 600·700을 주지 않는다(가짜 볼드가 합성된다). 2026-11 Noto Serif KR에서 바꿨다
@@ -84,6 +84,18 @@ _design/                원본 디자인 핸드오프 (gitignored)
 - 캐릭터·꿀붕이 PNG는 투명 배경이라 블렌드 없이 올린다. 캐릭터 패널은 `--tile`(라이트 `#EAE0D0`, 다크 `--surface`).
 - 강조 배지·구분선의 작은 사각 도트는 `borderRadius: 1`이 의도된 값이다.
 - 원형 도장은 사이트 전체 1개(`RoundStamp`, /about)가 원칙이다. 예외: 게임 정복 도장(`ClearStamp`, /games 카드·상세의 `clear` 게임). 정복한 게임마다 찍히는 데이터 표시라 개수 제한을 두지 않는다. 모양은 RoundStamp와 같은 계열의 원형 탐험 도장(이중 링, 위 호 `EXPEDITION CLEAR`, 가운데 `정복`, 아래 호 `★ NO.{번호} ★`)이고, 바탕 원판 없이 잉크만 굵게 찍고, SVG 필터로 잉크 번짐·빠짐을 낸다(필터 id는 도장마다 `useId`). 크기는 어디서나 포스터 폭의 36%(표본 카드 위쪽 자리는 32%). 색은 `--stamp`(라이트·다크 같은 인주색 #D2452E, 포스터 그림 위라 테마와 무관). 빨간 포스터에서 덜 읽히더라도 종이색 테두리·바탕은 스티커처럼 지저분해 보여 넣지 않는다.
+
+## 페이지 전환
+
+사이트 안 링크(`PAGE_TRANSITION` = `['page']` 타입, Nav·Button·홈 카드)로 옮길 때만 움직인다. 뒤로·앞으로 가기·필터·첫 로드는 바로 바뀐다. 정본은 `template.tsx`(본문 `page-out`/`page-in`), `globals.css` '페이지 전환' 절, `src/lib/{page-transition,hero-morph}.ts`(100% 커버리지 강제).
+
+- **캐릭터 이동(홈 히어로 ↔ /about 그림판)**: `HeroFigure side="home|about"`가 상자(`data-hero-figure`, 안에 `<img>`)에 같은 이름 `yasiro-figure`를 붙인다. 짝이 지어지면 `onShare` → `runHeroMorph`가 UA 모핑을 걷어 내고, 두 원화(yasiro1·yasiro4)가 얼굴 위치·크기까지 같은 구도인 점을 이용해 이미지 상자끼리 맞춰 두 그림을 함께 날린다(0.72초). 새 그림을 다 덮은 뒤 옛 그림을 지운다(동시에 반투명하면 바탕이 비친다). 교차 시점은 도착 쪽별 `HERO_MORPH.opacity`(홈으로 갈 때는 일찍: 홈 히어로는 아래가 바탕에 스며드는 그림이라 늦게 바꾸면 끝에 한꺼번에 흐려진다). 짝이 지어지면 새 페이지의 모든 등장(`::view-transition-new`)을 `enterShift`(60ms)만큼 늦춘다. 원화를 바꾸면 이 전제(같은 구도)를 다시 확인한다. 두 그림은 `decoding="sync"`(모션 줄이기에서 전환이 곧바로 끝나면 비동기 디코딩 동안 1~3프레임 비었다).
+- **전환 레이어**: 본문 덩어리에서 떼어 따로 움직일 요소에 `{...vtTarget(name, layer, step)}`를 붙인다. `globals.css`의 `html:active-view-transition-type(page) [data-vt]`가 이동 중에만 `view-transition-name: var(--vt)`·`view-transition-class: var(--vt-class)`를 붙인다(CSS Modules가 이름을 해시하지 않게 변수로 넘긴다). 레이어: `rise`(제목·문구가 step 0~3 순서로 60ms 간격 등장), `band`(/about 띠: 들어올 때 쓸며 그려지고 떠날 때는 본문과 함께 흐려짐. 접히며 사라지게 했더니 다음 페이지 위에 띠만 남아 거슬렸다), `label`(눈금자·장비 라벨), `stamp`(도장: 도착 즈음 찍힘). **떼어 낸 층의 퇴장은 `page-out`(`--dur-fast`)보다 길게 두지 않는다.** 떼어 낸 요소가 다른 요소 밖으로 삐져나오면(띠는 무대 위로 10%) 스냅샷에는 조상의 자르기가 빠지므로 자르는 틀로 감싼다(`.bandClip`).
+- **층(z-index)**: 바탕(root) < 띠 < 본문·`rise` < 캐릭터 < 라벨·도장 < Nav(`site-nav`) < Nav 표시(`nav-mark`, 현재 메뉴 아래 마름모가 새 메뉴로 미끄러짐). 본문 스냅샷이 투명해야 띠가 비치므로 **페이지 최상위 요소에 바탕색을 칠하지 않는다**(바탕은 body).
+- 홈 히어로의 첫 로드 진입(`heroIn`)은 `html:not([data-navigated])`에서만 돈다(`NavigatedFlag`가 사이트 안 첫 이동 때 붙임). 이동해 들어올 때는 전환 레이어가 등장을 맡는다.
+- `layout.tsx` `<html data-scroll-behavior="smooth">`: globals의 smooth 스크롤은 앵커용이고, 페이지를 옮길 때는 Next가 끄고 바로 맨 위로 간다(없으면 전환 중 화면이 미끄러지고 캐릭터 착지 자리가 어긋난다).
+- 모션 줄이기: 전환 애니메이션을 모두 끄고 `::view-transition-old(*)`를 숨긴다(전환이 몇 프레임 유지되는 동안 옛·새 화면이 겹쳐 보였다).
+- 확인: 깜빡임은 1프레임짜리라 축소 스크린샷·25fps 녹화로는 놓친다. CDP `Page.startScreencast`로 렌더된 프레임을 모두 받아 마지막 프레임과의 차이가 0으로 단조 수렴하는지 본다(되돌아가면 번쩍임). 부하가 높으면(load 10↑) 프레임이 빠져 끝에서 튄 것처럼 보이니 다시 찍는다.
 
 ## 테마
 

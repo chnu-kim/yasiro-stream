@@ -1,4 +1,6 @@
 import type { CSSProperties, ReactNode } from 'react';
+import HeroFigure from '@/components/HeroFigure';
+import { vtTarget } from '@/lib/page-transition';
 import type { Metadata } from 'next';
 import { pageMetadata } from '@/lib/seo';
 import ArtImage from '@/components/ArtImage';
@@ -162,26 +164,27 @@ function ChapterTitle({ index, id }: { index: number; id: string }) {
 export default async function About() {
   const counts = await getExpeditionCounts();
   return (
-    <div style={{ background: 'var(--bg)', color: 'var(--text)' }}>
+    // 바탕색은 body가 칠한다. 여기 칠하면 페이지 전환 스냅샷이 불투명해져 아래 층(그림판 띠)을 가린다
+    <div style={{ color: 'var(--text)' }}>
       {/* ══ 탐험가 도감: 고정 그림판 + 챕터 ══ */}
       <Dossier plate={<Plate />}>
         <section data-chapter-id="intro" className={`${styles.chapter} ${styles.intro}`} aria-labelledby="about-title">
           {/* 도장은 이름 묶음에 붙여 신분 표시로 읽히게 한다. 위치가 화면 폭에 따라 바뀌어 CSS 클래스로 둔다 */}
           <div className={styles.idBlock}>
-            <h1 id="about-title" className={styles.idName} tabIndex={-1}>
+            <h1 id="about-title" className={styles.idName} tabIndex={-1} {...vtTarget('about-name', 'rise', 0)}>
               {/* 도장은 이름 글자 끝에 붙인다(묶음 폭은 태그라인이 정해서, 묶음에 붙이면 이름에서 떨어져 떠 보인다) */}
               <span className={styles.nameMark}>
                 야시로
-                <span className={styles.introStamp}>
+                <span className={styles.introStamp} {...vtTarget('about-stamp', 'stamp')}>
                   <RoundStamp size={104} rotate={-12} />
                 </span>
               </span>
             </h1>
             {/* 소개는 번호를 달지 않는다(번호는 목차에만). 이름 아래 영문 표기만 */}
-            <p className={styles.roman} lang="en">
+            <p className={styles.roman} lang="en" {...vtTarget('about-roman', 'rise', 1)}>
               YASIRO
             </p>
-            <p className={styles.tagline}>호기심 많은 탐험가, 벌꿀오소리 야시로</p>
+            <p className={styles.tagline} {...vtTarget('about-tagline', 'rise', 2)}>호기심 많은 탐험가, 벌꿀오소리 야시로</p>
           </div>
         </section>
 
@@ -341,7 +344,12 @@ export default async function About() {
 // 고정 그림판: 사선 띠 위 캐릭터 + 키 눈금자 + 장비 라벨(전신으로 물러난 뒤 CSS가 켠다)
 function Plate() {
   return (
-    <div className={styles.stage}>
+    <HeroFigure side="about">
+    <div className={styles.stage} data-hero-figure>
+      {/* 띠는 무대 위로 삐져나와 무대가 자른다. 전환에서는 띠만 따로 찍히는데 그때는 무대의 자르기가 빠지므로, 무대 크기 틀로 한 번 더 자른다 */}
+      <span className={styles.bandClip} {...vtTarget('about-band', 'band')} aria-hidden="true">
+        <span className={styles.band} />
+      </span>
       <div className={styles.figure}>
         <ArtImage
           name="yasiro4"
@@ -352,12 +360,13 @@ function Plate() {
           // 데스크톱은 처음에 얼굴을 1.9배로 보여 주므로 DPR 1에서도 960w를 받게 크게 잡는다
           sizes="(max-width: 1023px), (max-height: 640px) 340px, 940px"
           priority
+          decoding="sync"
           style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'contain' }}
         />
-        <div className={styles.rulerWrap}>
+        <div className={styles.rulerWrap} {...vtTarget('about-ruler', 'label')}>
           <HeightRuler headTop={10} feetBottom={4.5} side="left" style={{ right: '100%', marginRight: 'max(6px, calc(88px - 22%))' }} />
         </div>
-        <ul className={styles.callouts} aria-label="그림에 표시한 장비">
+        <ul className={styles.callouts} {...vtTarget('about-callouts', 'label')} aria-label="그림에 표시한 장비">
           {CALLOUTS.map((c, i) => (
             <li key={c.gear} data-side={c.side} style={{ '--i': i } as CSSProperties}>
               <Callout {...c} />
@@ -366,6 +375,7 @@ function Plate() {
         </ul>
       </div>
     </div>
+    </HeroFigure>
   );
 }
 

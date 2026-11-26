@@ -197,6 +197,122 @@ a {
   animation: vtFadeUp var(--dur-base) var(--ease-out) 80ms both;
 }
 
+/* 홈 히어로 ↔ /about 그림판(같은 이름 yasiro-figure, components/HeroFigure). 움직임은 HeroFigure가 Web Animations로 직접 건다
+   (얼굴을 맞춘 두 그림을 함께 날림, 계산은 lib/hero-morph). 여기서는 그 계산이 전제하는 스냅샷 크기·기준점만 정한다.
+   - old/new를 그룹 폭에 늘리지 않고 스냅샷 원래 크기로 두고, transform 기준점을 왼쪽 위로 둔다
+   - 층(z-index, 아래 '전환 레이어'): 캐릭터는 본문·제목 위, 라벨·도장·Nav 아래.
+     본문 그룹은 옛 페이지에 없던 이름이라 그대로 두면 늘 맨 위에 붙어 캐릭터를 가린다. 본문 스냅샷은 투명해야 띠가 비친다
+     (페이지 최상위에 바탕색을 칠하지 않는다. 바탕은 body)
+   계산을 못 하면(측정 실패) 브라우저 기본 모핑이 그대로 돈다. 그때를 위해 animation 축약형을 쓰지 않는다
+   (축약형은 fill-mode를 지워, 사라지는 그림이 끝 프레임에 다시 보이며 번쩍인다) */
+::view-transition-group(.figure-morph) {
+  z-index: 2;
+  animation-duration: 720ms;
+}
+
+::view-transition-old(.figure-morph),
+::view-transition-new(.figure-morph) {
+  inline-size: auto;
+  block-size: auto;
+  transform-origin: 0 0;
+}
+
+/* 전환 레이어(lib/page-transition vtTarget): 'page' 이동 동안에만 이름·클래스를 붙여 본문 덩어리에서 떼어 따로 움직인다.
+   이름·클래스는 요소의 --vt·--vt-class로 받는다(CSS Modules가 이름을 해시하지 않게). 등장 delay는 짝이 지어진 이동(홈 ↔ 소개)에서
+   HeroFigure가 모두 같은 폭만큼 늦춘다(lib/hero-morph enterShift). 시각은 그 전 기준(본문 page-in 80ms와 같은 출발) */
+html:active-view-transition-type(page) [data-vt] {
+  view-transition-name: var(--vt);
+  view-transition-class: var(--vt-class);
+}
+
+/* 층: 바탕(root) < 띠 < 본문·제목 < 캐릭터 < 라벨·도장 < Nav < Nav 표시 */
+::view-transition-group(.page-in),
+::view-transition-group(.page-out),
+::view-transition-group(.vt-rise) {
+  z-index: 1;
+}
+
+::view-transition-group(.vt-label),
+::view-transition-group(.vt-stamp) {
+  z-index: 3;
+}
+
+::view-transition-group(site-nav) {
+  z-index: 4;
+}
+
+/* rise: 제목 → 영문·소개 문구 → 버튼·목차 → 정보 줄 순서로 60ms 간격. 떠날 때는 옛 본문과 같은 시간에 위로 빠진다 */
+::view-transition-old(.vt-rise) {
+  animation: vtRiseOut var(--dur-fast) ease-in both;
+}
+
+::view-transition-new(.vt-rise) {
+  animation: vtRiseIn 440ms var(--ease-out) 80ms both;
+}
+
+::view-transition-new(.vt-rise-1) { animation-delay: 140ms; }
+::view-transition-new(.vt-rise-2) { animation-delay: 200ms; }
+::view-transition-new(.vt-rise-3) { animation-delay: 260ms; }
+
+/* band: 들어올 때는 위에서 아래로 쓸며 그려진다. 떠날 때는 따로 움직이지 않고 옛 본문(page-out)과 똑같이 흐려진다
+   (접히며 사라지게 했더니 페이지가 바뀐 뒤에도 띠만 움직여 거슬렸다) */
+::view-transition-old(.vt-band) {
+  animation: vtFadeOut var(--dur-fast) ease-in both;
+}
+
+::view-transition-new(.vt-band) {
+  animation: vtWipeDown 520ms cubic-bezier(0.65, 0, 0.25, 1) 100ms both;
+}
+
+/* label: 띠가 다 그려질 즈음 나타난다 */
+::view-transition-old(.vt-label) {
+  animation: vtFadeOut var(--dur-fast) ease-in both;
+}
+
+::view-transition-new(.vt-label) {
+  animation: vtFadeIn 320ms var(--ease-out) 460ms both;
+}
+
+/* stamp: 캐릭터가 도착할 즈음 크게 내려와 한 번 눌린다 */
+::view-transition-old(.vt-stamp) {
+  animation: vtFadeOut var(--dur-fast) ease-in both;
+}
+
+::view-transition-new(.vt-stamp) {
+  animation: vtStamp 460ms var(--ease-out) 480ms both;
+}
+
+/* Nav 현재 위치 표시(Nav.tsx, 이름 nav-mark): 새 메뉴 아래로 미끄러진다 */
+::view-transition-group(nav-mark) {
+  z-index: 5;
+  animation-duration: 460ms;
+  animation-timing-function: cubic-bezier(0.65, 0, 0.25, 1);
+}
+
+@keyframes vtRiseIn {
+  from { opacity: 0; transform: translateY(14px); }
+}
+
+@keyframes vtRiseOut {
+  to { opacity: 0; transform: translateY(-6px); }
+}
+
+@keyframes vtWipeDown {
+  from { clip-path: inset(0 0 100% 0); }
+  to { clip-path: inset(0); }
+}
+
+@keyframes vtStamp {
+  0% { opacity: 0; transform: scale(1.7); }
+  55% { opacity: 1; transform: scale(0.94); }
+  78% { transform: scale(1.03); }
+  100% { opacity: 1; transform: scale(1); }
+}
+
+@keyframes vtFadeIn {
+  from { opacity: 0; }
+}
+
 @keyframes vtFadeOut {
   to { opacity: 0; }
 }
@@ -223,10 +339,14 @@ a {
   html {
     scroll-behavior: auto;
   }
+  /* 페이지 전환은 움직이지 않고 바로 바뀐다. 전환은 몇 프레임 유지되므로 옛 화면을 숨겨야 옛·새 화면이 겹쳐 보이지 않는다 */
   ::view-transition-group(*),
   ::view-transition-old(*),
   ::view-transition-new(*) {
     animation: none !important;
+  }
+  ::view-transition-old(*) {
+    display: none;
   }
   *, *::before, *::after {
     animation-duration: 0.01ms !important;

@@ -9,6 +9,7 @@
 // 데스크톱(1024px 이상, 높이 641px 이상)에서만 움직인다. 그 밖이나 JS가 없으면 그림판은 모든 표시가 켜진 상태로 보인다.
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { CHAPTERS, chapterNo } from './chapters';
+import { vtTarget } from '@/lib/page-transition';
 import styles from './page.module.css';
 
 const DESKTOP = '(min-width: 1024px) and (min-height: 641px)';
@@ -143,7 +144,7 @@ export default function Dossier({ plate, children }: { plate: ReactNode; childre
         <div className={styles.plateSticky}>
           {plate}
           {/* 늘 렌더링하고 좁은 화면·낮은 화면에서는 CSS로 숨긴다(JS가 붙을 때 그림판 높이가 바뀌지 않게) */}
-          <nav className={styles.rail} aria-label="소개 챕터">
+          <nav className={styles.rail} aria-label="소개 챕터" {...vtTarget('about-rail', 'rise', 3)}>
             {CHAPTERS.map((c, i) => (
               <button
                 key={c.id}
