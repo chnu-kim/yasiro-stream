@@ -78,10 +78,22 @@ export interface StageTimeline {
   call: number;
 }
 
+/** 입장 컨셉(11-26 재구상): 'corridor' = 후보작 포스터 통로(A안), 'ballroom' = 볼룸 비행, 'pool' = 조사 ①안 금 웅덩이,
+ *  'lattice' = 조사 ②안(그래미 2026 응용) 트로피 지구본의 금 격자 안에서 시작해 틈으로 빠져나오며 그것이 트로피였음이 드러난다.
+ *  볼룸 소품은 실시간 디테일이 모자라 싸구려 세트처럼 보였고(사용자 피드백), 금 웅덩이는 액체로 읽히지 않아 품질이 낮았다(11-27) */
+const CONCEPT = 'lattice' as 'corridor' | 'ballroom' | 'pool' | 'lattice';
+const POOL = CONCEPT === 'pool';
+const CORRIDOR = CONCEPT === 'corridor';
+const LATTICE = CONCEPT === 'lattice';
+
 export const STAGE_TIMELINES: Record<StageIntro, StageTimeline> = {
   // 금 웅덩이(11-26, 조사 ①안): 어둠 속 웅덩이가 은은히 빛나다(0.3) → 스포트라이트 하나(1.6) → 트로피가 수면을 뚫고 솟음(2.4~5.2)
   // → 임팩트(5.4: 헤일로·충격파·꽃가루) → 빛이 퍼짐 → 제목. 카메라는 처음부터 한 방향으로 천천히 물러나 9.6초에 심사위원석. SetupScreen CUES도 같이
-  full: { house: -99, spot: 1.6, rise: 2.4, pillars: 6.0, open: 5.4, hold: 6.6, impact: 5.4, band: 5.6, wall: 6.8, title: 7.6, call: 10.3 },
+  // 금 격자(11-27, 조사 ②안): 어둠 속 격자 안(0) → 위에서 빛 한 줄기(0.6) → 카메라가 격자 틈으로 빠져나와 물러남 → 트로피 전체가 드러남
+  // → 임팩트(6.2: 지구본 속 심이 켜지고 헤일로) → 제목. 카메라는 한 방향으로 물러나 12초에 심사위원석
+  full: LATTICE
+    ? { house: -99, spot: 0.6, rise: -99, pillars: 6.8, open: 6.2, hold: 7.4, impact: 6.2, band: 6.4, wall: 7.6, title: 8.4, call: 11.1 }
+    : { house: -99, spot: 1.6, rise: 2.4, pillars: 6.0, open: 5.4, hold: 6.6, impact: 5.4, band: 5.6, wall: 6.8, title: 7.6, call: 10.3 },
   short: { house: -99, spot: 0, rise: -99, pillars: 0, open: 0, hold: 0.15, impact: 0.4, band: 0.5, wall: 0.9, title: 1.4, call: 2.0 },
   none: { house: -99, spot: -99, rise: -99, pillars: -99, open: -99, hold: -99, impact: -99, band: -99, wall: -99, title: -99, call: -99 },
 };
@@ -100,6 +112,9 @@ const BRIGHTNESS = {
   hazeAlpha: 0.045,
   /** 스크린 벽 최대 밝기(색 배율). 트로피보다 확실히 낮게 */
   wallMax: 0.13,
+  /** 격자 컨셉: 지구본 안 빛(cd, 반지름 약 1.3m 안쪽 면 기준)과 임팩트 때 켜지는 심(색 배율) */
+  inner: 1.6,
+  core: 0.9,
   /** 금 웅덩이로 떨어지는 스포트라이트(실제 광원) */
   poolSpot: 180,
   /** 통로 포스터 최대 밝기(색 배율). 어둠 속에서 읽히되 눈부시지 않게 */
@@ -151,10 +166,24 @@ const CAM_JUDGE = new THREE.Vector3(0, 5.0, 19.8); // 11-26: 21.5에서 당김. 
 const LOOK_JUDGE = new THREE.Vector3(0, 5.2, 0);
 /** 입장 컨셉(11-26 재구상): 'corridor' = 어둠 속 후보작 포스터 통로를 지나 문이 갈라지며 무대(A안), 'ballroom' = 이전 볼룸 비행.
  *  볼룸의 테이블·하객·레드카펫·샹들리에는 실시간 디테일이 모자라 싸구려 세트처럼 보였다(사용자 피드백) */
-const CONCEPT = 'pool' as 'corridor' | 'ballroom' | 'pool'; // 11-26: 통로(A안) 기각 → 볼룸 → 조사 ①안 '금에서 솟는 트로피'
-const POOL = CONCEPT === 'pool';
-const CORRIDOR = CONCEPT === 'corridor';
-const ENTRY_SPEC: EntryCameraSpec = POOL
+const ENTRY_SPEC: EntryCameraSpec = LATTICE
+  ? {
+      // 지구본 격자 안(가운데 조금 앞)에서 뒤쪽 안벽을 보며 출발 → 적도 위 틈(경선 사이, 위선 사이)으로 빠져나옴 → 한 방향으로 물러나 심사위원석.
+      // 시선은 처음부터 지구본 쪽(뒤로 걷는 돌리 아웃)이라 고개를 돌리지 않는다. 틈 높이는 LATTICE_EXIT_Y
+      points: [
+        [0, 5.72, 0.15],
+        [0, 5.72, 1.7],
+        [0, 5.6, 6.5],
+        [0, 5.25, 14.0],
+      ],
+      landTangent: [0, -0.18, 4.2],
+      end: [CAM_JUDGE.x, CAM_JUDGE.y, CAM_JUDGE.z],
+      times: { start: 0.5, peak: 5.2, land: 8.4, stop: 12.0 },
+      decel: 2.4,
+      look: { from: [0, 5.9, -1.6], to: [LOOK_JUDGE.x, LOOK_JUDGE.y, LOOK_JUDGE.z], start: 1.5, duration: 6.0 },
+      heading: { weight: 0, onStart: 0, onDuration: 1, offStart: 0, offDuration: 1 },
+    }
+  : POOL
   ? {
       // 웅덩이 가까이(13.5m)에서 시작해 한 방향으로 천천히 물러나며 올라 심사위원석에 정착. 시선은 웅덩이 → 솟는 트로피를 따라 위로
       points: [
@@ -257,7 +286,8 @@ export function createStage(canvas: HTMLCanvasElement, opts: StageOptions): Stag
   // 안개는 비행 첫 장면(볼룸 높은 곳, 약 60 거리)에서도 무대가 보일 만큼 옅게
   scene.fog = new THREE.FogExp2(0x050403, 0.012);
 
-  const camera = new THREE.PerspectiveCamera(FOV_WALK, 1, 0.1, 160);
+  // 격자 컨셉은 금 줄 바로 옆을 지나가므로 가까운 면을 당긴다
+  const camera = new THREE.PerspectiveCamera(FOV_WALK, 1, LATTICE ? 0.03 : 0.1, 160);
   let reduced = opts.reducedMotion;
   let timeline = STAGE_TIMELINES[reduced ? 'none' : opts.intro];
   const intro: StageIntro = reduced ? 'none' : opts.intro;
@@ -351,19 +381,47 @@ export function createStage(canvas: HTMLCanvasElement, opts: StageOptions): Stag
 
   const globe = new THREE.Group();
   globe.position.y = 2.5;
-  globe.add(new THREE.Mesh(track(new THREE.SphereGeometry(0.86, 72, 54)), gold));
-  const lineGeo = track(new THREE.TorusGeometry(0.868, 0.011, 6, 128));
-  for (let i = 0; i < 6; i++) {
-    const meridian = new THREE.Mesh(lineGeo, goldDeep);
-    meridian.rotation.y = (i * Math.PI) / 6;
-    globe.add(meridian);
-  }
-  for (const lat of [-0.6, -0.3, 0, 0.3, 0.6]) {
-    const r = Math.sqrt(0.868 ** 2 - lat ** 2);
-    const latRing = new THREE.Mesh(track(new THREE.TorusGeometry(r, 0.011, 6, 128)), goldDeep);
-    latRing.rotation.x = Math.PI / 2;
-    latRing.position.y = lat;
-    globe.add(latRing);
+  /** 지구본 속 심(격자 컨셉): 임팩트 때 가운데서 켜져 격자 사이로 빛이 새어 나온다 */
+  const coreGlowMat = track(coreMaterial());
+  const coreGlow = new THREE.Mesh(track(new THREE.SphereGeometry(0.42, 48, 32)), coreGlowMat);
+  coreGlow.visible = LATTICE;
+  globe.add(coreGlow);
+  /** 지구본 안의 따뜻한 빛: 카메라가 격자 안에 있을 때 안쪽 면이 빛나 성당 천장처럼 보이게 */
+  const innerLight = new THREE.PointLight(0xffd59a, 0, 4.5, 2);
+  innerLight.position.y = 0.05;
+  globe.add(innerLight);
+  if (LATTICE) {
+    // 속이 빈 금 격자(혼천의). 경선 8개(16줄)는 정면(+z)을 비켜 가도록 반 칸 돌려 두고, 위선은 적도 띠 + 넷.
+    // 카메라는 적도와 위 첫 위선 사이, 정면 두 경선 사이 틈(가로 약 0.5m, 세로 약 0.4m)으로 빠져나온다
+    const ribGeo = track(new THREE.TorusGeometry(0.868, 0.017, 10, 160));
+    for (let i = 0; i < 8; i++) {
+      const meridian = new THREE.Mesh(ribGeo, gold);
+      meridian.rotation.y = ((i + 0.5) * Math.PI) / 8;
+      globe.add(meridian);
+    }
+    for (const lat of [-0.6, -0.32, 0, 0.32, 0.6]) {
+      const r = Math.sqrt(0.868 ** 2 - lat ** 2);
+      const ring = new THREE.Mesh(track(new THREE.TorusGeometry(r, lat === 0 ? 0.03 : 0.015, 10, 160)), lat === 0 ? goldSoft : gold);
+      ring.rotation.x = Math.PI / 2;
+      ring.position.y = lat;
+      if (lat === 0) ring.scale.z = 1.8; // 적도 띠는 위아래로 넓적하게
+      globe.add(ring);
+    }
+  } else {
+    globe.add(new THREE.Mesh(track(new THREE.SphereGeometry(0.86, 72, 54)), gold));
+    const lineGeo = track(new THREE.TorusGeometry(0.868, 0.011, 6, 128));
+    for (let i = 0; i < 6; i++) {
+      const meridian = new THREE.Mesh(lineGeo, goldDeep);
+      meridian.rotation.y = (i * Math.PI) / 6;
+      globe.add(meridian);
+    }
+    for (const lat of [-0.6, -0.3, 0, 0.3, 0.6]) {
+      const r = Math.sqrt(0.868 ** 2 - lat ** 2);
+      const latRing = new THREE.Mesh(track(new THREE.TorusGeometry(r, 0.011, 6, 128)), goldDeep);
+      latRing.rotation.x = Math.PI / 2;
+      latRing.position.y = lat;
+      globe.add(latRing);
+    }
   }
   // 지구본을 잡는 고리 받침(골든글로브식 지지대)
   const cradle = new THREE.Mesh(track(new THREE.TorusGeometry(0.62, 0.05, 16, 96)), gold);
@@ -400,7 +458,7 @@ export function createStage(canvas: HTMLCanvasElement, opts: StageOptions): Stag
   const poolSpot = new THREE.SpotLight(0xfff0cf, 0, 34, 0.16, 0.55, 1.4);
   poolSpot.position.set(0, 21, 1.0);
   poolSpot.target.position.set(0, STAGE_TOP, 0);
-  poolGroup.add(poolSpot, poolSpot.target);
+  scene.add(poolSpot, poolSpot.target); // 격자 컨셉도 같은 위 조명을 쓴다(웅덩이 묶음이 숨어도 켜지게)
   /** 수면: 느린 너울 + 트로피가 뚫고 나올 때 가운데서 퍼지는 물결(감쇠). 정점 높이를 매 프레임 다시 계산한다 */
   function updatePool(t: number) {
     if (!POOL) return;
@@ -425,7 +483,6 @@ export function createStage(canvas: HTMLCanvasElement, opts: StageOptions): Stag
     poolGeo.computeVertexNormals();
     // 어둠 속 은은한 빛(녹은 금) → 스포트라이트를 받으면 반사가 주인공, 임팩트 뒤에는 조금 가라앉는다
     poolMat.emissiveIntensity = 0.35 * ramp(t, 0.3, 1.6) * (1 - 0.5 * ramp(t, tl.impact, 1.5));
-    poolSpot.intensity = BRIGHTNESS.poolSpot * ramp(t, tl.spot, 0.9) * (1 - 0.45 * ramp(t, tl.impact + 0.8, 1.5));
   }
 
   // ── 헤일로: 지구본 뒤 빛의 고리 두 겹 + 빛 점 ──
@@ -712,7 +769,7 @@ export function createStage(canvas: HTMLCanvasElement, opts: StageOptions): Stag
   }
   for (const side of [-1, 1]) addBeam('wash', new THREE.Vector3(side * 6, 22, 10), side * 2.1, 0xdfe6f0, BRIGHTNESS.washAlpha, 0.11);
   if (!compact) for (const side of [-1, 1]) addBeam('back', new THREE.Vector3(side * 5, 12, -12), side * 3.3, 0xf3d58e, BRIGHTNESS.backBeamAlpha, 0.05);
-  if (POOL) addBeam('pool', new THREE.Vector3(0, 21, 1.0), 0, 0xf3cf86, BRIGHTNESS.beamAlpha, 0.075);
+  if (POOL || LATTICE) addBeam('pool', new THREE.Vector3(0, 21, 1.0), 0, 0xf3cf86, BRIGHTNESS.beamAlpha, 0.075);
 
   // ── 안개 막: 트로피 앞뒤 반투명 판(느리게 흐르는 잡음). 빛줄기가 겹을 통과하는 깊이 ──
   const hazeMats = [-2.5, 7].map((z) => {
@@ -818,6 +875,8 @@ export function createStage(canvas: HTMLCanvasElement, opts: StageOptions): Stag
   const traceBuf: { t: number; pos: number[]; fwd: number[]; fov: number; aspect: number }[] | null =
     process.env.NODE_ENV !== 'production' && typeof window !== 'undefined' && window.localStorage.getItem('stage-trace') === '1' ? [] : null;
   if (traceBuf) (window as unknown as { __stageTrace: unknown }).__stageTrace = traceBuf;
+  // TEMP(슬로 모션 확인): 개발 중 localStorage['stage-slow']='0.25'면 연출 시계를 늦춘다. 커밋 전 제거
+  const slowMo = process.env.NODE_ENV !== 'production' && typeof window !== 'undefined' ? Number(window.localStorage.getItem('stage-slow') ?? 1) || 1 : 1;
   const audienceAim = new THREE.Vector3(0, 0.3, 26);
 
   /** 시각 t의 카메라 자리(키프레임). 돌리 줌 구간에는 fov도 정한다 */
@@ -837,7 +896,7 @@ export function createStage(canvas: HTMLCanvasElement, opts: StageOptions): Stag
       look.set(e.look[0], e.look[1], e.look[2]);
       rollNow = 0;
       // 걷는 구간: 스테디캠처럼 아주 느린 흔들림(서로 다른 주기의 사인을 섞어 기계적으로 반복되지 않게)
-      const walkW = e.walk;
+      const walkW = LATTICE ? 0 : e.walk; // 격자 컨셉은 틈을 빠져나가므로 흔들지 않는다
       out.x += (Math.sin(t * 0.83) * 0.6 + Math.sin(t * 1.37 + 1.1) * 0.4) * 0.035 * walkW;
       out.y += (Math.sin(t * 1.21 + 2.3) * 0.6 + Math.sin(t * 0.57) * 0.4) * 0.018 * walkW;
       // 시야: 비행은 넓게 → 걷기 → 무대 앞에 멈춘 뒤 임팩트까지 천천히 좁혀 들어가며 긴장을 모은다(임팩트의 돌리 줌이 다시 펼친다)
@@ -910,6 +969,15 @@ export function createStage(canvas: HTMLCanvasElement, opts: StageOptions): Stag
     houseLight.intensity = BRIGHTNESS.house * houseUp;
     for (const pool of housePools) pool.intensity = BRIGHTNESS.housePool * (tl.house < 0 ? 0 : houseOn * ramp(t, -0.3, 0.8));
     scene.environmentIntensity = 0.02 + 0.3 * impactK;
+    // 위에서 떨어지는 단 하나의 빛(웅덩이·격자 컨셉). 임팩트 뒤 다른 빛들이 켜지면 한 걸음 물러난다
+    poolSpot.intensity = POOL || LATTICE ? BRIGHTNESS.poolSpot * ramp(t, tl.spot, 0.9) * (1 - 0.45 * ramp(t, tl.impact + 0.8, 1.5)) : 0;
+    if (LATTICE) {
+      // 격자 안의 빛: 처음부터 은은히(안쪽 면이 보이게) → 임팩트에 심이 켜지며 밝아졌다가 조금 가라앉는다
+      const coreK = ramp(t, tl.impact - 0.15, 0.35);
+      innerLight.intensity = BRIGHTNESS.inner * (ramp(t, 0.1, 1.4) + 1.5 * coreK);
+      (coreGlowMat.uniforms.level as { value: number }).value = BRIGHTNESS.core * coreK * (1 - 0.25 * ramp(t, tl.impact + 0.6, 1.6));
+      coreGlow.scale.setScalar(0.2 + 0.8 * easeOutCubic((t - tl.impact + 0.15) / 0.6));
+    }
 
     for (const p of pillars) {
       const on = ramp(t, tl.pillars + p.cue, 0.35);
@@ -1009,9 +1077,11 @@ export function createStage(canvas: HTMLCanvasElement, opts: StageOptions): Stag
     // Y축으로 돌린다. 예전에는 x를 sin(yaw)·z로 덮어써서 입장 경로의 좌우 호가 사라지고 정중앙으로만 내려왔다(11-26)
     const bx = camPos.x;
     const bz = camPos.z;
-    camPos.x = bx * Math.cos(yaw) + bz * Math.sin(yaw) + pointer.x * (0.25 + 0.45 * idle);
+    // 격자 컨셉: 틈을 빠져나가는 동안에는 마우스 시차를 끈다(금 줄에 부딪히지 않게)
+    const parallax = LATTICE ? smooth(ENTRY_SPEC.times.peak - 1, ENTRY_SPEC.times.peak + 1, t) : 1;
+    camPos.x = bx * Math.cos(yaw) + bz * Math.sin(yaw) + pointer.x * (0.25 + 0.45 * idle) * parallax;
     camPos.z = -bx * Math.sin(yaw) + bz * Math.cos(yaw);
-    camPos.y += pointer.y * 0.25 * (settled ? 1 : 0.4);
+    camPos.y += pointer.y * 0.25 * (settled ? 1 : 0.4) * parallax;
     // 임팩트 흔들림: 3~4프레임, 아주 작게
     const shakeK = t - timeline.impact;
     if (shakeK > 0 && shakeK < 0.12) {
@@ -1046,7 +1116,7 @@ export function createStage(canvas: HTMLCanvasElement, opts: StageOptions): Stag
 
   function step(now: number) {
     const dt = Math.min(clock.getDelta(), 0.05);
-    const t = (now - start) / 1000;
+    const t = ((now - start) / 1000) * slowMo;
     lastT = t;
 
     raycaster.setFromCamera(ndc, camera);
@@ -1059,7 +1129,8 @@ export function createStage(canvas: HTMLCanvasElement, opts: StageOptions): Stag
     placeCamera(t, dt);
     layoutCorridor(t);
 
-    trophy.rotation.y = Math.sin(t * 0.22) * 0.18;
+    // 격자 컨셉: 카메라가 틈을 빠져나가는 동안 돌지 않는다(임팩트 뒤부터 천천히)
+    trophy.rotation.y = Math.sin(t * 0.22) * 0.18 * (LATTICE ? smooth(timeline.impact, timeline.impact + 3, t) : 1);
     // 금에서 솟는 트로피: 수면 아래(단상 속)에서 2.8초에 걸쳐 올라온다. 받침까지 다 잠길 만큼 깊게 시작
     trophy.position.y = trophyRestY - (timeline.rise < 0 ? 0 : (1 - smootherstep((t - timeline.rise) / 2.8)) * 7.2);
     updatePool(t);
@@ -1602,6 +1673,34 @@ function beamMaterial(color: number, alpha: number): THREE.ShaderMaterial {
 }
 
 /** 안개 막: 아주 낮은 알파의 흐르는 잡음. 위·아래·옆 끝은 사라진다 */
+/** 지구본 속 빛 구슬: 가운데(시선과 마주한 면)가 밝고 가장자리로 갈수록 스며 사라진다(더하기 합성). 단색 구는 납작한 원판처럼 보였다 */
+function coreMaterial(): THREE.ShaderMaterial {
+  return new THREE.ShaderMaterial({
+    uniforms: { level: { value: 0 }, color: { value: new THREE.Color(1, 0.72, 0.36) } },
+    vertexShader: `
+      varying vec3 vNormal;
+      varying vec3 vView;
+      void main() {
+        vec4 mv = modelViewMatrix * vec4(position, 1.0);
+        vNormal = normalize(normalMatrix * normal);
+        vView = normalize(-mv.xyz);
+        gl_Position = projectionMatrix * mv;
+      }`,
+    fragmentShader: `
+      uniform float level;
+      uniform vec3 color;
+      varying vec3 vNormal;
+      varying vec3 vView;
+      void main() {
+        float f = pow(max(dot(normalize(vNormal), normalize(vView)), 0.0), 3.0);
+        gl_FragColor = vec4(color * level * f, 1.0);
+      }`,
+    transparent: true,
+    blending: THREE.AdditiveBlending,
+    depthWrite: false,
+  });
+}
+
 function hazeMaterial(): THREE.ShaderMaterial {
   return new THREE.ShaderMaterial({
     transparent: true,
