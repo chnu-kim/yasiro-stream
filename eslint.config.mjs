@@ -21,6 +21,8 @@ const eslintConfig = defineConfig([
     "next-env.d.ts",
     // Cloudflare 빌드·로컬 런타임 산출물
     ".open-next/**",
+    // 작업 폴더(git 무시: Blender·Hunyuan3D 도구와 산출물)
+    "work/**",
     ".wrangler/**",
     // 하이라이트 작업 폴더(git 무시, venv 안의 남의 JS가 있다). highlight-pick 스킬 참고
     "work/**",
