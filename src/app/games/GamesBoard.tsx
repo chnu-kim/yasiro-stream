@@ -47,10 +47,11 @@ import Toast, { type ToastState } from './Toast';
 import { useChapterSpy } from './useChapterSpy';
 import styles from './page.module.css';
 
-// 목록 상태(q, status, year, sort, page)의 정본은 URL이다. useSearchParams로 읽고
+// 목록 상태(q, status, year, sort, view)의 정본은 URL이다. useSearchParams로 읽고
 // history.pushState/replaceState로 쓴다(Next가 둘을 라우터와 동기화한다).
 // 검색 입력은 타이핑마다 replaceState(히스토리 오염 방지), 필터·정렬·보기는 pushState.
 // 목록은 페이지로 나누지 않고 정렬 기준 날짜(첫 플레이, 최근 플레이순이면 마지막 플레이)의 연도 챕터로 묶는다. 연도 목차는 스크롤만 하고 URL을 바꾸지 않는다.
+
 // 상세를 열며 쌓은 history 항목 표식. Next는 pushState data의 사용자 키를 보존한다.
 const DETAIL_ENTRY = 'yasiroGameDetail';
 

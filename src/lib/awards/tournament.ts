@@ -1,5 +1,5 @@
 // 대진 진행·결과. 상태의 유일한 진행 기록은 picks(고른 게임 id, 부전승 제외)이고 나머지는 replay로 계산한다.
-// 순수 함수: 입력 state를 바꾸지 않는다. 서버(PR3 verify)도 같은 replay를 쓴다.
+// 순수 함수: 입력 state를 바꾸지 않는다. 서버(verify.ts)도 같은 replay를 쓴다.
 import { thirdPlaceAvailable } from "./options.ts";
 import type {
   Bracket,

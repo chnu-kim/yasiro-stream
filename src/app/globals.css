@@ -173,22 +173,7 @@ a {
 }
 
 /* ═══════════════════ keyframe ═══════════════════ */
-@keyframes blink {
-  0%, 100% { opacity: 1; }
-  50% { opacity: 0.25; }
-}
-
-@keyframes float {
-  0%, 100% { transform: translateY(0px); }
-  50% { transform: translateY(-8px); }
-}
-
-@keyframes fadeUp {
-  from { opacity: 0; transform: translateY(16px); }
-  to { opacity: 1; transform: translateY(0); }
-}
-
-/* 페이지 전환(layout <ViewTransition>): 옛 본문은 빨리 사라지고, 새 본문은 8px 아래에서 떠오른다 */
+/* 페이지 전환(template.tsx <ViewTransition>): 옛 본문은 빨리 사라지고, 새 본문은 8px 아래에서 떠오른다 */
 ::view-transition-old(.page-out) {
   animation: vtFadeOut var(--dur-fast) ease-in both;
 }
@@ -321,14 +306,9 @@ html:active-view-transition-type(page) [data-vt] {
   from { opacity: 0; transform: translateY(8px); }
 }
 
-@keyframes pinDrop {
-  from { opacity: 0; transform: translateY(-10px) scale(0.8); }
-  to { opacity: 1; transform: translateY(0) scale(1); }
-}
-
 /* ═══════════════════ 모션 줄이기 ═══════════════════
    모든 애니메이션을 최종 상태로 즉시 끝낸다. delay도 0으로 — fill: both인
-   fadeUp이 delay 동안 투명하게 남지 않게 한다. inline style의 animation도
+   진입 애니메이션이 delay 동안 투명하게 남지 않게 한다. inline style의 animation도
    여기서 꺼지지만, 새 코드는 animation을 CSS Module에 둔다. */
 @media (prefers-reduced-motion: reduce) {
   :root {

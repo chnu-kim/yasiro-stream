@@ -29,7 +29,7 @@ describe('definedKeyframes·missingKeyframes', () => {
   });
 });
 
-// 실제 모듈 전부: globals의 keyframe(fadeUp 등)을 모듈에서 쓰면 해시돼 재생되지 않는다. 모듈 안에 @keyframes를 둔다
+// 실제 모듈 전부: globals의 keyframe 이름을 모듈에서 쓰면 해시돼 재생되지 않는다. 모듈 안에 @keyframes를 둔다
 function moduleFiles(dir: string): string[] {
   return readdirSync(dir, { withFileTypes: true }).flatMap((e) => {
     const p = join(dir, e.name);
