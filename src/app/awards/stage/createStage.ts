@@ -74,7 +74,6 @@ export interface StageTimeline {
   open: number;
   hold: number;
   impact: number;
-  band: number;
   wall: number;
   title: number;
   call: number;
@@ -98,12 +97,12 @@ export const STAGE_TIMELINES: Record<StageIntro, StageTimeline> = {
   // 스포트(11-27, 공통 언어): 어둠(0~0.8) → 스포트가 꿀붕이에 열림(0.8) → 빛이 단으로 번짐(2.4~3.8) → 헤일로·벽·빔(4.2~) → 제목(5.6).
   // 카메라는 0.3초부터 9초까지 한 번 느리게 다가가 지금의 최종 자리에 멈춘다. SetupScreen CUES도 같이
   full: SPOT
-    ? { house: -99, spot: 0.8, spread: 2.4, rise: -99, pillars: 4.8, open: 4.2, hold: 5.4, impact: 4.2, band: 4.4, wall: 4.6, title: 5.6, call: 8.3 }
+    ? { house: -99, spot: 0.8, spread: 2.4, rise: -99, pillars: 4.8, open: 4.2, hold: 5.4, impact: 4.2, wall: 4.6, title: 5.6, call: 8.3 }
     : LATTICE
-    ? { house: -99, spot: 0.6, spread: 6.2, rise: -99, pillars: 6.8, open: 6.2, hold: 7.4, impact: 6.2, band: 6.4, wall: 7.6, title: 8.4, call: 11.1 }
-    : { house: -99, spot: 1.6, spread: 5.4, rise: 2.4, pillars: 6.0, open: 5.4, hold: 6.6, impact: 5.4, band: 5.6, wall: 6.8, title: 7.6, call: 10.3 },
-  short: { house: -99, spot: 0, spread: 0.4, rise: -99, pillars: 0, open: 0, hold: 0.15, impact: 0.4, band: 0.5, wall: 0.9, title: 1.4, call: 2.0 },
-  none: { house: -99, spot: -99, spread: -99, rise: -99, pillars: -99, open: -99, hold: -99, impact: -99, band: -99, wall: -99, title: -99, call: -99 },
+    ? { house: -99, spot: 0.6, spread: 6.2, rise: -99, pillars: 6.8, open: 6.2, hold: 7.4, impact: 6.2, wall: 7.6, title: 8.4, call: 11.1 }
+    : { house: -99, spot: 1.6, spread: 5.4, rise: 2.4, pillars: 6.0, open: 5.4, hold: 6.6, impact: 5.4, wall: 6.8, title: 7.6, call: 10.3 },
+  short: { house: -99, spot: 0, spread: 0.4, rise: -99, pillars: 0, open: 0, hold: 0.15, impact: 0.4, wall: 0.9, title: 1.4, call: 2.0 },
+  none: { house: -99, spot: -99, spread: -99, rise: -99, pillars: -99, open: -99, hold: -99, impact: -99, wall: -99, title: -99, call: -99 },
 };
 
 /** 밝기 예산. 노출·bloom 상한은 올리지 않는다(사용자 눈부심 지적). 효과를 더할 때는 여기 값을 먼저 정한다 */
@@ -539,16 +538,12 @@ export function createStage(canvas: HTMLCanvasElement, opts: StageOptions): Stag
   }
   scene.add(halo);
 
-  // ── 임팩트 효과: 바닥 충격파 링, 트로피를 타고 오르는 금빛 띠 ──
+  // ── 임팩트 효과: 바닥 충격파 링(트로피를 타고 오르던 금빛 띠는 11-27 사용자 요청으로 뺐다) ──
   const shockMat = track(new THREE.MeshBasicMaterial({ color: 0xd9b45a, transparent: true, opacity: 0, blending: THREE.AdditiveBlending, depthWrite: false }));
   const shock = new THREE.Mesh(track(new THREE.RingGeometry(1, 1.05, 160)), shockMat);
   shock.rotation.x = -Math.PI / 2;
   shock.position.y = STAGE_TOP + 0.02;
   scene.add(shock);
-  const bandMat = track(new THREE.MeshBasicMaterial({ color: 0xf0d48a, transparent: true, opacity: 0, blending: THREE.AdditiveBlending, depthWrite: false }));
-  const band = new THREE.Mesh(track(new THREE.TorusGeometry(1.75, 0.02, 8, 160)), bandMat);
-  band.rotation.x = Math.PI / 2;
-  scene.add(band);
 
   // ── 스크린 벽: 무대 뒤 곡면에 후보 포스터(낮은 밝기, 숨 쉬듯 느린 파동, 약한 탈채도) ──
   const loader = new THREE.TextureLoader();
@@ -1052,11 +1047,6 @@ export function createStage(canvas: HTMLCanvasElement, opts: StageOptions): Stag
     const sk = clamp01((t - tl.impact) / 1.3);
     shock.scale.setScalar(1 + easeOutCubic(sk) * 13);
     shockMat.opacity = t < tl.impact ? 0 : 0.5 * (1 - sk);
-    // 금빛 띠: 단상에서 꿀붕이까지 1.4초에 오른다
-    const bk = clamp01((t - tl.band) / 1.4);
-    band.position.y = STAGE_TOP + easeInOutCubic(bk) * (TROPHY_TOP_Y - STAGE_TOP);
-    band.scale.setScalar(1 - bk * 0.55);
-    bandMat.opacity = t < tl.band ? 0 : 0.55 * Math.sin(Math.PI * bk);
 
     // 서치라이트: 열림부터 훑고 → 정지에서 트로피로 모이고 → 호명에서 넓은 빛이 객석(관객) 쪽으로
     const holdK = easeInOutCubic((t - tl.hold) / 0.6);
