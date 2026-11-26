@@ -1,7 +1,7 @@
 // 수정 모드 폼 로직(클라이언트). 서버(repo.ts)와 같은 validateCandidate·diffGames를 쓴다. 순수 함수.
 import { diffGames, FIELD_LABEL, FIELD_ORDER } from "./diff.ts";
 import { formatDate } from "./query.ts";
-import { CHZZK_VOD_MESSAGE, GAME_STATUSES, isChzzkPosterUrl, isChzzkUrl, isValidIsoDate, validateCandidate } from "./schema.ts";
+import { CHZZK_VOD_MESSAGE, GAME_STATUSES, isChzzkPosterUrl, isChzzkUrl, isValidIsoDate, validateCandidate, youtubeVideoId } from "./schema.ts";
 import { formatTimecode, parseTimecode } from "./timecode.ts";
 import { isRecord } from "../json.ts";
 import type {
@@ -191,6 +191,20 @@ export function lastPlayedHint(form: GameForm): string {
 
 export function applyFix(form: GameForm, fix: FormFix): GameForm {
   return { ...form, firstPlayed: fix.date, undated: false };
+}
+
+/** 다시보기 목록에 같은 유튜브 영상이 이미 있는지. url에서 영상 id를 못 읽으면 false */
+export function hasVodVideo(vods: readonly FormVod[], url: string): boolean {
+  const id = youtubeVideoId(url);
+  return id !== null && vods.some((v) => youtubeVideoId(v.url) === id);
+}
+
+/** 다시보기 추가 입력(trim한 값)의 조회 전 검사. 빈 값 → 치지직 → 중복 순서. 문제가 없으면 null */
+export function vodUrlIssue(url: string, vods: readonly FormVod[]): string | null {
+  if (url === "") return "유튜브 링크를 넣어 주세요.";
+  if (isChzzkUrl(url)) return CHZZK_VOD_MESSAGE;
+  if (hasVodVideo(vods, url)) return "같은 영상이 이미 있어요.";
+  return null;
 }
 
 export function fieldDomId(key: FormFieldKey): string {

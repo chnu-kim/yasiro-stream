@@ -1,34 +1,10 @@
-// /api/awards 호출 래퍼(클라이언트). 던지지 않고 {status, body}를 돌려준다(status 0 = 네트워크 오류).
+// /api/awards 엔드포인트(클라이언트). 호출·{status, body} 반환(status 0 = 네트워크 오류)은 src/lib/api-client.ts가 맡는다.
 // 응답 해석·문구는 src/lib/awards/client.ts(순수 함수)가 맡는다.
+import { callApi } from '@/lib/api-client';
 import type { Division } from '@/lib/awards/types';
 
-export interface ApiResult {
-  status: number;
-  body: unknown;
-}
-
-async function call(method: string, url: string, payload?: unknown): Promise<ApiResult> {
-  try {
-    const res = await fetch(url, {
-      method,
-      headers: payload === undefined ? undefined : { 'Content-Type': 'application/json' },
-      body: payload === undefined ? undefined : JSON.stringify(payload),
-      credentials: 'same-origin',
-    });
-    let body: unknown = null;
-    try {
-      body = await res.json();
-    } catch {
-      body = null;
-    }
-    return { status: res.status, body };
-  } catch {
-    return { status: 0, body: null };
-  }
-}
-
 export const awardsApi = {
-  draw: (division: Division, size: number, thirdPlace: boolean) => call('POST', '/api/awards/draw', { division, size, thirdPlace }),
+  draw: (division: Division, size: number, thirdPlace: boolean) => callApi('POST', '/api/awards/draw', { division, size, thirdPlace }),
   submit: (division: Division, token: string, picks: readonly string[]) =>
-    call('POST', `/api/awards/submit?division=${encodeURIComponent(division)}`, { token, picks }),
+    callApi('POST', `/api/awards/submit?division=${encodeURIComponent(division)}`, { token, picks }),
 };

@@ -1,9 +1,17 @@
-// 관리자 UI가 쓰는 응답 해석·문구. 순수 함수(fetch 자체는 컴포넌트 쪽 얇은 래퍼가 한다).
+// 관리자 UI가 쓰는 응답 해석·문구. 순수 함수(fetch 자체는 src/lib/api-client.ts와 컴포넌트 쪽 엔드포인트 객체가 한다).
 import { gameToForm, issuesToFormIssues } from "./patch.ts";
 import { conflictMessage } from "./diff.ts";
 import { formatDate } from "./query.ts";
 import { isRecord as isObj } from "../json.ts";
-import type { FormIssue, GameForm, GameRecord, ValidationIssue } from "./types.ts";
+import type {
+  CategorySearchResponse,
+  ChangesResponse,
+  FormIssue,
+  GameForm,
+  GameRecord,
+  ValidationIssue,
+  YoutubeMeta,
+} from "./types.ts";
 
 /** 받침이 있다고 읽는 숫자(영·일·삼·육·칠·팔) */
 const DIGIT_WITH_FINAL = new Set(["0", "1", "3", "6", "7", "8"]);
@@ -78,6 +86,7 @@ function errorCode(body: unknown): string | null {
   return isObj(body) && isObj(body.error) && typeof body.error.code === "string" ? body.error.code : null;
 }
 
+// 409 latest 전용 엄격 검사. writtenGame과 합치지 않는다(합치면 updatedAt·updatedByName이 없는 저장 성공 응답이 실패로 바뀐다)
 function isRecord(v: unknown): v is GameRecord {
   return isObj(v) && typeof v.id === "string" && typeof v.version === "number" && typeof v.updatedAt === "number" && typeof v.updatedByName === "string";
 }
@@ -106,4 +115,27 @@ export function classifyFailure(status: number, body: unknown, form: GameForm | 
     return { kind: "invalid", message, issues: issuesToFormIssues(issues, form ?? gameToForm(null)) };
   }
   return { kind: "other", message };
+}
+
+// ---- 성공 응답 가드. 컴포넌트에 있던 조건식을 그대로 옮겼다(isObj로 다시 쓰지 않는다: 배열 본문을 다루는 방식이 달라진다) ----
+
+/** 쓰기(POST/PATCH/숨김) 성공 본문의 game. 느슨한 검사(객체, id string, version number)이고 아니면 null */
+export function writtenGame(body: unknown): GameRecord | null {
+  const g = (body as { game?: GameRecord } | null)?.game;
+  return typeof g === "object" && g !== null && typeof g.id === "string" && typeof g.version === "number" ? g : null;
+}
+
+/** GET /api/games/youtube 성공 본문 */
+export function isYoutubeMeta(v: unknown): v is YoutubeMeta {
+  return typeof v === "object" && v !== null && typeof (v as YoutubeMeta).title === "string" && typeof (v as YoutubeMeta).url === "string";
+}
+
+/** GET /api/games/[id]/changes 성공 본문 */
+export function isChangesResponse(v: unknown): v is ChangesResponse {
+  return typeof v === "object" && v !== null && Array.isArray((v as ChangesResponse).changes);
+}
+
+/** GET /api/games/categories 성공 본문 */
+export function isCategorySearchResponse(v: unknown): v is CategorySearchResponse {
+  return typeof v === "object" && v !== null && Array.isArray((v as CategorySearchResponse).results);
 }

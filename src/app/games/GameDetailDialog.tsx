@@ -4,6 +4,7 @@ import { useEffect, useRef, useState, type ReactNode, type RefObject } from 'rea
 import { EyeOff, Eye, Pencil } from 'lucide-react';
 import SectionLabel from '@/components/SectionLabel';
 import { formatChangeTime } from '@/lib/games/diff';
+import { isChangesResponse } from '@/lib/games/client';
 import { formatDate } from '@/lib/games/query';
 import { lastPlayedFact, STATUS_TEXT, vodAriaLabel } from '@/lib/games/labels';
 import { gameToForm } from '@/lib/games/patch';
@@ -24,10 +25,6 @@ export interface AdminDetailContext {
   /** 숨김/다시 보이기. 실패하면 사용자에게 보일 문구, 성공하면 null */
   onToggleHidden: (game: AdminGame, hidden: boolean) => Promise<string | null>;
   toast: ReactNode;
-}
-
-function isChanges(v: unknown): v is ChangesResponse {
-  return typeof v === 'object' && v !== null && Array.isArray((v as ChangesResponse).changes);
 }
 
 export default function GameDetailDialog({
@@ -192,7 +189,7 @@ function AdminSection({
     let cancelled = false;
     void adminApi.changes(game.id, 5).then((res) => {
       if (cancelled) return;
-      if (res.status === 200 && isChanges(res.body)) {
+      if (res.status === 200 && isChangesResponse(res.body)) {
         setChanges(res.body);
         setFailed(false);
       } else {

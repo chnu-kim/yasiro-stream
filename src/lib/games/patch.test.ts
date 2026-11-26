@@ -11,6 +11,7 @@ import {
   formToPatch,
   formToRaw,
   gameToForm,
+  hasVodVideo,
   issuesHeadline,
   issuesToFormIssues,
   normalizeHighlight,
@@ -22,6 +23,7 @@ import {
   lastPlayedHint,
   suggestFirstPlayed,
   validateForm,
+  vodUrlIssue,
 } from "./patch.ts";
 import { CHZZK_VOD_MESSAGE } from "./schema.ts";
 import type { Game, GameForm } from "./types.ts";
@@ -539,5 +541,25 @@ describe("마지막 플레이(정본)", () => {
     expect(parseDraft(JSON.stringify(old))?.form.lastPlayed).toBe("");
     old.form.lastPlayed = 1;
     expect(parseDraft(JSON.stringify(old))).toBeNull();
+  });
+});
+
+describe("hasVodVideo / vodUrlIssue", () => {
+  const vods = [{ title: "a", url: "https://www.youtube.com/watch?v=aaaaaaaaaaa", date: "2026-10-10", highlight: "" }];
+
+  it("hasVodVideo: 같은 영상 id면 true(주소 모양이 달라도), 다른 영상·id를 못 읽는 주소는 false", () => {
+    expect(hasVodVideo(vods, "https://youtu.be/aaaaaaaaaaa")).toBe(true);
+    expect(hasVodVideo(vods, "https://www.youtube.com/watch?v=bbbbbbbbbbb")).toBe(false);
+    expect(hasVodVideo(vods, "https://example.com/x")).toBe(false);
+    expect(hasVodVideo([], "https://youtu.be/aaaaaaaaaaa")).toBe(false);
+  });
+
+  it("vodUrlIssue: 빈 값 → 치지직 → 중복 순서, 문제없으면 null", () => {
+    expect(vodUrlIssue("", vods)).toBe("유튜브 링크를 넣어 주세요.");
+    expect(vodUrlIssue("https://chzzk.naver.com/video/123", vods)).toBe(CHZZK_VOD_MESSAGE);
+    expect(vodUrlIssue("https://youtu.be/aaaaaaaaaaa", vods)).toBe("같은 영상이 이미 있어요.");
+    expect(vodUrlIssue("https://youtu.be/bbbbbbbbbbb", vods)).toBeNull();
+    // 영상 id를 못 읽는 주소는 여기서 막지 않고 조회(서버)로 넘긴다
+    expect(vodUrlIssue("https://example.com/x", vods)).toBeNull();
   });
 });
