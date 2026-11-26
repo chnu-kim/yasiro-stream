@@ -32,9 +32,9 @@ import styles from './awards.module.css';
 const SEEN_KEY = 'yasiro-awards-intro-seen';
 
 /** 연출 방식별 자막·버튼 시각(초, 무대 시계 출발 기준). 무대 시간표(stage/createStage STAGE_TIMELINES)와 맞물린다:
- *  제목 = title(18.7), 둘째 줄 = call(21.4) 무렵. captions[i] = i번째 줄이 나오는 시각, 마지막 줄은 남는다. 시간값은 판단 시작값 */
+ *  제목 = title(7.6), 둘째 줄 = call(10.3) 무렵. captions[i] = i번째 줄이 나오는 시각, 마지막 줄은 남는다. 시간값은 판단 시작값 */
 const CUES: Record<StageIntro, { title: number; captions: number[]; cta: number }> = {
-  full: { title: 18.7, captions: [19.7, 21.2], cta: 22.6 },
+  full: { title: 7.6, captions: [8.6, 10.1], cta: 11.5 },
   short: { title: 1.4, captions: [-1, 2.0], cta: 2.8 },
   none: { title: 0, captions: [-1, 0], cta: 0 },
 };

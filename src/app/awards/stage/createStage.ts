@@ -28,7 +28,7 @@ import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { MeshoptDecoder } from 'three/addons/libs/meshopt_decoder.module.js';
 import { clone as cloneSkinned } from 'three/addons/utils/SkeletonUtils.js';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
-import { buildEntryCamera, type EntryCameraSpec } from '@/lib/awards/entry-camera';
+import { buildEntryCamera, smootherstep, type EntryCameraSpec } from '@/lib/awards/entry-camera';
 import { coverCrop } from '@/lib/awards/orbit';
 
 export interface StageItem {
@@ -64,6 +64,10 @@ export interface Stage {
 export interface StageTimeline {
   /** 객석 조명이 꺼지기 시작(그 전까지 볼룸이 보인다). 짧은 연출·완성 장면은 처음부터 꺼져 있다 */
   house: number;
+  /** 금 웅덩이 컨셉: 웅덩이로 스포트라이트 하나가 떨어지는 시각 */
+  spot: number;
+  /** 금 웅덩이 컨셉: 트로피가 수면을 뚫고 솟기 시작하는 시각(2.8초 동안) */
+  rise: number;
   pillars: number;
   open: number;
   hold: number;
@@ -75,10 +79,11 @@ export interface StageTimeline {
 }
 
 export const STAGE_TIMELINES: Record<StageIntro, StageTimeline> = {
-  // 입장 카메라가 심사위원석에 정착하는 시각(ENTRY_SPEC.times.stop, 15초) 기준. 2026-11-26 카메라를 바꾸며 9.2초에서 5.8초 늦췄다(SetupScreen CUES도 같이)
-  full: { house: 12.8, pillars: 14.2, open: 14.4, hold: 15.8, impact: 16.4, band: 16.6, wall: 17.8, title: 18.7, call: 21.4 },
-  short: { house: -99, pillars: 0, open: 0, hold: 0.15, impact: 0.4, band: 0.5, wall: 0.9, title: 1.4, call: 2.0 },
-  none: { house: -99, pillars: -99, open: -99, hold: -99, impact: -99, band: -99, wall: -99, title: -99, call: -99 },
+  // 금 웅덩이(11-26, 조사 ①안): 어둠 속 웅덩이가 은은히 빛나다(0.3) → 스포트라이트 하나(1.6) → 트로피가 수면을 뚫고 솟음(2.4~5.2)
+  // → 임팩트(5.4: 헤일로·충격파·꽃가루) → 빛이 퍼짐 → 제목. 카메라는 처음부터 한 방향으로 천천히 물러나 9.6초에 심사위원석. SetupScreen CUES도 같이
+  full: { house: -99, spot: 1.6, rise: 2.4, pillars: 6.0, open: 5.4, hold: 6.6, impact: 5.4, band: 5.6, wall: 6.8, title: 7.6, call: 10.3 },
+  short: { house: -99, spot: 0, rise: -99, pillars: 0, open: 0, hold: 0.15, impact: 0.4, band: 0.5, wall: 0.9, title: 1.4, call: 2.0 },
+  none: { house: -99, spot: -99, rise: -99, pillars: -99, open: -99, hold: -99, impact: -99, band: -99, wall: -99, title: -99, call: -99 },
 };
 
 /** 밝기 예산. 노출·bloom 상한은 올리지 않는다(사용자 눈부심 지적). 효과를 더할 때는 여기 값을 먼저 정한다 */
@@ -95,6 +100,8 @@ const BRIGHTNESS = {
   hazeAlpha: 0.045,
   /** 스크린 벽 최대 밝기(색 배율). 트로피보다 확실히 낮게 */
   wallMax: 0.13,
+  /** 금 웅덩이로 떨어지는 스포트라이트(실제 광원) */
+  poolSpot: 180,
   /** 통로 포스터 최대 밝기(색 배율). 어둠 속에서 읽히되 눈부시지 않게 */
   corridor: 0.5,
   halo: 0.72,
@@ -112,6 +119,9 @@ const PRELOAD_MAX_MS = 2500;
 const GOLD = 0xe0b654;
 const OXBLOOD = 0x4a1016;
 const STEPS = 8;
+/** 금 웅덩이: 단상 위 둥근 받침의 반지름·높이(트로피 받침 대각선 반지름 약 2.5보다 크게) */
+const POOL_R = 2.9;
+const POOL_H = 0.14;
 const STAGE_TOP = 1.6;
 const TROPHY_SCALE = 1.55;
 const TROPHY_TOP_Y = STAGE_TOP + 4.25 * TROPHY_SCALE;
@@ -141,9 +151,26 @@ const CAM_JUDGE = new THREE.Vector3(0, 5.0, 19.8); // 11-26: 21.5에서 당김. 
 const LOOK_JUDGE = new THREE.Vector3(0, 5.2, 0);
 /** 입장 컨셉(11-26 재구상): 'corridor' = 어둠 속 후보작 포스터 통로를 지나 문이 갈라지며 무대(A안), 'ballroom' = 이전 볼룸 비행.
  *  볼룸의 테이블·하객·레드카펫·샹들리에는 실시간 디테일이 모자라 싸구려 세트처럼 보였다(사용자 피드백) */
-const CONCEPT = 'ballroom' as 'corridor' | 'ballroom'; // 11-26: 통로(A안)는 사용자가 기각해 볼룸으로 되돌림
+const CONCEPT = 'pool' as 'corridor' | 'ballroom' | 'pool'; // 11-26: 통로(A안) 기각 → 볼룸 → 조사 ①안 '금에서 솟는 트로피'
+const POOL = CONCEPT === 'pool';
 const CORRIDOR = CONCEPT === 'corridor';
-const ENTRY_SPEC: EntryCameraSpec = CORRIDOR
+const ENTRY_SPEC: EntryCameraSpec = POOL
+  ? {
+      // 웅덩이 가까이(13.5m)에서 시작해 한 방향으로 천천히 물러나며 올라 심사위원석에 정착. 시선은 웅덩이 → 솟는 트로피를 따라 위로
+      points: [
+        [0, 3.0, 13.5],
+        [0, 3.4, 15.0],
+        [0, 4.0, 17.0],
+        [0, 4.5, 18.6],
+      ],
+      landTangent: [0, 0.5, 1.2],
+      end: [CAM_JUDGE.x, CAM_JUDGE.y, CAM_JUDGE.z],
+      times: { start: 0.4, peak: 4.0, land: 7.5, stop: 9.6 },
+      decel: 1.8,
+      look: { from: [0, 2.0, 0], to: [LOOK_JUDGE.x, LOOK_JUDGE.y, LOOK_JUDGE.z], start: 2.4, duration: 3.6 },
+      heading: { weight: 0, onStart: 0, onDuration: 1, offStart: 0, offDuration: 1 },
+    }
+  : CORRIDOR
   ? {
       // 통로 끝 높은 곳에서 출발 → 낮게 깔려 통로를 미끄러지듯 지나 → 문을 지나며 멈추지 않고 완만히 떠올라 심사위원석에 정착(한 번 움직여 정착).
       // 예전의 무대 앞 정지 → 6초 대기 → 엘리베이터처럼 상승은 두 번의 동작이라 어색했다(11-26)
@@ -250,7 +277,7 @@ export function createStage(canvas: HTMLCanvasElement, opts: StageOptions): Stag
 
   /** 볼룸 소품(레드카펫 길·샹들리에·객석·의자·하객). 통로 컨셉에서는 숨긴다 */
   const ballroom = new THREE.Group();
-  ballroom.visible = !CORRIDOR;
+  ballroom.visible = CONCEPT === 'ballroom';
   scene.add(ballroom);
 
   // ── 바닥: 반사판 + 반투명 검은 막 ──
@@ -286,7 +313,7 @@ export function createStage(canvas: HTMLCanvasElement, opts: StageOptions): Stag
     // 카펫: 계단 앞쪽 디딤 부분을 덮는다
     const rug = new THREE.Mesh(track(new THREE.BoxGeometry(3.4, 0.012, 0.95)), carpet);
     rug.position.set(0, stepH * (i + 1) + 0.006, front - 0.475);
-    scene.add(rug);
+    ballroom.add(rug);
   }
   // 객석에서 단상까지 이어지는 카펫
   const runway = new THREE.Mesh(track(new THREE.PlaneGeometry(3.4, 44)), carpet);
@@ -297,12 +324,14 @@ export function createStage(canvas: HTMLCanvasElement, opts: StageOptions): Stag
   for (const side of [-1, 1]) {
     const trim = new THREE.Mesh(track(new THREE.BoxGeometry(0.04, 0.02, 44)), edgeMat);
     trim.position.set(side * 1.72, 0.02, 5.1 + 22);
-    scene.add(trim);
+    ballroom.add(trim);
   }
 
   // ── 트로피: 대리석 받침 + 금 띠 + 줄기 + 지구본 + 꿀붕이 메달 ──
   const trophy = new THREE.Group();
-  trophy.position.y = STAGE_TOP;
+  /** 트로피가 서는 높이(웅덩이 컨셉은 받침 수면 위) */
+  const trophyRestY = STAGE_TOP + (POOL ? POOL_H : 0);
+  trophy.position.y = trophyRestY;
   trophy.scale.setScalar(TROPHY_SCALE);
   const box = (w: number, h: number, dd: number, mat: THREE.Material, y: number) => {
     const m = new THREE.Mesh(track(new THREE.BoxGeometry(w, h, dd)), mat);
@@ -349,6 +378,55 @@ export function createStage(canvas: HTMLCanvasElement, opts: StageOptions): Stag
   kkul.position.y = 3.72;
   trophy.add(kkul);
   scene.add(trophy);
+
+  // ── 금 웅덩이(POOL): 단상 위 둥근 받침에 고인 액체 금. 어둠 속에서 은은히 빛나다 스포트라이트를 받고, 트로피가 수면을 뚫고 솟으면 물결이 퍼진다 ──
+  const poolGroup = new THREE.Group();
+  poolGroup.visible = POOL;
+  scene.add(poolGroup);
+  const poolRim = new THREE.Mesh(track(new THREE.CylinderGeometry(POOL_R + 0.1, POOL_R + 0.16, POOL_H, 128, 1, true)), marble);
+  poolRim.position.y = STAGE_TOP + POOL_H / 2;
+  poolGroup.add(poolRim);
+  const poolLip = new THREE.Mesh(track(new THREE.RingGeometry(POOL_R - 0.02, POOL_R + 0.1, 128)), gold);
+  poolLip.rotation.x = -Math.PI / 2;
+  poolLip.position.y = STAGE_TOP + POOL_H + 0.004;
+  poolGroup.add(poolLip);
+  const poolGeo = track(new THREE.RingGeometry(0.0001, POOL_R, compact ? 96 : 160, compact ? 28 : 48));
+  poolGeo.rotateX(-Math.PI / 2);
+  const poolBase = Float32Array.from(poolGeo.attributes.position.array as ArrayLike<number>);
+  const poolMat = track(new THREE.MeshStandardMaterial({ color: 0xd9a646, metalness: 1, roughness: 0.16, emissive: 0x6a3d0c, emissiveIntensity: 0 }));
+  const poolMesh = new THREE.Mesh(poolGeo, poolMat);
+  poolMesh.position.y = STAGE_TOP + POOL_H;
+  poolGroup.add(poolMesh);
+  const poolSpot = new THREE.SpotLight(0xfff0cf, 0, 34, 0.16, 0.55, 1.4);
+  poolSpot.position.set(0, 21, 1.0);
+  poolSpot.target.position.set(0, STAGE_TOP, 0);
+  poolGroup.add(poolSpot, poolSpot.target);
+  /** 수면: 느린 너울 + 트로피가 뚫고 나올 때 가운데서 퍼지는 물결(감쇠). 정점 높이를 매 프레임 다시 계산한다 */
+  function updatePool(t: number) {
+    if (!POOL) return;
+    const tl = timeline;
+    const pos = poolGeo.attributes.position as THREE.BufferAttribute;
+    const arr = pos.array as Float32Array;
+    const since = t - (tl.rise + 0.25);
+    const wave = tl.rise < 0 || since < 0 ? 0 : 0.11 * Math.exp(-since * 0.75);
+    for (let i = 0; i < arr.length; i += 3) {
+      const x = poolBase[i];
+      const z = poolBase[i + 2];
+      const d = Math.hypot(x, z);
+      let y = 0.012 * Math.sin(d * 2.6 - t * 1.1) + 0.008 * Math.sin(x * 1.7 + t * 0.7);
+      if (wave > 0) {
+        const front = since * 1.5;
+        const env = smooth(front + 0.2, front - 1.4, d) * (d < front + 0.2 ? 1 : 0);
+        y += wave * env * Math.sin(7 * (d - front));
+      }
+      arr[i + 1] = y * smooth(POOL_R, POOL_R - 0.35, d); // 가장자리는 받침에 붙는다
+    }
+    pos.needsUpdate = true;
+    poolGeo.computeVertexNormals();
+    // 어둠 속 은은한 빛(녹은 금) → 스포트라이트를 받으면 반사가 주인공, 임팩트 뒤에는 조금 가라앉는다
+    poolMat.emissiveIntensity = 0.35 * ramp(t, 0.3, 1.6) * (1 - 0.5 * ramp(t, tl.impact, 1.5));
+    poolSpot.intensity = BRIGHTNESS.poolSpot * ramp(t, tl.spot, 0.9) * (1 - 0.45 * ramp(t, tl.impact + 0.8, 1.5));
+  }
 
   // ── 헤일로: 지구본 뒤 빛의 고리 두 겹 + 빛 점 ──
   const haloMat = glow();
@@ -619,7 +697,7 @@ export function createStage(canvas: HTMLCanvasElement, opts: StageOptions): Stag
   // ── 서치라이트(시각용 빛줄기): 가는 빔 6(호박) · 넓은 빛 2(차가운 백색) · 역광 2(무대 뒤에서 가장자리를 스침) ──
   const beamGeo = track(new THREE.ConeGeometry(0.42, 1, 40, 1, true));
   beamGeo.translate(0, -0.5, 0); // 꼭짓점을 원점(광원)에
-  type Beam = { mesh: THREE.Mesh; mat: THREE.ShaderMaterial; origin: THREE.Vector3; seed: number; kind: 'narrow' | 'wash' | 'back'; aim: THREE.Vector3; widen: number };
+  type Beam = { mesh: THREE.Mesh; mat: THREE.ShaderMaterial; origin: THREE.Vector3; seed: number; kind: 'narrow' | 'wash' | 'back' | 'pool'; aim: THREE.Vector3; widen: number };
   const beams: Beam[] = [];
   const addBeam = (kind: Beam['kind'], origin: THREE.Vector3, seed: number, color: number, alpha: number, widen: number) => {
     const mat = track(beamMaterial(color, alpha));
@@ -634,6 +712,7 @@ export function createStage(canvas: HTMLCanvasElement, opts: StageOptions): Stag
   }
   for (const side of [-1, 1]) addBeam('wash', new THREE.Vector3(side * 6, 22, 10), side * 2.1, 0xdfe6f0, BRIGHTNESS.washAlpha, 0.11);
   if (!compact) for (const side of [-1, 1]) addBeam('back', new THREE.Vector3(side * 5, 12, -12), side * 3.3, 0xf3d58e, BRIGHTNESS.backBeamAlpha, 0.05);
+  if (POOL) addBeam('pool', new THREE.Vector3(0, 21, 1.0), 0, 0xf3cf86, BRIGHTNESS.beamAlpha, 0.075);
 
   // ── 안개 막: 트로피 앞뒤 반투명 판(느리게 흐르는 잡음). 빛줄기가 겹을 통과하는 깊이 ──
   const hazeMats = [-2.5, 7].map((z) => {
@@ -876,6 +955,10 @@ export function createStage(canvas: HTMLCanvasElement, opts: StageOptions): Stag
         on = ramp(t, tl.open, 0.8);
         aimTmp.set(b.seed * 2.5 + Math.sin(t * 0.2 + b.seed) * 2, STAGE_TOP, 2 + Math.cos(t * 0.17) * 2);
         b.aim.lerpVectors(aimTmp, audienceAim, callK);
+      } else if (b.kind === 'pool') {
+        // 처음 떨어지는 단 하나의 빛. 임팩트 뒤 다른 빛들이 켜지면 한 걸음 물러난다
+        on = ramp(t, tl.spot, 0.9) * (1 - 0.5 * ramp(t, tl.impact + 0.8, 1.5));
+        b.aim.set(0, STAGE_TOP, 0);
       } else {
         on = ramp(t, tl.hold, 0.6);
         b.aim.set(Math.sign(b.seed) * (10 + Math.sin(t * 0.25) * 1.5), 7, 22);
@@ -977,6 +1060,9 @@ export function createStage(canvas: HTMLCanvasElement, opts: StageOptions): Stag
     layoutCorridor(t);
 
     trophy.rotation.y = Math.sin(t * 0.22) * 0.18;
+    // 금에서 솟는 트로피: 수면 아래(단상 속)에서 2.8초에 걸쳐 올라온다. 받침까지 다 잠길 만큼 깊게 시작
+    trophy.position.y = trophyRestY - (timeline.rise < 0 ? 0 : (1 - smootherstep((t - timeline.rise) / 2.8)) * 7.2);
+    updatePool(t);
     kkul.position.y = 3.72 + Math.sin(t * 1.4) * 0.025;
     halo.rotation.z = t * 0.04;
 
