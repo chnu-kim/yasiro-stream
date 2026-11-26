@@ -1731,23 +1731,3 @@
   to { opacity: 1; transform: translateY(0); }
 }
 
-/* TEMP(결정 5 비교): 개발 중 localStorage['stage-look']='A'|'B'|'C'로 최종 화면 마감을 바꿔 본다. 결정 뒤 하나만 남기고 지운다 */
-.ceremony[data-look='B'] .titleFill {
-  background-image: linear-gradient(180deg, #d8be8a 0%, #b8935a 100%);
-  background-size: 100% 100%;
-  animation: none;
-}
-
-.ceremony[data-look='C'] .titleFill {
-  background-image: none;
-  color: #c8a96b;
-  -webkit-text-fill-color: #c8a96b;
-  animation: none;
-}
-
-.ceremony[data-look='B'] .ctaButton,
-.ceremony[data-look='C'] .ctaButton {
-  background: #0b0a0d;
-  color: #e9e2d2;
-  box-shadow: 0 0 0 1px #c8a96b;
-}

@@ -85,19 +85,6 @@ const CONCEPT = 'lattice' as 'corridor' | 'ballroom' | 'pool' | 'lattice';
 const POOL = CONCEPT === 'pool';
 const CORRIDOR = CONCEPT === 'corridor';
 const LATTICE = CONCEPT === 'lattice';
-/** TEMP(결정 5 비교): 최종 화면 마감 시안. 개발 중 localStorage['stage-look']='A'(지금 그대로)|'B'(한 단계 절제)|'C'(최소). 결정 뒤 하나만 남긴다 */
-const LOOK: 'A' | 'B' | 'C' = (() => {
-  if (process.env.NODE_ENV === 'production' || typeof window === 'undefined') return 'A';
-  try {
-    const v = window.localStorage.getItem('stage-look');
-    return v === 'B' || v === 'C' ? v : 'A';
-  } catch {
-    return 'A';
-  }
-})();
-/** 시안별 배율: 헤일로 발광, 포스터 벽 노출 */
-const LOOK_HALO = { A: 1, B: 0.35, C: 0 }[LOOK];
-const LOOK_WALL = { A: 1, B: 0.6, C: 0.4 }[LOOK];
 
 export const STAGE_TIMELINES: Record<StageIntro, StageTimeline> = {
   // 금 웅덩이(11-26, 조사 ①안): 어둠 속 웅덩이가 은은히 빛나다(0.3) → 스포트라이트 하나(1.6) → 트로피가 수면을 뚫고 솟음(2.4~5.2)
@@ -132,7 +119,7 @@ const BRIGHTNESS = {
   envBase: 0.35,
   envImpact: 0.55,
   /** 금 웅덩이로 떨어지는 스포트라이트(실제 광원) */
-  poolSpot: 180,
+  poolSpot: 90, // 11-27: 180이면 새 트로피 꿀붕이 머리 꼭대기가 하얗게 날아갔다
   /** 통로 포스터 최대 밝기(색 배율). 어둠 속에서 읽히되 눈부시지 않게 */
   corridor: 0.5,
   halo: 0.72,
@@ -352,41 +339,25 @@ export function createStage(canvas: HTMLCanvasElement, opts: StageOptions): Stag
   const edgeMat = glow();
   const edgeOn = new THREE.Color(0xc9a24e);
   const stepH = STAGE_TOP / STEPS;
-  /** 사각 계단 단상(시안 A). B·C는 둥근 2단으로 바꾼다 */
-  const rectStage: THREE.Object3D[] = [];
   for (let i = 0; i < STEPS; i++) {
     const w = 18 - i * 1.35;
     const d = 11 - i * 0.95;
     const step = new THREE.Mesh(track(new THREE.BoxGeometry(w, stepH, d)), marble);
     step.position.set(0, stepH * (i + 0.5), -0.4 + i * 0.05);
     scene.add(step);
-    rectStage.push(step);
     const front = step.position.z + d / 2;
     const edge = new THREE.Mesh(track(new THREE.BoxGeometry(w, 0.02, 0.02)), edgeMat);
     edge.position.set(0, stepH * (i + 1) - 0.01, front);
     scene.add(edge);
-    rectStage.push(edge);
     // 카펫: 계단 앞쪽 디딤 부분을 덮는다
     const rug = new THREE.Mesh(track(new THREE.BoxGeometry(3.4, 0.012, 0.95)), carpet);
     rug.position.set(0, stepH * (i + 1) + 0.006, front - 0.475);
     ballroom.add(rug);
   }
-  // 공통 언어(11-27): 둥근 2단 검정 돌 단 + 맨 위 단 가장자리 금 링 한 줄(시안 B·C)
+  // 새 트로피(glb)의 재질: 무광 금(금 F0 선형 1, 0.71, 0.31), 가장자리만 조금 매끈한 금, 검정 돌(사용자 결정 11-27)
   const stoneBlack = track(new THREE.MeshStandardMaterial({ color: 0x15151a, roughness: 0.4, metalness: 0 }));
   const goldMatte = track(new THREE.MeshPhysicalMaterial({ color: new THREE.Color().setRGB(1, 0.71, 0.31, THREE.LinearSRGBColorSpace), metalness: 1, roughness: 0.5 }));
   const goldEdge = track(new THREE.MeshPhysicalMaterial({ color: new THREE.Color().setRGB(1, 0.71, 0.31, THREE.LinearSRGBColorSpace), metalness: 1, roughness: 0.25 }));
-  const roundStage = new THREE.Group();
-  roundStage.visible = LOOK !== 'A';
-  const lowerStep = new THREE.Mesh(track(new THREE.CylinderGeometry(8.6, 8.8, STAGE_TOP / 2, 128)), stoneBlack);
-  lowerStep.position.y = STAGE_TOP / 4;
-  const upperStep = new THREE.Mesh(track(new THREE.CylinderGeometry(6.4, 6.5, STAGE_TOP / 2, 128)), stoneBlack);
-  upperStep.position.y = (STAGE_TOP * 3) / 4;
-  const stageRing = new THREE.Mesh(track(new THREE.TorusGeometry(6.42, 0.03, 12, 220)), goldEdge);
-  stageRing.rotation.x = Math.PI / 2;
-  stageRing.position.y = STAGE_TOP - 0.02;
-  roundStage.add(lowerStep, upperStep, stageRing);
-  scene.add(roundStage);
-  if (LOOK !== 'A') for (const o of rectStage) o.visible = false;
 
   // 객석에서 단상까지 이어지는 카펫
   const runway = new THREE.Mesh(track(new THREE.PlaneGeometry(3.4, 44)), carpet);
@@ -543,13 +514,6 @@ export function createStage(canvas: HTMLCanvasElement, opts: StageOptions): Stag
     halo.add(bead);
   }
   scene.add(halo);
-  // 시안 B: 가는 링 하나만 약하게 발광 / C: 빛나지 않는 무광 금 링(림 조명으로만 보임)
-  if (LOOK !== 'A') {
-    for (let i = 1; i < halo.children.length; i++) halo.children[i].visible = false;
-    const ringMesh = halo.children[0] as THREE.Mesh;
-    ringMesh.geometry = track(new THREE.TorusGeometry(4.5, 0.022, 12, 220));
-    if (LOOK === 'C') ringMesh.material = goldMatte;
-  }
 
   // ── 임팩트 효과: 바닥 충격파 링, 트로피를 타고 오르는 금빛 띠 ──
   const shockMat = track(new THREE.MeshBasicMaterial({ color: 0xd9b45a, transparent: true, opacity: 0, blending: THREE.AdditiveBlending, depthWrite: false }));
@@ -819,15 +783,6 @@ export function createStage(canvas: HTMLCanvasElement, opts: StageOptions): Stag
   }
   for (const side of [-1, 1]) addBeam('wash', new THREE.Vector3(side * 6, 22, 10), side * 2.1, 0xdfe6f0, BRIGHTNESS.washAlpha, 0.11);
   if (!compact) for (const side of [-1, 1]) addBeam('back', new THREE.Vector3(side * 5, 12, -12), side * 3.3, 0xf3d58e, BRIGHTNESS.backBeamAlpha, 0.05);
-  const narrowFirst = beams.find((b) => b.kind === 'narrow');
-  const narrowLast = [...beams].reverse().find((b) => b.kind === 'narrow');
-  // 시안 B: 좌우 대칭 한 줄씩(원래 가는 빔 배치는 앞뒤가 엇갈려 한쪽만 화면에 들어왔다)
-  if (LOOK === 'B' && narrowFirst && narrowLast) {
-    narrowFirst.origin.set(-9, 21, -1);
-    narrowLast.origin.set(9, 21, -1);
-    narrowFirst.mesh.position.copy(narrowFirst.origin);
-    narrowLast.mesh.position.copy(narrowLast.origin);
-  }
   if (POOL || LATTICE) addBeam('pool', new THREE.Vector3(0, 21, 1.0), 0, 0xf3cf86, BRIGHTNESS.beamAlpha, 0.075);
 
   // ── 안개 막: 트로피 앞뒤 반투명 판(느리게 흐르는 잡음). 빛줄기가 겹을 통과하는 깊이 ──
@@ -870,8 +825,7 @@ export function createStage(canvas: HTMLCanvasElement, opts: StageOptions): Stag
   const target = new THREE.WebGLRenderTarget(1, 1, { type: THREE.HalfFloatType, samples: compact ? 0 : 4 });
   const composer = new EffectComposer(renderer, target);
   composer.addPass(new RenderPass(scene, camera));
-  // 시안 B·C는 문턱을 올려 링의 심만 번지게
-  if (!compact) composer.addPass(new UnrealBloomPass(new THREE.Vector2(1, 1), BRIGHTNESS.bloomStrength, 0.18, LOOK === 'A' ? 0.88 : 0.95));
+  if (!compact) composer.addPass(new UnrealBloomPass(new THREE.Vector2(1, 1), BRIGHTNESS.bloomStrength, 0.18, 0.88));
   composer.addPass(new OutputPass());
   disposables.push(composer, target);
 
@@ -1007,7 +961,7 @@ export function createStage(canvas: HTMLCanvasElement, opts: StageOptions): Stag
       const centerDist = Math.abs(w.col - (wallCols - 1) / 2);
       const on = ramp(t, tl.wall + centerDist * 0.07 + w.row * 0.05, 0.7);
       const breath = 0.5 + 0.5 * Math.sin(t * 0.8 - w.col * 0.42 + w.row * 0.3);
-      const level = on * BRIGHTNESS.wallMax * LOOK_WALL * (0.55 + 0.45 * breath) * duck;
+      const level = on * BRIGHTNESS.wallMax * (0.55 + 0.45 * breath) * duck;
       w.pop += ((i === hovered ? 1 : 0) - w.pop) * Math.min(1, dt * 10);
       const lit = level + (1 - level) * w.pop;
       // 약한 탈채도 느낌: 따뜻한 회색 쪽으로 살짝 기운 배율
@@ -1047,7 +1001,7 @@ export function createStage(canvas: HTMLCanvasElement, opts: StageOptions): Stag
       p.mat.color.copy(pillarOn).multiplyScalar(BRIGHTNESS.pillar * on * (0.8 + 0.2 * Math.sin(t * 0.6 + p.phase)));
     }
     edgeMat.color.copy(edgeOn).multiplyScalar(BRIGHTNESS.edge * impactK);
-    haloMat.color.copy(haloOn).multiplyScalar(BRIGHTNESS.halo * LOOK_HALO * ramp(t, tl.impact + 0.08, 0.3));
+    haloMat.color.copy(haloOn).multiplyScalar(BRIGHTNESS.halo * ramp(t, tl.impact + 0.08, 0.3));
     lampMat.color.setRGB(0.95, 0.62, 0.25).multiplyScalar(BRIGHTNESS.lamp * ramp(t, -0.4, 1.2));
     // 샹들리에: 쇼 전에는 볼룸 조명으로 반짝이고, 암전 때 낮아졌다가 임팩트 뒤 다시 은은하게
     const chandelierLevel = tl.house < 0 ? ramp(t, tl.pillars + 0.4, 1.2) : Math.max(houseOn * ramp(t, -0.3, 0.8), 0.7 * ramp(t, tl.impact + 0.5, 1.2));
@@ -1056,7 +1010,7 @@ export function createStage(canvas: HTMLCanvasElement, opts: StageOptions): Stag
     for (const l of chandelierLamps) l.emissiveIntensity = 1.6 * chandelierLevel;
     (crystalMat.uniforms.time as { value: number }).value = t;
     const titleDuck = 1 - 0.4 * easeInOutCubic((t - tl.title) / 0.8);
-    dustMat.opacity = (LOOK === 'A' ? 0.55 : 0) * ramp(t, tl.open, 1.5) * titleDuck; // B·C: 반짝이 입자 없음(공통 언어)
+    dustMat.opacity = 0.55 * ramp(t, tl.open, 1.5) * titleDuck;
     for (const m of hazeMats) {
       (m.uniforms.time as { value: number }).value = t;
       (m.uniforms.level as { value: number }).value = BRIGHTNESS.hazeAlpha * ramp(t, tl.open, 1.5);
@@ -1094,9 +1048,6 @@ export function createStage(canvas: HTMLCanvasElement, opts: StageOptions): Stag
         on = ramp(t, tl.hold, 0.6);
         b.aim.set(Math.sign(b.seed) * (10 + Math.sin(t * 0.25) * 1.5), 7, 22);
       }
-      // 시안 B: 좌우 한 줄씩(가장 바깥 가는 빔 둘)만 절반 세기 / C: 위에서 떨어지는 한 줄만
-      if (LOOK === 'B') on *= b === narrowFirst || b === narrowLast ? 0.35 : 0;
-      else if (LOOK === 'C') on *= b.kind === 'pool' ? 1 : 0;
       aimBeam(b.mesh, b.origin, b.aim, tmp, b.widen);
       (b.mat.uniforms.strength as { value: number }).value = on;
       (b.mat.uniforms.time as { value: number }).value = t;
@@ -1191,7 +1142,7 @@ export function createStage(canvas: HTMLCanvasElement, opts: StageOptions): Stag
 
     applyLights(t);
     layoutWall(dt, hovered, t);
-    if (LOOK === 'A') updateConfetti(dt, t);
+    updateConfetti(dt, t);
     placeCamera(t, dt);
     layoutCorridor(t);
 
