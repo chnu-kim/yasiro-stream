@@ -1,5 +1,9 @@
 // 검색·공유 미리보기 메타데이터. layout(기본값·template), 각 page(pageMetadata), sitemap.ts, 허브 JSON-LD가 쓴다.
 import type { Metadata } from "next";
+import { CHANNELS, type ChannelId } from "./channels.ts";
+
+/** 야시로 Person의 sameAs로 잇는 공식 채널(풀영상 채널·팬카페는 제외) */
+const SAME_AS_IDS: readonly ChannelId[] = ["chzzk", "youtube", "x"];
 
 export const SITE_URL = "https://yasiro.stream";
 export const SITE_NAME = "야시로 팬사이트";
@@ -63,11 +67,7 @@ export function siteJsonLd() {
       name: "야시로",
       alternateName: "Yasiro",
       description: "치지직 버츄얼 스트리머. 테라포레 소속 벌꿀오소리 탐험가.",
-      sameAs: [
-        "https://chzzk.naver.com/d6e680f5b17eba0b078f978dd722c0f3",
-        "https://www.youtube.com/@yasiro0321",
-        "https://x.com/yasiro__",
-      ],
+      sameAs: CHANNELS.filter((c) => SAME_AS_IDS.includes(c.id)).map((c) => c.href),
     },
   };
 }
