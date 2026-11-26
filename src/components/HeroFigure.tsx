@@ -5,12 +5,14 @@
 // 계산할 수 없으면 CSS 기본 전환(globals.css .figure-morph)이 그대로 돈다.
 import { useLayoutEffect, ViewTransition, type ReactNode, type ViewTransitionInstance } from 'react';
 import { HERO_FIGURE, HERO_FIGURE_SHARE } from '@/lib/page-transition';
-import { runHeroMorph, type DocAnimation, type FigureMeasure, type MorphInstance, type Rect } from '@/lib/hero-morph';
+import { runHeroMorph, type DocAnimation, type FigureMeasure, type HeroSide, type MorphInstance, type Rect } from '@/lib/hero-morph';
 
 const SELECTOR = '[data-hero-figure]';
 
 // 떠나는 페이지의 그림 측정값. 언마운트 직전(스냅샷과 같은 레이아웃)에 적고, 짝이 지어지면 한 번 쓰고 비운다
 let leaving: FigureMeasure | null = null;
+// 가장 최근에 붙은 쪽(= 짝이 지어질 때 캐릭터가 도착하는 쪽). 새 페이지는 짝이 지어지기 전에 마운트된다
+let arriving: HeroSide | null = null;
 
 function rectOf(el: Element): Rect {
   const r = el.getBoundingClientRect();
@@ -46,18 +48,20 @@ function onShare(instance: ViewTransitionInstance) {
       oldM,
       newM: measure(document.querySelector(SELECTOR)),
       reducedMotion: matchMedia('(prefers-reduced-motion: reduce)').matches,
+      to: arriving,
       docAnimations,
     }) ?? undefined
   );
 }
 
-export default function HeroFigure({ children }: { children: ReactNode }) {
+export default function HeroFigure({ side, children }: { side: HeroSide; children: ReactNode }) {
   useLayoutEffect(() => {
     const box = document.querySelector(SELECTOR);
+    arriving = side;
     return () => {
       leaving = measure(box);
     };
-  }, []);
+  }, [side]);
 
   return (
     <ViewTransition name={HERO_FIGURE} share={HERO_FIGURE_SHARE} default="none" onShare={onShare}>

@@ -131,7 +131,7 @@ describe('runHeroMorph', () => {
   const run = (over: Partial<Parameters<typeof runHeroMorph>[0]> = {}) => {
     const inst = instance();
     const page = docAnim('::view-transition-new(_t_1_)', 80);
-    const cleanup = runHeroMorph({ instance: inst, oldM, newM, reducedMotion: false, docAnimations: () => [page], ...over });
+    const cleanup = runHeroMorph({ instance: inst, oldM, newM, reducedMotion: false, to: 'about', docAnimations: () => [page], ...over });
     return { inst: (over.instance as ReturnType<typeof instance>) ?? inst, page, cleanup };
   };
 
@@ -145,14 +145,28 @@ describe('runHeroMorph', () => {
     expect(inst.new.calls[0].keyframes).toEqual({ transform: t.new });
     expect(inst.old.calls[0].options).toMatchObject({ duration: HERO_MORPH.duration, fill: 'both' });
     expect(page.set).toEqual([80 + HERO_MORPH.enterShift]);
+    expect(inst.old.calls[1].keyframes).toEqual(HERO_MORPH.opacity.about.old);
+    expect(inst.new.calls[1].keyframes).toEqual(HERO_MORPH.opacity.about.new);
 
     cleanup!();
     expect([...inst.old.calls, ...inst.new.calls].every((c) => c.canceled)).toBe(true);
   });
 
-  it('모션 줄이기·측정 실패·그룹 키프레임 없음·이미지 폭 0이면 아무것도 바꾸지 않는다', () => {
+  it('홈으로 갈 때는 홈 그림을 더 일찍 덮고 옛 그림을 더 일찍·길게 뺀다', () => {
+    const { inst } = run({ to: 'home' });
+    expect(inst.old.calls[1].keyframes).toEqual(HERO_MORPH.opacity.home.old);
+    expect(inst.new.calls[1].keyframes).toEqual(HERO_MORPH.opacity.home.new);
+    // 새 그림이 다 덮이는 시점·옛 그림이 빠지기 시작하는 시점이 소개로 갈 때보다 이르다
+    const full = (k: readonly { offset: number; opacity: number }[]) => k.find((f) => f.opacity === 1 && f.offset > 0)!.offset;
+    const fadeStart = (k: readonly { offset: number; opacity: number }[]) => k.filter((f) => f.opacity === 1).at(-1)!.offset;
+    expect(full(HERO_MORPH.opacity.home.new)).toBeLessThan(full(HERO_MORPH.opacity.about.new));
+    expect(fadeStart(HERO_MORPH.opacity.home.old)).toBeLessThan(fadeStart(HERO_MORPH.opacity.about.old));
+  });
+
+  it('모션 줄이기·측정 실패·도착 쪽 모름·그룹 키프레임 없음·이미지 폭 0이면 아무것도 바꾸지 않는다', () => {
     const cases: Array<Partial<Parameters<typeof runHeroMorph>[0]>> = [
       { reducedMotion: true },
+      { to: null },
       { oldM: null },
       { newM: null },
       { instance: instance(null) },

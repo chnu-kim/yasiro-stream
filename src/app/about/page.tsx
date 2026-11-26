@@ -344,7 +344,7 @@ export default async function About() {
 // 고정 그림판: 사선 띠 위 캐릭터 + 키 눈금자 + 장비 라벨(전신으로 물러난 뒤 CSS가 켠다)
 function Plate() {
   return (
-    <HeroFigure>
+    <HeroFigure side="about">
     <div className={styles.stage} data-hero-figure>
       {/* 띠는 무대 위로 삐져나와 무대가 자른다. 전환에서는 띠만 따로 찍히는데 그때는 무대의 자르기가 빠지므로, 무대 크기 틀로 한 번 더 자른다 */}
       <span className={styles.bandClip} {...vtTarget('about-band', 'band')} aria-hidden="true">

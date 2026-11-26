@@ -83,7 +83,7 @@ export default async function Home() {
             ))}
           </dl>
 
-          <HeroFigure>
+          <HeroFigure side="home">
           <div className={styles.figure} data-hero-figure>
             <ArtImage
               name="yasiro1"

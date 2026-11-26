@@ -57,18 +57,38 @@ export function rectFromKeyframe(k: Record<string, unknown>): Rect | null {
 export const HERO_MORPH = {
   duration: 720,
   easing: 'cubic-bezier(0.65, 0, 0.25, 1)',
-  newOpacity: [
-    { offset: 0, opacity: 0 },
-    { offset: 0.35, opacity: 0 },
-    { offset: 0.7, opacity: 1 },
-    { offset: 1, opacity: 1 },
-  ],
-  oldOpacity: [
-    { offset: 0, opacity: 1 },
-    { offset: 0.6, opacity: 1 },
-    { offset: 0.85, opacity: 0 },
-    { offset: 1, opacity: 0 },
-  ],
+  // 두 그림의 교차(목적지별). 홈 히어로는 아래가 바탕에 스며드는 그림이라, 홈으로 갈 때 늦게 바꾸면 끝 무렵에 아래가 한꺼번에 흐려진다.
+  // 그래서 홈으로 갈 때는 홈 그림을 일찍 덮고 옛 그림(아래가 안 흐려진 소개 전신)을 길게 빼서 흐려짐이 이동 중에 천천히 드러나게 한다
+  opacity: {
+    about: {
+      new: [
+        { offset: 0, opacity: 0 },
+        { offset: 0.35, opacity: 0 },
+        { offset: 0.7, opacity: 1 },
+        { offset: 1, opacity: 1 },
+      ],
+      old: [
+        { offset: 0, opacity: 1 },
+        { offset: 0.6, opacity: 1 },
+        { offset: 0.85, opacity: 0 },
+        { offset: 1, opacity: 0 },
+      ],
+    },
+    home: {
+      new: [
+        { offset: 0, opacity: 0 },
+        { offset: 0.08, opacity: 0 },
+        { offset: 0.42, opacity: 1 },
+        { offset: 1, opacity: 1 },
+      ],
+      old: [
+        { offset: 0, opacity: 1 },
+        { offset: 0.2, opacity: 1 },
+        { offset: 0.62, opacity: 0 },
+        { offset: 1, opacity: 0 },
+      ],
+    },
+  },
   // 짝이 지어지면 새 페이지의 등장 애니메이션(globals.css: 본문·제목 순차 등장·띠·도장)을 모두 이만큼 늦춘다.
   // 간격은 그대로라 순서가 유지된다. 본문 기본 등장 80ms + 60 = 140ms(캐릭터 이동과 겹쳐 들어온다)
   enterShift: 60,
@@ -85,6 +105,9 @@ export type MorphInstance = { name: string; group: PseudoLike; imagePair: Pseudo
 
 // 문서의 CSS 애니메이션 하나(대상 pseudo, 지금 delay, delay 바꾸기)
 export type DocAnimation = { pseudo: string | null; delay: number; setDelay(ms: number): void };
+
+// 캐릭터가 도착하는 쪽
+export type HeroSide = keyof typeof HERO_MORPH.opacity;
 
 // 그룹(UA) 애니메이션의 첫·끝 키프레임 → 옛·새 상자
 export function groupRects(group: PseudoLike): [Rect, Rect] | null {
@@ -113,10 +136,11 @@ export function runHeroMorph(args: {
   oldM: FigureMeasure | null;
   newM: FigureMeasure | null;
   reducedMotion: boolean;
+  to: HeroSide | null;
   docAnimations: () => DocAnimation[];
 }): (() => void) | null {
   const { instance, oldM, newM } = args;
-  if (args.reducedMotion || !oldM || !newM) return null;
+  if (args.reducedMotion || !oldM || !newM || !args.to) return null;
   const boxes = groupRects(instance.group);
   if (!boxes) return null;
   const t = morphTransforms(oldM, newM, boxes[0], boxes[1]);
@@ -131,8 +155,8 @@ export function runHeroMorph(args: {
   const anims = [
     instance.old.animate({ transform: [...t.old] }, move),
     instance.new.animate({ transform: [...t.new] }, move),
-    instance.old.animate([...HERO_MORPH.oldOpacity], fade),
-    instance.new.animate([...HERO_MORPH.newOpacity], fade),
+    instance.old.animate([...HERO_MORPH.opacity[args.to].old], fade),
+    instance.new.animate([...HERO_MORPH.opacity[args.to].new], fade),
   ];
   shiftEnters(args.docAnimations(), instance.name, HERO_MORPH.enterShift);
   return () => anims.forEach((a) => a.cancel());
