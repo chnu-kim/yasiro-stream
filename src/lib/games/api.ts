@@ -2,6 +2,7 @@
 // 익명 규칙: 응답·로그에 채널 ID, write_token, 관리자 실명이 나가지 않는다. 로그에는 코드와 error.name만 쓴다.
 import { getSessionActor, parseAdminIds } from "./admin.ts";
 import { checkSameOrigin } from "../http.ts";
+import { readJsonBody } from "../json-body.ts";
 import { searchCategories, ChzzkCategoryError } from "../chzzk-category.ts";
 import { conflictMessage } from "./diff.ts";
 import { createGame, getGame, listChanges, listGames, setHidden, updateGame } from "./repo.ts";
@@ -196,48 +197,6 @@ async function requireWriter(req: Request, deps: ApiDeps): Promise<Actor | Respo
   return requireAdmin(req, deps);
 }
 
-export type Body = { ok: true; value: unknown } | { ok: false; response: Response };
-
-/** 스트림을 max바이트까지만 읽는다. 넘으면 그 자리에서 읽기를 취소하고 null */
-async function readCapped(body: ReadableStream<Uint8Array> | null, max: number): Promise<Uint8Array | null> {
-  if (body === null) return new Uint8Array(0);
-  const reader = body.getReader();
-  const parts: Uint8Array[] = [];
-  let total = 0;
-  for (;;) {
-    const { done, value } = await reader.read();
-    if (done) break;
-    total += value.byteLength;
-    if (total > max) {
-      await reader.cancel();
-      return null;
-    }
-    parts.push(value);
-  }
-  const out = new Uint8Array(total);
-  let offset = 0;
-  for (const p of parts) {
-    out.set(p, offset);
-    offset += p.byteLength;
-  }
-  return out;
-}
-
-/** 본문을 max바이트(기본 64KB)까지만 받아 JSON으로 읽는다. Content-Length가 없거나 거짓이어도 스트림을 max에서 끊는다.
- *  awards/api.ts도 쓴다(413·400 응답 모양이 같다) */
-export async function readJsonBody(req: Request, max: number = BODY_MAX_BYTES): Promise<Body> {
-  const declared = Number(req.headers.get("content-length"));
-  const tooLarge = fail(413, "payload_too_large", "요청이 너무 커요.");
-  if (declared > max) return { ok: false, response: tooLarge };
-  const bytes = await readCapped(req.body, max);
-  if (bytes === null) return { ok: false, response: tooLarge };
-  try {
-    return { ok: true, value: JSON.parse(new TextDecoder("utf-8", { fatal: true }).decode(bytes)) };
-  } catch {
-    return { ok: false, response: fail(400, "bad_json", "요청 본문을 읽을 수 없어요.") };
-  }
-}
-
 const badRequest = () => fail(400, "bad_request", "요청 모양이 올바르지 않아요.");
 const notFound = () => fail(404, "not_found", "찾을 수 없는 게임이에요.");
 
@@ -277,7 +236,7 @@ function writeHandler(
   return guarded(deps, async () => {
     const actor = await requireWriter(req, deps);
     if (actor instanceof Response) return actor;
-    const body = await readJsonBody(req);
+    const body = await readJsonBody(req, BODY_MAX_BYTES);
     if (!body.ok) return body.response;
     return run(actor, body.value);
   });
