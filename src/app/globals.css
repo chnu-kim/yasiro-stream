@@ -343,10 +343,14 @@ html:active-view-transition-type(page) [data-vt] {
   html {
     scroll-behavior: auto;
   }
+  /* 페이지 전환은 움직이지 않고 바로 바뀐다. 전환은 몇 프레임 유지되므로 옛 화면을 숨겨야 옛·새 화면이 겹쳐 보이지 않는다 */
   ::view-transition-group(*),
   ::view-transition-old(*),
   ::view-transition-new(*) {
     animation: none !important;
+  }
+  ::view-transition-old(*) {
+    display: none;
   }
   *, *::before, *::after {
     animation-duration: 0.01ms !important;

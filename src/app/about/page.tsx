@@ -360,6 +360,7 @@ function Plate() {
           // 데스크톱은 처음에 얼굴을 1.9배로 보여 주므로 DPR 1에서도 960w를 받게 크게 잡는다
           sizes="(max-width: 1023px), (max-height: 640px) 340px, 940px"
           priority
+          decoding="sync"
           style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'contain' }}
         />
         <div className={styles.rulerWrap} {...vtTarget('about-ruler', 'label')}>

@@ -93,6 +93,7 @@ export default async function Home() {
               height={2277}
               sizes="(max-width: 860px) 700px, 1100px"
               priority
+              decoding="sync"
               className={styles.char}
             />
           </div>
