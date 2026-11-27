@@ -128,7 +128,7 @@ const TILE_W = 2.1;
 const TILE_H = 2.8;
 
 // 3D 모델(gltf-transform으로 압축, 출처는 work/assets). 모델을 고치면 v2 폴더로 올린다(public/_headers 1년 캐시)
-const STAGE_ASSETS = '/stage/v1';
+const STAGE_ASSETS = '/stage/v2'; // 11-27: 기둥 모서리를 둥글린 트로피(캐시 때문에 v2로)
 
 /** 심사위원석(카메라가 머무는 자리, 사용자 승인 구도) */
 const CAM_JUDGE = new THREE.Vector3(0, 5.0, 19.8); // 11-26: 21.5에서 당김
