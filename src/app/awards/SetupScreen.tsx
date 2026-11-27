@@ -21,6 +21,7 @@ import {
 import { sizeOptions, thirdPlaceAvailable } from '@/lib/awards/options';
 import type { AwardEntry, Division, SizeChoice } from '@/lib/awards/types';
 import AwardsStage from './AwardsStage';
+import OpeningLab from './OpeningLab'; // TEMP(오프닝 결정 비교)
 import type { StageIntro } from './stage/createStage';
 import styles from './awards.module.css';
 
@@ -168,6 +169,7 @@ export default function SetupScreen({
       onPointerDown={finished ? undefined : skip}
     >
       <AwardsStage entries={nominees} intro={intro} launching={drawing} skipKey={skipKey} paused={paused} onReady={onReady} />
+      {process.env.NODE_ENV !== 'production' && <OpeningLab />}
 
       {/* 준비 박자: 포스터를 읽고 셰이더를 예열하는 동안(무대 시계 출발 전) 검은 화면 대신 "곧 시작된다"를 보인다 */}
       <div className={styles.preparing} data-hide={elapsed >= 0 || undefined} aria-hidden="true">
