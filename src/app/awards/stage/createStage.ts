@@ -109,6 +109,10 @@ const CAM_MODE = devFlag('stage-cam', ['push', 'fixed', 'descend'] as const, 'pu
 const IMPACT_MODE = devFlag('stage-impact', ['confetti', 'ring', 'full'] as const, 'confetti');
 /** TEMP(링 비교): beads(지금: 두 겹 + 구슬 48) | thin(구슬 없는 가는 링 하나) | arc(위쪽만 남고 아래로 사라지는 호) */
 const RING = devFlag('stage-ring', ['beads', 'thin', 'arc'] as const, 'beads');
+/** TEMP(아치 끝 비교): taper(붓끝처럼 가늘어짐) | finial(끝까지 밝고 금 마름모 장식) | ground(길게 내려와 무대 단 뒤에 닿음) */
+const ARC_END = devFlag('stage-arc-end', ['taper', 'finial', 'ground'] as const, 'taper');
+/** 아치가 남기는 각도(위 가운데 기준 전체). 무대에 세우기는 양 끝이 단 윗면 높이(약 y 1.6)까지 내려오게 */
+const ARC_SPAN = ARC_END === 'ground' ? Math.PI * 1.67 : Math.PI * 1.28;
 /** 링이 왼쪽 끝에서 위를 지나 오른쪽으로 그려지는 시간(초). 서서히 밝아지는 대신 그어지며 생긴다(11-27 사용자 제안) */
 const RING_DRAW = 1.1;
 
@@ -574,20 +578,50 @@ export function createStage(canvas: HTMLCanvasElement, opts: StageOptions): Stag
     // 구슬(전구처럼 읽힘)과 안쪽 링을 뺀다. 아치는 위쪽 약 230°만 남기고 양 끝으로 갈수록 어두워진다(정점 색)
     for (let i = 1; i < halo.children.length; i++) halo.children[i].visible = false;
     const ring = halo.children[0] as THREE.Mesh;
-    const arc = RING === 'arc' ? Math.PI * 1.28 : Math.PI * 2;
-    const geo = track(new THREE.TorusGeometry(4.5, 0.028, 12, 260, arc));
+    const arc = RING === 'arc' ? ARC_SPAN : Math.PI * 2;
+    const geo = track(new THREE.TorusGeometry(4.5, 0.03, 12, 320, arc));
     if (RING === 'arc') {
       geo.rotateZ(Math.PI / 2 - arc / 2);
+      // 끝 처리: 위 가운데에서 잰 각(fromTop)으로 끝까지 남은 각(toEnd)을 구해 굵기·밝기를 정한다
       const pos = geo.attributes.position as THREE.BufferAttribute;
       const cols = new Float32Array(pos.count * 3);
+      const v = new THREE.Vector3();
       for (let i = 0; i < pos.count; i++) {
-        const ang = Math.atan2(pos.getY(i), pos.getX(i)); // 위가 π/2
+        v.fromBufferAttribute(pos, i);
+        const ang = Math.atan2(v.y, v.x);
         const fromTop = Math.abs(((ang - Math.PI / 2 + Math.PI * 3) % (Math.PI * 2)) - Math.PI);
-        const k = smooth(arc / 2, arc / 2 - 1.1, fromTop); // 끝 1.1rad에서 서서히 사라짐
-        cols.set([k, k, k], i * 3);
+        const toEnd = Math.max(0, arc / 2 - fromTop);
+        let bright = 1;
+        let thick = 1;
+        if (ARC_END === 'taper') {
+          // 붓끝: 끝 0.9rad에서 굵기가 점으로, 밝기는 끝 0.5rad에서 0으로
+          thick = 0.08 + 0.92 * smooth(0, 0.9, toEnd);
+          bright = smooth(0, 0.5, toEnd);
+        } else if (ARC_END === 'ground') {
+          bright = smooth(0, 0.12, toEnd); // 단 뒤로 들어가며 끊김 없이
+        }
+        // 관 단면 중심(큰 원 위의 점)에서 정점까지의 거리를 thick배로
+        const cx = Math.cos(ang) * 4.5;
+        const cy = Math.sin(ang) * 4.5;
+        pos.setXYZ(i, cx + (v.x - cx) * thick, cy + (v.y - cy) * thick, v.z * thick);
+        cols.set([bright, bright, bright], i * 3);
       }
+      pos.needsUpdate = true;
       geo.setAttribute('color', new THREE.BufferAttribute(cols, 3));
       haloMat.vertexColors = true;
+      if (ARC_END === 'finial') {
+        // 끝 장식: 양 끝에 금 마름모(정팔면체를 세로로 늘림). 선이 닿을 때 켜진다
+        const finGeo = track(new THREE.OctahedronGeometry(0.13, 0));
+        finGeo.scale(0.8, 1.5, 0.8);
+        for (const side of [-1, 1]) {
+          const a = Math.PI / 2 + side * (arc / 2);
+          const fin = new THREE.Mesh(finGeo, haloMat);
+          fin.position.set(Math.cos(a) * 4.5, Math.sin(a) * 4.5, 0);
+          fin.rotation.z = a - Math.PI / 2;
+          fin.userData.finial = true;
+          halo.add(fin);
+        }
+      }
     }
     ring.geometry = geo;
   }
@@ -597,7 +631,7 @@ export function createStage(canvas: HTMLCanvasElement, opts: StageOptions): Stag
   const revealOf = (x: number, y: number) => {
     const theta = Math.atan2(y, x);
     if (RING === 'arc') {
-      const arc = Math.PI * 1.28;
+      const arc = ARC_SPAN;
       const left = Math.PI / 2 + arc / 2;
       return clamp01((left - (theta < -Math.PI / 2 ? theta + Math.PI * 2 : theta)) / arc);
     }
@@ -1205,7 +1239,8 @@ export function createStage(canvas: HTMLCanvasElement, opts: StageOptions): Stag
     // 스포트 컨셉: 링이 왼쪽 끝부터 그려진다(구슬은 그 자리에 선이 닿을 때 켜진다)
     ringReveal.value = SPOT ? easeInOutCubic((t - tl.impact) / RING_DRAW) : 1;
     for (const child of halo.children) {
-      if (child.userData.reveal !== undefined && RING === 'beads') child.visible = child.userData.reveal <= ringReveal.value;
+      // 구슬(지금 모양)과 아치 끝 장식만 선이 닿을 때 켠다. 다른 모양에서 숨긴 구슬은 건드리지 않는다
+      if (child.userData.reveal !== undefined && (RING === 'beads' || child.userData.finial)) child.visible = child.userData.reveal <= ringReveal.value + 0.001;
     }
     lampMat.color.setRGB(0.95, 0.62, 0.25).multiplyScalar(BRIGHTNESS.lamp * ramp(t, -0.4, 1.2));
     // 샹들리에: 쇼 전에는 볼룸 조명으로 반짝이고, 암전 때 낮아졌다가 임팩트 뒤 다시 은은하게
