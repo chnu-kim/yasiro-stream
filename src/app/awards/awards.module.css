@@ -1833,6 +1833,18 @@
   opacity: 0.4;
 }
 
+/* 첫 방문: 건너뛰기 버튼은 첫 장면(어둠 → 붓끝 아치)을 방해하지 않게 2초 뒤에 나타난다. 끝난 뒤 값은 위 규칙을 그대로 따른다(backwards) */
+@keyframes skipLate {
+  from {
+    opacity: 0;
+    visibility: hidden;
+  }
+}
+
+.ceremony[data-first][data-playing] .stageControl {
+  animation: skipLate 0.6s ease 2s backwards;
+}
+
 .stageControl:focus-visible {
   outline: 2px solid var(--focus);
   outline-offset: 2px;

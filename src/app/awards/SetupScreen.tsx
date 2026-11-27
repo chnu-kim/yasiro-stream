@@ -26,7 +26,8 @@ import styles from './awards.module.css';
 // 입장 화면: 시상식장에 들어와 심사위원으로 위촉되는 흐름. 화면 전체가 3D 무대(AwardsStage)이고,
 // 조명이 켜지면 제목 → 자막 한 줄(올해 후보 수) → "심사 시작하기"·"지금까지의 심사 결과" 버튼이 차례로 나온다.
 // "심사 시작하기"를 누르면 심사위원 위촉장 모달(<dialog>)에서 부문·대진·3·4위전을 고르고 "시작하기"로 출발한다(2026-11-27 사용자 요청).
-// 두 번째 방문부터는 짧은 연출(SEEN_KEY), 동작 줄이기면 완성된 장면. 연출 중 아무 곳이나 누르거나 키를 누르면 건너뛴다.
+// 두 번째 방문부터는 짧은 연출(SEEN_KEY), 동작 줄이기면 완성된 장면. 건너뛰기: 첫 방문은 건너뛰기 버튼(2초 뒤 나타남)과 Esc만(무심코 눌러 오프닝을 놓치지 않게,
+// 2026-11-27 사용자 결정), 재방문은 아무 곳이나 누르거나 아무 키나 눌러도 건너뛴다.
 // 시작하면 카메라가 고리 안으로 날아들고(launching) 화면이 암전된 뒤 대결 화면이 열린다(대진 요청은 AwardsApp이 함께 보낸다).
 const SEEN_KEY = 'yasiro-awards-intro-seen';
 
@@ -127,10 +128,13 @@ export default function SetupScreen({
   });
   useEffect(() => {
     if (finished || elapsed < 0) return;
-    const onKey = () => skipRef.current();
+    // 첫 방문은 Esc만, 재방문은 아무 키나
+    const onKey = (e: KeyboardEvent) => {
+      if (intro !== 'full' || e.key === 'Escape') skipRef.current();
+    };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [finished, elapsed]);
+  }, [finished, elapsed, intro]);
   // 진행 중에 동작 줄이기가 켜지면 연출을 바로 끝낸다
   useEffect(() => {
     const mq = window.matchMedia('(prefers-reduced-motion: reduce)');
@@ -159,7 +163,8 @@ export default function SetupScreen({
       data-ceremony=""
       data-playing={(!finished && !drawing) || undefined}
       data-finished={finished || undefined}
-      onPointerDown={finished ? undefined : skip}
+      data-first={intro === 'full' || undefined}
+      onPointerDown={finished || intro === 'full' ? undefined : skip}
     >
       <AwardsStage entries={nominees} intro={intro} launching={drawing} skipKey={skipKey} paused={paused} onReady={onReady} />
 
