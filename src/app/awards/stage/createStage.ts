@@ -112,7 +112,7 @@ const BRIGHTNESS = {
   /** 위에서 트로피로 떨어지는 스포트라이트·핀(실제 광원) */
   poolSpot: 55, // 11-27: 180이면 머리 꼭대기가 날아갔고, 78에서도 눈·입보다 이마 얼룩이 먼저 읽혀(리뷰) 55로
   halo: 0.72,
-  edge: 0.45, // 단 몸체는 어둠에 묻혀 금선만 떠 보였다(11-27)
+  edge: 0.28, // 단 몸체는 어둠에 묻혀 금선만 떠 보였다(11-27). 받침 아래 가로줄이 남아 더 낮춤
   /** 은은한 실내광(반구광, 처음부터 고정) */
   ambient: 0.3,
 };
@@ -223,7 +223,8 @@ export function createStage(canvas: HTMLCanvasElement, opts: StageOptions): Stag
     scene.add(edge);
   }
   // 트로피(glb)의 재질: 무광 금(금 F0 선형 1, 0.71, 0.31), 가장자리만 조금 매끈한 금, 검정 돌(사용자 결정 11-27)
-  const stoneBlack = track(new THREE.MeshStandardMaterial({ color: 0x15151a, roughness: 0.4, metalness: 0 }));
+  // 받침 돌은 거칠게: 0.4이면 위 조명을 받아 테두리가 하얗게 떴다(11-27 리뷰)
+  const stoneBlack = track(new THREE.MeshStandardMaterial({ color: 0x121216, roughness: 0.72, metalness: 0 }));
   const goldMatte = track(new THREE.MeshPhysicalMaterial({ color: new THREE.Color().setRGB(1, 0.71, 0.31, THREE.LinearSRGBColorSpace), metalness: 1, roughness: 0.5 }));
   const goldEdge = track(new THREE.MeshPhysicalMaterial({ color: new THREE.Color().setRGB(1, 0.71, 0.31, THREE.LinearSRGBColorSpace), metalness: 1, roughness: 0.25 }));
 
