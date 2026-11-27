@@ -16,6 +16,7 @@ import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
 import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
 import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
 import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
+import { SMAAPass } from 'three/addons/postprocessing/SMAAPass.js';
 import { Reflector } from 'three/addons/objects/Reflector.js';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { MeshoptDecoder } from 'three/addons/libs/meshopt_decoder.module.js';
@@ -458,6 +459,9 @@ export function createStage(canvas: HTMLCanvasElement, opts: StageOptions): Stag
   composer.addPass(new RenderPass(scene, camera));
   if (!compact) composer.addPass(new UnrealBloomPass(new THREE.Vector2(1, 1), BRIGHTNESS.bloomStrength, 0.18, 0.88));
   composer.addPass(new OutputPass());
+  // 톤매핑 뒤 화면 공간 계단 완화: MSAA는 톤매핑 전(HDR)에 섞어서, 아주 밝은 금속 테두리는 배경과 섞여도 압축 뒤 거의 최대 밝기라
+  // 윤곽이 계단으로 남았다(11-27, 기둥 가장자리 픽셀이 배경 33 → 130~169로 중간값 없이 뜀)
+  composer.addPass(new SMAAPass());
   disposables.push(composer, target);
 
   // ── 크기 ──
