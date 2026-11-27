@@ -91,13 +91,21 @@ export default function SetupScreen({
   const [elapsed, setElapsed] = useState(-1);
   const [skipKey, setSkipKey] = useState(0);
   const startedAt = useRef<number | null>(null);
+  const frozenRef = useRef(false); // TEMP(프레임 분석)
   const onReady = () => {
     if (startedAt.current !== null) return;
     startedAt.current = performance.now();
+    // TEMP(프레임 분석): localStorage['stage-t']가 있으면 자막·버튼도 그 시각 상태로 멈춘다. 커밋 전 제거
+    const frozen = process.env.NODE_ENV !== 'production' ? window.localStorage.getItem('stage-t') : null;
+    if (frozen !== null) {
+      frozenRef.current = true;
+      setElapsed(Number(frozen));
+      return;
+    }
     setElapsed(0);
   };
   useEffect(() => {
-    if (elapsed < 0 || elapsed >= cues.cta) return;
+    if (elapsed < 0 || elapsed >= cues.cta || frozenRef.current) return;
     const next = [cues.title, ...cues.captions, cues.cta].filter((c) => c > elapsed).sort((a, b) => a - b)[0];
     const wait = Math.max(0, next * 1000 - (performance.now() - (startedAt.current ?? 0)));
     const t = window.setTimeout(() => setElapsed(next), wait);
