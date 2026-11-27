@@ -5,9 +5,10 @@
 import { useState } from 'react';
 
 const GROUPS = [
-  { key: 'stage-order', label: '켜는 순서', options: [['top', '꼭대기부터'], ['bottom', '바닥부터'], ['sil', '윤곽 먼저']] },
+  { key: 'stage-order', label: '켜는 순서', options: [['sil', '윤곽 먼저'], ['top', '꼭대기부터'], ['bottom', '바닥부터']] },
   { key: 'stage-cam', label: '카메라', options: [['push', '짧은 접근'], ['fixed', '고정'], ['descend', '내려앉기']] },
   { key: 'stage-impact', label: '링 순간', options: [['confetti', '링+꽃가루'], ['ring', '링만'], ['full', '지금 그대로']] },
+  { key: 'stage-ring', label: '링 모양', options: [['beads', '지금(두 겹+구슬)'], ['thin', '가는 링 하나'], ['arc', '아치']] },
 ] as const;
 
 const read = (key: string, fallback: string) => {

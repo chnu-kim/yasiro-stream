@@ -103,9 +103,14 @@ const devFlag = <T extends string>(key: string, allowed: readonly T[], fallback:
     return fallback;
   }
 };
-const ORDER = devFlag('stage-order', ['top', 'bottom', 'sil'] as const, 'top');
+// 결정(11-27, 선택 페이지 MfBXeZzcoa7Yhv1bM2Z5vJ): 윤곽 먼저 · 짧은 접근 · 링+꽃가루(꽃가루는 링이 다 차오른 뒤로 미룸)
+const ORDER = devFlag('stage-order', ['top', 'bottom', 'sil'] as const, 'sil');
 const CAM_MODE = devFlag('stage-cam', ['push', 'fixed', 'descend'] as const, 'push');
 const IMPACT_MODE = devFlag('stage-impact', ['confetti', 'ring', 'full'] as const, 'confetti');
+/** TEMP(링 비교): beads(지금: 두 겹 + 구슬 48) | thin(구슬 없는 가는 링 하나) | arc(위쪽만 남고 아래로 사라지는 호) */
+const RING = devFlag('stage-ring', ['beads', 'thin', 'arc'] as const, 'beads');
+/** 링(임팩트)에서 꽃가루가 터지기까지(초). 링이 0.5초에 다 차오른 뒤로 미룬다(사용자 메모) */
+const CONFETTI_DELAY = SPOT ? 0.7 : 0.14;
 
 export const STAGE_TIMELINES: Record<StageIntro, StageTimeline> = {
   // 금 웅덩이(11-26, 조사 ①안): 어둠 속 웅덩이가 은은히 빛나다(0.3) → 스포트라이트 하나(1.6) → 트로피가 수면을 뚫고 솟음(2.4~5.2)
@@ -565,6 +570,27 @@ export function createStage(canvas: HTMLCanvasElement, opts: StageOptions): Stag
     halo.add(bead);
   }
   scene.add(halo);
+  if (RING !== 'beads') {
+    // 구슬(전구처럼 읽힘)과 안쪽 링을 뺀다. 아치는 위쪽 약 230°만 남기고 양 끝으로 갈수록 어두워진다(정점 색)
+    for (let i = 1; i < halo.children.length; i++) halo.children[i].visible = false;
+    const ring = halo.children[0] as THREE.Mesh;
+    const arc = RING === 'arc' ? Math.PI * 1.28 : Math.PI * 2;
+    const geo = track(new THREE.TorusGeometry(4.5, 0.028, 12, 260, arc));
+    if (RING === 'arc') {
+      geo.rotateZ(Math.PI / 2 - arc / 2);
+      const pos = geo.attributes.position as THREE.BufferAttribute;
+      const cols = new Float32Array(pos.count * 3);
+      for (let i = 0; i < pos.count; i++) {
+        const ang = Math.atan2(pos.getY(i), pos.getX(i)); // 위가 π/2
+        const fromTop = Math.abs(((ang - Math.PI / 2 + Math.PI * 3) % (Math.PI * 2)) - Math.PI);
+        const k = smooth(arc / 2, arc / 2 - 1.1, fromTop); // 끝 1.1rad에서 서서히 사라짐
+        cols.set([k, k, k], i * 3);
+      }
+      geo.setAttribute('color', new THREE.BufferAttribute(cols, 3));
+      haloMat.vertexColors = true;
+    }
+    ring.geometry = geo;
+  }
 
   // ── 임팩트 효과: 바닥 충격파 링(트로피를 타고 오르던 금빛 띠는 11-27 사용자 요청으로 뺐다) ──
   const shockMat = track(new THREE.MeshBasicMaterial({ color: 0xd9b45a, transparent: true, opacity: 0, blending: THREE.AdditiveBlending, depthWrite: false }));
@@ -1140,7 +1166,7 @@ export function createStage(canvas: HTMLCanvasElement, opts: StageOptions): Stag
     // 링(결정 3): 스포트 컨셉의 confetti·ring은 0.5초에 걸쳐 차오르고, full은 예전처럼 0.3초
     haloMat.color
       .copy(haloOn)
-      .multiplyScalar(BRIGHTNESS.halo * (SPOT && IMPACT_MODE !== 'full' ? ramp(t, tl.impact, 0.5) : ramp(t, tl.impact + 0.08, 0.3)));
+      .multiplyScalar(BRIGHTNESS.halo * (RING === 'beads' ? 1 : 0.85) * (SPOT && IMPACT_MODE !== 'full' ? ramp(t, tl.impact, 0.5) : ramp(t, tl.impact + 0.08, 0.3)));
     lampMat.color.setRGB(0.95, 0.62, 0.25).multiplyScalar(BRIGHTNESS.lamp * ramp(t, -0.4, 1.2));
     // 샹들리에: 쇼 전에는 볼룸 조명으로 반짝이고, 암전 때 낮아졌다가 임팩트 뒤 다시 은은하게
     const chandelierLevel = tl.house < 0 ? ramp(t, tl.pillars + 0.4, 1.2) : Math.max(houseOn * ramp(t, -0.3, 0.8), 0.7 * ramp(t, tl.impact + 0.5, 1.2));
@@ -1209,7 +1235,7 @@ export function createStage(canvas: HTMLCanvasElement, opts: StageOptions): Stag
     if (SPOT && IMPACT_MODE === 'ring') return; // 링만(결정 3)
     // TEMP(스토리보드): 시계를 멈춘 화면이면 꽃가루를 그 시각의 위치로 계산해 그린다(물리 적분은 실제 시간으로 흘러 다 떨어진다)
     if (freezeT !== null) {
-      const tau = t - (timeline.impact + 0.14);
+      const tau = t - (timeline.impact + CONFETTI_DELAY);
       let n = 0;
       if (tau > 0) {
         bits.forEach((b, i) => {
@@ -1228,7 +1254,7 @@ export function createStage(canvas: HTMLCanvasElement, opts: StageOptions): Stag
       confetti.instanceMatrix.needsUpdate = true;
       return;
     }
-    if (!confettiBurst && t >= timeline.impact + 0.14) {
+    if (!confettiBurst && t >= timeline.impact + CONFETTI_DELAY) {
       confettiBurst = true;
       for (const b of bits) {
         b.p.set((Math.random() - 0.5) * 16, 9 + Math.random() * 5, (Math.random() - 0.5) * 12 + 2);
@@ -1329,7 +1355,7 @@ export function createStage(canvas: HTMLCanvasElement, opts: StageOptions): Stag
     trophy.position.y = trophyRestY - (timeline.rise < 0 ? 0 : (1 - smootherstep((t - timeline.rise) / 2.8)) * 7.2);
     updatePool(t);
     kkul.position.y = 3.72 + Math.sin(t * 1.4) * 0.025;
-    halo.rotation.z = t * 0.04;
+    halo.rotation.z = RING === 'arc' ? 0 : t * 0.04; // 아치는 틈이 아래에 머물러야 한다
 
     // 금가루: 정지 구간에는 멈춘다
     const holdStill = t > timeline.hold && t < timeline.impact ? 0.05 : 1;
