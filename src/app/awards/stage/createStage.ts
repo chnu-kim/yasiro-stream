@@ -108,7 +108,8 @@ const ORDER = devFlag('stage-order', ['top', 'bottom', 'sil'] as const, 'sil');
 const CAM_MODE = devFlag('stage-cam', ['push', 'fixed', 'descend'] as const, 'push');
 const IMPACT_MODE = devFlag('stage-impact', ['confetti', 'ring', 'full'] as const, 'confetti');
 /** TEMP(링 비교): beads(지금: 두 겹 + 구슬 48) | thin(구슬 없는 가는 링 하나) | arc(위쪽만 남고 아래로 사라지는 호) */
-const RING = devFlag('stage-ring', ['beads', 'thin', 'arc'] as const, 'beads');
+// 결정(11-27): 링은 아치, 끝은 붓끝(구슬 두 겹 링은 촌스러움의 경계였다)
+const RING = devFlag('stage-ring', ['beads', 'thin', 'arc'] as const, 'arc');
 /** TEMP(아치 끝 비교): taper(붓끝처럼 가늘어짐) | finial(끝까지 밝고 금 마름모 장식) | ground(길게 내려와 무대 단 뒤에 닿음) */
 const ARC_END = devFlag('stage-arc-end', ['taper', 'finial', 'ground'] as const, 'taper');
 /** 아치가 남기는 각도(위 가운데 기준 전체). 무대에 세우기는 양 끝이 단 윗면 높이(약 y 1.6)까지 내려오게 */
