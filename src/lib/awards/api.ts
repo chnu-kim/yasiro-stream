@@ -342,7 +342,9 @@ export function handlePoster(req: Request, deps: AwardsDeps): Promise<Response> 
     if (denied !== null) return denied;
     const target = new URL(req.url).searchParams.get("u");
     if (!isChzzkPosterUrl(target) || deps.fetch === undefined) return badRequest();
-    const upstream = await deps.fetch(target, { redirect: "error", headers: { accept: "image/*" } });
+    // 리다이렉트는 따라가지 않는다. Workers fetch는 redirect "error"를 받지 않고 던지므로(운영에서 중계가 전부 500이었다, 2026-11-27)
+    // "manual"로 받아 3xx를 아래 !upstream.ok로 실패 처리한다
+    const upstream = await deps.fetch(target, { redirect: "manual", headers: { accept: "image/*" } });
     const type = upstream.headers.get("content-type") ?? "";
     const declared = Number(upstream.headers.get("content-length") ?? "0");
     const upstreamFailed = () => fail(502, "upstream_failed", "그림을 가져오지 못했어요.");

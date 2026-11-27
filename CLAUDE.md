@@ -123,6 +123,7 @@ _design/                원본 디자인 핸드오프 (gitignored)
 - `NextResponse`와 `export const runtime = "edge"`를 쓰지 않는다. opennextjs 번들링에서 `Cannot read properties of undefined (reading 'default')` 에러가 난다. 네이티브 `Request`/`Response`를 쓴다.
 - 인증이 필요한 API는 `src/lib/session.ts`의 `readSessionId(cookie)` → `findSession(db, id, now)`(해시로 `auth_sessions` 조회, `expires_at > now`)를 쓴다. games는 `channel_name`을 읽지 않는 `findSessionChannel`. 쓰기는 `checkSameOrigin`(`src/lib/http.ts`)을 먼저 본다. `src/lib/games/api.ts`의 쓰기 핸들러가 기준 패턴이다.
 - 네이티브 `fetch`·`ctx.waitUntil`을 deps로 넘길 때는 `(i, init) => fetch(i, init)`처럼 감싼다. `deps.fetch()`로 부르면 Workers에서 Illegal invocation이 난다.
+- Workers `fetch`는 `redirect`로 `"follow"`·`"manual"`만 받는다. `"error"`를 넘기면 TypeError를 던진다(로컬 Node에서는 통과해 드러나지 않는다. 2026-11 어워즈 포스터 중계가 운영에서 전부 500이었다). 리다이렉트를 막으려면 `"manual"`로 받고 3xx를 실패로 처리한다.
 - `cookies()`를 쓰기 때문에 `layout.tsx`의 `export const dynamic = 'force-dynamic'`을 지우지 않는다.
 
 ### 세션

@@ -233,7 +233,8 @@ describe("handlePoster", () => {
     expect(res.headers.get("cache-control")).toBe("private, max-age=86400");
     expect(res.headers.get("x-content-type-options")).toBe("nosniff");
     expect(new Uint8Array(await res.arrayBuffer())).toEqual(new Uint8Array([1, 2, 3]));
-    expect(calls).toEqual([{ input: POSTER, init: { redirect: "error", headers: { accept: "image/*" } } }]);
+    // Workers fetch는 redirect "error"를 받지 않고 던진다(운영에서 중계가 전부 500이었다, 2026-11-27). "manual"로 받아 3xx는 실패로 본다
+    expect(calls).toEqual([{ input: POSTER, init: { redirect: "manual", headers: { accept: "image/*" } } }]);
   });
 
   it("권한이 없으면 가져오지 않는다", async () => {
@@ -252,10 +253,11 @@ describe("handlePoster", () => {
     expect(await read(await handlePoster(req("GET", url(POSTER), ADMIN), deps()))).toEqual({ status: 400, code: "bad_request" });
   });
 
-  it("실패 응답·그림이 아님·크기 초과(선언·실제)는 502", async () => {
+  it("실패 응답·리다이렉트·그림이 아님·크기 초과(선언·실제)는 502", async () => {
     const big = new Uint8Array(POSTER_MAX_BYTES + 1);
     for (const upstream of [
       png({}, "x", 404),
+      new Response(null, { status: 302, headers: { location: "https://example.com/a.png" } }),
       png({ "content-type": "text/html" }),
       new Response(new Uint8Array([1]), { status: 200 }),
       png({ "content-length": String(POSTER_MAX_BYTES + 1) }),
@@ -266,7 +268,7 @@ describe("handlePoster", () => {
     }
   });
 
-  it("가져오다 던지면(리다이렉트 포함) 500, 로그에 주소 없음", async () => {
+  it("가져오다 던지면 500, 로그에 주소 없음", async () => {
     const res = await handlePoster(
       req("GET", url(POSTER), ADMIN),
       deps({
