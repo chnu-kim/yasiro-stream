@@ -52,10 +52,12 @@ export interface Stage {
 
 /** 연출 시간표(초, 시계 출발 기준). SetupScreen CUES(제목·자막·버튼)와 맞물린다 */
 export interface StageTimeline {
-  /** 짧은 연출: 핀이 꿀붕이에 열리는 시각 */
-  spot: number;
-  /** 짧은 연출: 나머지 조명이 한꺼번에 켜지는 시각 */
-  spread: number;
+  /** 위 조명·키·역광·림이 켜지기 시작(링이 다 그어질 즈음. 핀이 꺼지기 전에 겹친다) */
+  lights: number;
+  /** 보조·단 금선·환경 반사 */
+  fill: number;
+  /** 꿀붕이 핀이 물러나기 시작 */
+  pinOff: number;
   /** 좁은 빔이 가운데부터 켜지기 시작 */
   beams: number;
   /** 금가루·안개가 차오르기 시작 */
@@ -70,18 +72,20 @@ export interface StageTimeline {
 }
 
 /** 링이 왼쪽 끝에서 위를 지나 오른쪽으로 그려지는 시간(초). 첫 방문은 붓이 지나가며 빛을 떨어뜨리므로 천천히(오프닝 '링이 무대를 연다', 11-27 결정),
- *  재방문 짧은 연출은 빠르게 */
-const RING_DRAW = { full: 2.6, short: 1.1, none: 1.1 } as const;
+ *  재방문 짧은 연출은 같은 문법을 줄여서 */
+const RING_DRAW = { full: 2.6, short: 1.0, none: 1.0 } as const;
+/** 조명이 켜지는 데 걸리는 시간(초) */
+const LIGHT_RAMP = { full: 1.2, short: 0.5, none: 0.5 } as const;
 /** 아치가 남기는 각도(위 가운데 기준 전체). 끝은 붓끝처럼 가늘어진다(11-27 결정) */
 const ARC_SPAN = Math.PI * 1.28;
 
 export const STAGE_TIMELINES: Record<StageIntro, StageTimeline> = {
-  // 오프닝 '링이 무대를 연다'(11-27 결정): 어둠(0~0.6) → 붓끝 아치가 왼쪽부터(0.6~3.2, 끝은 가늘고 어두워 1.2초쯤 보이기 시작, 붓끝이 지나가는 자리마다 빛이 떨어짐: applySpotCues)
-  // → 위 조명·키(3.5) → 빔(4.6) → 벽(5.0) → 제목·꽃가루(6.2) → 자막(7.2) → 버튼(8.2). SetupScreen CUES도 같이. spot·spread는 짧은 연출 전용
-  full: { spot: -99, spread: -99, beams: 4.4, open: 3.6, hold: 3.6, impact: 0.6, wall: 4.6, title: 6.2, call: 8.2 },
-  // 짧은 연출(재방문 2.8초): 카메라는 최종 자리 고정. 핀(0) → 나머지 일괄(0.5) → 링(1.2) → 벽(1.5) → 제목(1.8) → 자막(2.2) → 버튼(2.8)
-  short: { spot: 0, spread: 0.5, beams: 1.3, open: 1.2, hold: 1.0, impact: 1.2, wall: 1.5, title: 1.8, call: 2.8 },
-  none: { spot: -99, spread: -99, beams: -99, open: -99, hold: -99, impact: -99, wall: -99, title: -99, call: -99 },
+  // 오프닝 '링이 무대를 연다'(11-27 결정): 어둠(0~0.6) → 붓끝 아치가 왼쪽부터(0.6~3.2, 끝은 가늘고 어두워 1.2초쯤 보이기 시작, 붓끝 빛이 지나가는 쪽부터 트로피를 비춤: applySpotCues)
+  // → 위 조명·키(3.1) → 빔(4.4) → 벽(4.6, 천천히) → 제목·꽃가루(6.2) → 자막(7.2) → 버튼(8.2). SetupScreen CUES도 같이
+  full: { lights: 3.1, fill: 3.6, pinOff: 4.0, beams: 4.4, open: 3.6, hold: 3.6, impact: 0.6, wall: 4.6, title: 6.2, call: 8.2 },
+  // 짧은 연출(재방문 2.6초): 같은 문법을 줄인 것. 카메라는 최종 자리 고정. 링(0~1.0) → 조명(0.5) → 빔·벽(0.9) → 제목(1.6) → 자막(2.0) → 버튼(2.6)
+  short: { lights: 0.5, fill: 0.8, pinOff: 1.0, beams: 0.9, open: 0.9, hold: -99, impact: 0, wall: 0.9, title: 1.6, call: 2.6 },
+  none: { lights: -99, fill: -99, pinOff: -99, beams: -99, open: -99, hold: -99, impact: -99, wall: -99, title: -99, call: -99 },
 };
 
 /** 밝기 예산. 노출·bloom 상한은 올리지 않는다(사용자 눈부심 지적). 효과를 더할 때는 여기 값을 먼저 정한다 */
@@ -521,40 +525,32 @@ export function createStage(canvas: HTMLCanvasElement, opts: StageOptions): Stag
     }
   }
 
-  /** 오프닝 조명 큐(결정 1 '윤곽 먼저'). 역광·림으로 윤곽 → 핀이 꿀붕이에 열렸다 물러남 → 위 조명·키 → 보조·단 금선·환경 반사.
-   *  ramp는 p²라 어둠에서 툭 켜지지 않는다. 짧은 연출은 핀(0) → 나머지 일괄(0.5) */
+  /** 오프닝 조명 큐('링이 무대를 연다'). 붓끝을 따라 림·역광·핀 → 위 조명·키 → 보조·단 금선·환경 반사.
+   *  ramp는 p²라 어둠에서 툭 켜지지 않는다. 짧은 연출도 같은 순서를 시간만 줄여 쓴다 */
   function applySpotCues(t: number) {
     const tl = timeline;
     const B = BRIGHTNESS;
     const poolDecay = 1 - 0.45 * ramp(t, tl.impact + 0.8, 1.5);
-    let pin: number, pool: number, back2: number, rim: number, keyK: number, fillK: number, edgeK: number, envB: number, envI: number;
-    let rimR: number;
-    if (intro !== 'full') {
-      const rest = ramp(t, tl.spread, 0.6);
-      pin = ramp(t, tl.spot, 0.4) * (1 - ramp(t, tl.spread, 0.6));
-      pool = rest * poolDecay;
-      back2 = rim = rimR = keyK = fillK = edgeK = envI = rest;
-      envB = ramp(t, tl.spot, 0.5);
-    } else {
-      // 붓끝이 지나가는 자리: 왼쪽 림(진행 0~0.3) → 꼭대기에서 역광·핀(0.4~0.6) → 오른쪽 림(0.7~0.95). 다 그은 뒤 위 조명·키
-      const r = easeInOutCubic((t - tl.impact) / ringDraw);
-      // 위 조명은 핀·붓끝 빛이 물러나기 전에 겹쳐 켠다(사이가 비면 트로피가 잠깐 갈색으로 탁해졌다, 11-27)
-      back2 = 0.3 * smooth(0.35, 0.6, r) + 0.7 * ramp(t, 3.0, 1.2);
-      rim = 0.25 * smooth(0.05, 0.3, r) + 0.75 * ramp(t, 3.0, 1.2);
-      rimR = 0.25 * smooth(0.7, 0.95, r) + 0.75 * ramp(t, 3.0, 1.2);
-      pin = smooth(0.4, 0.6, r) * (1 - ramp(t, 4.0, 1.2));
-      pool = ramp(t, 3.1, 1.2) * poolDecay;
-      keyK = ramp(t, 3.1, 1.2);
-      fillK = edgeK = envI = ramp(t, 3.6, 1.0);
-      envB = smooth(0, 0.5, r);
-    }
+    // 붓끝이 지나가는 자리: 왼쪽 림(진행 0~0.3) → 꼭대기에서 역광·핀(0.4~0.6) → 오른쪽 림(0.7~0.95). 다 그을 즈음 위 조명·키.
+    // 위 조명은 핀·붓끝 빛이 물러나기 전에 겹쳐 켠다(사이가 비면 트로피가 잠깐 갈색으로 탁해졌다, 11-27). 짧은 연출도 같은 문법
+    const r = easeInOutCubic((t - tl.impact) / ringDraw);
+    const d = LIGHT_RAMP[intro];
+    const back2 = 0.3 * smooth(0.35, 0.6, r) + 0.7 * ramp(t, tl.lights - 0.1, d);
+    const rim = 0.25 * smooth(0.05, 0.3, r) + 0.75 * ramp(t, tl.lights - 0.1, d);
+    const rimR = 0.25 * smooth(0.7, 0.95, r) + 0.75 * ramp(t, tl.lights - 0.1, d);
+    const pin = smooth(0.4, 0.6, r) * (1 - ramp(t, tl.pinOff, d));
+    const pool = ramp(t, tl.lights, d) * poolDecay;
+    const keyK = ramp(t, tl.lights, d);
+    const fillK = ramp(t, tl.fill, d);
+    const edgeK = fillK;
+    const envI = fillK;
+    const envB = smooth(0, 0.5, r);
     pinSpot.intensity = B.poolSpot * pin;
     poolSpot.intensity = B.poolSpot * pool;
     back.intensity = B.back * back2;
     rims[0].intensity = B.rimSide * rim;
     rims[1].intensity = B.rimSide * rimR;
-    if (intro === 'full') {
-      const r = easeInOutCubic((t - tl.impact) / ringDraw);
+    if (intro !== 'none') {
       const a = Math.PI / 2 + ARC_SPAN / 2 - r * ARC_SPAN;
       // 링과 같은 면(트로피 뒤)에 두고, 링 끝이 가늘고 어두운 구간에서는 빛도 같이 약하게(빛이 링보다 먼저 오거나 기둥에 얼룩이 지던 문제, 11-27)
       tipLight.position.set(Math.cos(a) * 4.5, GLOBE_Y + Math.sin(a) * 4.5, -2.4);
