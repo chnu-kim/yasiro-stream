@@ -11,7 +11,8 @@ export const DIVISION_AWARD: Record<Division, string> = { alltime: "Best Game of
 
 // ── 입장 화면(시상식 입장 → 심사위원 위촉). 문구는 사용자 확인(2026-11-26) ──
 export const START_LABEL = "심사 시작하기";
-export const SETTINGS_LABEL = "심사 방식 바꾸기";
+/** 위촉장(설정 모달) 안의 출발 버튼. "심사 시작하기"를 누르면 위촉장이 열리고 여기서 시작한다(2026-11-27 사용자 요청) */
+export const CONFIRM_START_LABEL = "시작하기";
 export const RESULTS_LINK_LABEL = "지금까지의 심사 결과";
 export const JUDGE_TITLE = "2026 야시로 게임 어워즈 심사위원";
 /** 제목 위 영문 의전 라벨(Cinzel) */
@@ -29,11 +30,6 @@ export const CATEGORY_CARD: Record<Division, [string, string]> = {
  *  오글거리고 주제와 맞지 않아 사용자 요청으로 뺐다) */
 export function ceremonyLines(n: number): [string, string][] {
   return [["올해 야시로가 탐험한 게임, ", `${n}편`]];
-}
-
-/** 시작 버튼 아래 지금 심사 방식 한 줄: "2026 부문 · 16강 · 3·4위전" */
-export function settingsSummary(divisionLabel: string, option: SizeOption | undefined, thirdPlace: boolean): string {
-  return [divisionLabel, ...(option === undefined ? [] : [sizeLabel(option)]), ...(thirdPlace ? ["3·4위전"] : [])].join(" · ");
 }
 
 /** "4강", "512강" */

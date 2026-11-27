@@ -11,9 +11,8 @@ import {
   JUDGE_SEAT_LABEL,
   JUDGE_TITLE,
   PAGE_TITLE,
+  CONFIRM_START_LABEL,
   RESULTS_LINK_LABEL,
-  SETTINGS_LABEL,
-  settingsSummary,
   sizeLabel,
   START_LABEL,
   thirdPlaceNote,
@@ -25,8 +24,8 @@ import type { StageIntro } from './stage/createStage';
 import styles from './awards.module.css';
 
 // 입장 화면: 시상식장에 들어와 심사위원으로 위촉되는 흐름. 화면 전체가 3D 무대(AwardsStage)이고,
-// 조명이 켜지면 제목 → 자막 세 줄(올해 후보 수 → 단 한 편 → 당신이 고른다) → "심사 시작하기" 버튼 하나가 차례로 나온다.
-// 부문·대진·3·4위전은 기본값으로 골라 두고, "심사 방식 바꾸기"를 누르면 심사위원 위촉장 모달(<dialog>)에서 바꾼다.
+// 조명이 켜지면 제목 → 자막 한 줄(올해 후보 수) → "심사 시작하기"·"지금까지의 심사 결과" 버튼이 차례로 나온다.
+// "심사 시작하기"를 누르면 심사위원 위촉장 모달(<dialog>)에서 부문·대진·3·4위전을 고르고 "시작하기"로 출발한다(2026-11-27 사용자 요청).
 // 두 번째 방문부터는 짧은 연출(SEEN_KEY), 동작 줄이기면 완성된 장면. 연출 중 아무 곳이나 누르거나 키를 누르면 건너뛴다.
 // 시작하면 카메라가 고리 안으로 날아들고(launching) 화면이 암전된 뒤 대결 화면이 열린다(대진 요청은 AwardsApp이 함께 보낸다).
 const SEEN_KEY = 'yasiro-awards-intro-seen';
@@ -146,7 +145,11 @@ export default function SetupScreen({
   const captionIndex = cues.captions.reduce((acc, at, i) => (at >= 0 && elapsed >= at ? i : acc), -1);
 
   const dialogRef = useRef<HTMLDialogElement>(null);
-  const openSettings = () => dialogRef.current?.showModal();
+  const openSettings = () => {
+    dialogRef.current?.showModal();
+    // 처음 초점은 주 행동(시작하기)에. 기본값이면 첫 라디오에 초점 테두리가 생겨 선택된 것처럼 보였다
+    dialogRef.current?.querySelector<HTMLButtonElement>('[data-autofocus]')?.focus();
+  };
   const closeSettings = () => dialogRef.current?.close();
 
   return (
@@ -203,19 +206,14 @@ export default function SetupScreen({
 
         <div className={styles.cta} data-show={finished || undefined} inert={!finished}>
           <p className={styles.kicker}>{JUDGE_SEAT_LABEL}</p>
-          <Button variant="primary" size="lg" className={styles.ctaButton} disabled={!canStart} onClick={onStart}>
-            {drawing ? DRAW_LOADING_TEXT : START_LABEL}
-          </Button>
-          <p className={styles.ctaSummary}>{settingsSummary(DIVISION_LABEL[division], selected, thirdRequested && canThird)}</p>
-          <p className={styles.ctaLinks}>
-            <button type="button" className={styles.textLink} onClick={openSettings}>
-              {SETTINGS_LABEL}
-            </button>
-            <span aria-hidden="true">·</span>
-            <Link href={rankingsHref(division)} className={styles.textLink}>
+          <div className={styles.ctaRow}>
+            <Button variant="primary" size="lg" className={styles.ctaButton} disabled={drawing || !DIVISIONS.some((d) => divisionAvailable(counts[d]))} onClick={openSettings}>
+              {drawing ? DRAW_LOADING_TEXT : START_LABEL}
+            </Button>
+            <Link href={rankingsHref(division)} className={styles.ctaSecondary}>
               {RESULTS_LINK_LABEL}
             </Link>
-          </p>
+          </div>
           {drawError !== null && (
             <p role="alert" className={styles.note}>
               {drawError}
@@ -240,21 +238,20 @@ export default function SetupScreen({
         }}
       >
         <div className={styles.judgeCard}>
-          <p className={styles.kicker}>Judge</p>
-          <h2 id="judge-title" className={styles.judgeTitle}>
-            {JUDGE_TITLE}
-          </h2>
-          <span className={styles.ornament} aria-hidden="true">
-            <span className={styles.ornamentGem} />
-          </span>
+          <header className={styles.judgeHead}>
+            <p className={styles.kicker}>{JUDGE_SEAT_LABEL}</p>
+            <h2 id="judge-title" className={styles.judgeTitle}>
+              {JUDGE_TITLE}
+            </h2>
+          </header>
 
-          <fieldset className={styles.row}>
-            <legend className={styles.legend}>부문</legend>
-            <div className={styles.choices}>
+          <fieldset className={styles.judgeField}>
+            <legend className={styles.judgeLegend}>부문</legend>
+            <div className={styles.judgeOptions}>
               {DIVISIONS.map((d) => {
                 const available = divisionAvailable(counts[d]);
                 return (
-                  <label key={d} className={styles.choice}>
+                  <label key={d} className={styles.judgeOption}>
                     <input
                       type="radio"
                       name="division"
@@ -264,26 +261,24 @@ export default function SetupScreen({
                       aria-describedby={available ? undefined : 'division-note'}
                       onChange={() => onDivision(d)}
                     />
-                    <span className={styles.choiceText}>{DIVISION_LABEL[d]}</span>
-                    <span className={styles.count}>
-                      <span className={styles.num}>{counts[d]}</span>개
-                    </span>
+                    <span>{DIVISION_LABEL[d]}</span>
+                    <span className={styles.judgeCount}>{counts[d]}</span>
                   </label>
                 );
               })}
             </div>
             {DIVISIONS.some((d) => !divisionAvailable(counts[d])) && (
-              <p id="division-note" className={styles.note}>
+              <p id="division-note" className={styles.judgeNote}>
                 후보가 3개 이상이어야 해요.
               </p>
             )}
           </fieldset>
 
-          <fieldset className={styles.row}>
-            <legend className={styles.legend}>대진</legend>
-            <div className={styles.choices}>
+          <fieldset className={styles.judgeField}>
+            <legend className={styles.judgeLegend}>대진</legend>
+            <div className={styles.judgeOptions}>
               {options.map((o) => (
-                <label key={o.size} className={styles.choice}>
+                <label key={o.size} className={styles.judgeOption}>
                   <input
                     type="radio"
                     name="size"
@@ -292,38 +287,52 @@ export default function SetupScreen({
                     aria-describedby="size-fit"
                     onChange={() => onSize(o.size)}
                   />
-                  <span className={styles.choiceText}>{sizeLabel(o)}</span>
+                  <span>{sizeLabel(o)}</span>
                 </label>
               ))}
             </div>
             {selected !== undefined && (
-              <p id="size-fit" className={styles.note} aria-live="polite">
+              <p id="size-fit" className={styles.judgeNote} aria-live="polite">
                 {fitText(selected, n)}
               </p>
             )}
           </fieldset>
 
-          <div className={styles.row}>
-            <label className={styles.choice}>
+          <div className={styles.judgeField}>
+            <label className={styles.judgeToggle}>
+              <span>3·4위전 하기</span>
               <input
                 type="checkbox"
+                role="switch"
                 checked={thirdRequested && canThird}
                 disabled={!canThird}
                 aria-describedby={note === null ? undefined : 'third-note'}
                 onChange={(e) => onThird(e.target.checked)}
               />
-              <span className={styles.choiceText}>3·4위전 하기</span>
             </label>
             {note !== null && (
-              <p id="third-note" className={styles.note}>
+              <p id="third-note" className={styles.judgeNote}>
                 {note}
               </p>
             )}
           </div>
 
-          <div className={styles.actions}>
-            <Button variant="primary" size="lg" onClick={closeSettings}>
-              확인
+          <div className={styles.judgeActions}>
+            <button type="button" className={styles.judgeCancel} onClick={closeSettings}>
+              취소
+            </button>
+            <Button
+              variant="primary"
+              size="lg"
+              className={styles.ctaButton}
+              disabled={!canStart}
+              data-autofocus=""
+              onClick={() => {
+                closeSettings();
+                onStart();
+              }}
+            >
+              {CONFIRM_START_LABEL}
             </Button>
           </div>
         </div>

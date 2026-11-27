@@ -2,12 +2,12 @@
 // 연출 근거는 work/research/awards-grandeur-report.md(2026-11-26 조사), 오프닝 설계는 work/trophy/lang/opening-decisions.json(11-27).
 //
 // 장면: 계단식 검은 대리석 단상(단마다 금선) 위 트로피(trophy.glb: 비틀린 육각 기둥 위 꿀붕이, 검정 받침),
-// 트로피 뒤 붓끝 아치(헤일로), 뒤쪽 후보 포스터 스크린 벽(낮은 밝기로 숨 쉼), 양옆 빛기둥,
+// 트로피 뒤 붓끝 아치(헤일로), 뒤쪽 후보 포스터 스크린 벽(낮은 밝기로 숨 쉼),
 // 천장 서치라이트(가는 빔 · 넓은 빛 2 · 역광 2 · 위 빔 1), 트로피 앞뒤 안개 막, 금가루, 금 꽃가루.
 //
-// 큐(full, 약 9초. 시간값은 판단 시작값): 어둠 → 윤곽(역광·림) → 핀이 꿀붕이에 열렸다 물러남 → 위 조명·키·보조·단 금선(2.2~4.4)
-// → 정적(4.4~4.9) → 링이 왼쪽 끝부터 그어짐(4.9) → 빔(5.3, 가운데부터) → 벽(5.9) → 빛기둥(6.3) → 꽃가루·제목(6.8) → 버튼(8.8) → 대기(느린 호 ±3°).
-// 카메라는 정면에서 한 번 짧게 다가가 4.4초에 멈추고 글자는 그 뒤.
+// 큐(full, 약 8초. 오프닝 '링이 무대를 연다', 11-27 결정): 어둠 → 붓끝 아치가 왼쪽부터 그려지며 붓끝 빛이 지나가는 쪽부터 트로피를 비춤
+// (왼쪽 림 → 꼭대기 역광·핀 → 오른쪽 림, 0.9~3.5) → 위 조명·키·보조·단 금선 → 빔(4.6, 가운데부터) → 벽(5.0) → 꽃가루·제목(6.2) → 버튼(8.2) → 대기.
+// 카메라는 아치가 그려지는 동안 정면에서 한 번 짧게 다가가 3.9초에 멈추고 글자는 그 뒤. 포스터 올리기(호버)는 버튼이 나온 뒤에만.
 // 'short'는 재방문용 약 3초, 'none'은 완성 장면(동작 줄이기). skipIntro()는 완성 장면으로, setPaused()는 대기 움직임을 멈춘다.
 // 시계는 포스터·트로피를 다 읽고(실패 포함, 최대 PRELOAD_MAX_MS) 셰이더를 미리 컴파일·예열한 뒤 출발한다(첫 프레임 끊김 방지).
 // 밝기는 BRIGHTNESS 한곳에서 정한다(사용자가 눈부심을 지적했다). 섬광은 피한다(점화 후 유지, 왕복 없음).
@@ -58,7 +58,6 @@ export interface StageTimeline {
   spread: number;
   /** 좁은 빔이 가운데부터 켜지기 시작 */
   beams: number;
-  pillars: number;
   /** 금가루·안개가 차오르기 시작 */
   open: number;
   /** 금가루가 멈추는 정적(hold ~ impact) */
@@ -78,11 +77,11 @@ const ARC_SPAN = Math.PI * 1.28;
 
 export const STAGE_TIMELINES: Record<StageIntro, StageTimeline> = {
   // 오프닝 '링이 무대를 연다'(11-27 결정): 어둠(0~0.9) → 붓끝 아치가 왼쪽부터(0.9~3.5, 붓끝이 지나가는 자리마다 빛이 떨어짐: applySpotCues)
-  // → 위 조명·키(3.5) → 빔(4.6) → 벽(5.0) → 빛기둥(5.4) → 제목·꽃가루(6.2) → 자막(7.2) → 버튼(8.2). SetupScreen CUES도 같이. spot·spread는 짧은 연출 전용
-  full: { spot: -99, spread: -99, beams: 4.6, pillars: 5.4, open: 3.6, hold: 3.6, impact: 0.9, wall: 5.0, title: 6.2, call: 8.2 },
+  // → 위 조명·키(3.5) → 빔(4.6) → 벽(5.0) → 제목·꽃가루(6.2) → 자막(7.2) → 버튼(8.2). SetupScreen CUES도 같이. spot·spread는 짧은 연출 전용
+  full: { spot: -99, spread: -99, beams: 4.6, open: 3.6, hold: 3.6, impact: 0.9, wall: 5.0, title: 6.2, call: 8.2 },
   // 짧은 연출(재방문 2.8초): 카메라는 최종 자리 고정. 핀(0) → 나머지 일괄(0.5) → 링(1.2) → 벽(1.5) → 제목(1.8) → 자막(2.2) → 버튼(2.8)
-  short: { spot: 0, spread: 0.5, beams: 1.3, pillars: 1.5, open: 1.2, hold: 1.0, impact: 1.2, wall: 1.5, title: 1.8, call: 2.8 },
-  none: { spot: -99, spread: -99, beams: -99, pillars: -99, open: -99, hold: -99, impact: -99, wall: -99, title: -99, call: -99 },
+  short: { spot: 0, spread: 0.5, beams: 1.3, open: 1.2, hold: 1.0, impact: 1.2, wall: 1.5, title: 1.8, call: 2.8 },
+  none: { spot: -99, spread: -99, beams: -99, open: -99, hold: -99, impact: -99, wall: -99, title: -99, call: -99 },
 };
 
 /** 밝기 예산. 노출·bloom 상한은 올리지 않는다(사용자 눈부심 지적). 효과를 더할 때는 여기 값을 먼저 정한다 */
@@ -106,7 +105,6 @@ const BRIGHTNESS = {
   poolSpot: 78, // 11-27: 180이면 새 트로피 꿀붕이 머리 꼭대기가 하얗게 날아갔다. 90에서 머리가 아직 조금 밝아 78로
   halo: 0.72,
   edge: 0.8,
-  pillar: 0.62,
   /** 은은한 실내광(반구광, 처음부터 고정) */
   ambient: 0.3,
 };
@@ -151,11 +149,6 @@ const easeInOutCubic = (t: number) => {
 const ramp = (t: number, at: number, dur: number) => {
   const p = clamp01((t - at) / dur);
   return p * p;
-};
-/** 0~1 결정적 난수(인덱스별) */
-const hash = (i: number) => {
-  const x = Math.sin(i * 12.9898 + 78.233) * 43758.5453;
-  return x - Math.floor(x);
 };
 
 export function createStage(canvas: HTMLCanvasElement, opts: StageOptions): Stage {
@@ -322,21 +315,6 @@ export function createStage(canvas: HTMLCanvasElement, opts: StageOptions): Stag
   }
   scene.add(wall);
   const tileMeshes = wallTiles.map((w) => w.mesh);
-
-  // ── 빛기둥: 양옆으로 깊게 늘어선 세로 기둥(안쪽 쌍부터 켜진다) ──
-  const PILLARS = compact ? 6 : 9;
-  const pillarGeo = track(new THREE.BoxGeometry(0.16, 18, 0.16));
-  const pillarOn = new THREE.Color(0x9c7a35);
-  const pillars: { mat: THREE.MeshBasicMaterial; phase: number }[] = [];
-  for (let i = 0; i < PILLARS; i++) {
-    for (const side of [-1, 1]) {
-      const mat = glow();
-      const p = new THREE.Mesh(pillarGeo, mat);
-      p.position.set(side * (16 + i * 0.6), 9, -16 + i * 4.4);
-      scene.add(p);
-      pillars.push({ mat, phase: hash(pillars.length + 40) * 6 });
-    }
-  }
 
   // ── 조명(실제 광원): 트로피 역광 + 정면 키 + 양옆 림 + 정면 보조 + 은은한 실내광 ──
   const back = new THREE.SpotLight(0xffe6b8, 0, 40, 0.42, 0.7, 1.4);
@@ -565,12 +543,6 @@ export function createStage(canvas: HTMLCanvasElement, opts: StageOptions): Stag
     const tl = timeline;
     applySpotCues(t);
 
-    for (let pi = 0; pi < pillars.length; pi++) {
-      const p = pillars[pi];
-      // 안쪽(i가 작은 쌍)부터 0.12초 간격
-      const on = ramp(t, tl.pillars + Math.floor(pi / 2) * 0.12, 0.35);
-      p.mat.color.copy(pillarOn).multiplyScalar(BRIGHTNESS.pillar * on * (0.8 + 0.2 * Math.sin(t * 0.6 + p.phase)));
-    }
     // 링(결정 3): 왼쪽 끝부터 RING_DRAW초에 걸쳐 그어진다
     haloMat.color.copy(haloOn).multiplyScalar(BRIGHTNESS.halo * 0.85 * ramp(t, tl.impact, 0.12));
     ringReveal.value = easeInOutCubic((t - tl.impact) / ringDraw);
@@ -678,7 +650,8 @@ export function createStage(canvas: HTMLCanvasElement, opts: StageOptions): Stag
     lastT = t;
 
     raycaster.setFromCamera(ndc, camera);
-    const hit = ndc.x > 2 || launch ? null : raycaster.intersectObjects(tileMeshes, false)[0];
+    // 포스터 올리기는 연출이 끝나고 버튼이 나온 뒤에만(연출 중 포스터가 튀어나오면 주인공이 흐트러진다)
+    const hit = ndc.x > 2 || launch || t < timeline.call ? null : raycaster.intersectObjects(tileMeshes, false)[0];
     const hovered = hit ? (hit.object.userData.tileIndex as number) : -1;
 
     applyLights(t);
@@ -687,7 +660,8 @@ export function createStage(canvas: HTMLCanvasElement, opts: StageOptions): Stag
     placeCamera(t, dt);
 
     // 연출 중에는 돌지 않고(빛이 움직인다) 버튼 뒤 0에서 천천히 붙는다
-    trophy.rotation.y = Math.sin((t - timeline.call) * 0.22) * 0.18 * smooth(timeline.call, timeline.call + 2, t);
+    // 좌우 약 ±20°(11-27: ±10°에서 늘림. 무광 금 위로 하이라이트가 흐르고 비틀린 기둥 옆면이 보인다)
+    trophy.rotation.y = Math.sin((t - timeline.call) * 0.22) * 0.35 * smooth(timeline.call, timeline.call + 2, t);
 
     // 금가루: 정지 구간에는 멈춘다
     const holdStill = t > timeline.hold && t < timeline.impact ? 0.05 : 1;
