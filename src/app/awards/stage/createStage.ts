@@ -345,9 +345,6 @@ export function createStage(canvas: HTMLCanvasElement, opts: StageOptions): Stag
     }
   }
   scene.add(wall);
-  // TEMP(벽 비교): localStorage['stage-wall']='none'이면 포스터 벽을 숨긴다. 결정 뒤 지운다
-  const WALL_OFF = typeof window !== 'undefined' && process.env.NODE_ENV !== 'production' && window.localStorage.getItem('stage-wall') === 'none';
-  wall.visible = !WALL_OFF;
   // 포스터는 거의 흑백(따뜻한 회색)으로 물러나 있다가, 올리면(호버) 원래 색으로 돌아온다
   for (const w of wallTiles) {
     const sat = { value: BRIGHTNESS.wallSat };
@@ -447,13 +444,6 @@ export function createStage(canvas: HTMLCanvasElement, opts: StageOptions): Stag
   confetti.frustumCulled = false; // 조각이 장면 곳곳을 날아다녀 경계 구로 판정할 수 없다
   scene.add(confetti);
   let confettiBurst = false;
-  // TEMP(프레임 분석): 개발 중 localStorage['stage-t']='4.2'면 연출 시계를 그 시각에 멈춘다. 커밋 전 제거
-  const freezeRaw = process.env.NODE_ENV !== 'production' && typeof window !== 'undefined' ? window.localStorage.getItem('stage-t') : null;
-  const freezeT = freezeRaw === null ? null : Number(freezeRaw);
-  const fh = (i: number) => {
-    const x = Math.sin(i * 12.9898 + 78.233) * 43758.5453;
-    return x - Math.floor(x);
-  };
   const m4 = new THREE.Matrix4();
   const q = new THREE.Quaternion();
   const sc = new THREE.Vector3(1, 1, 1);
@@ -566,7 +556,7 @@ export function createStage(canvas: HTMLCanvasElement, opts: StageOptions): Stag
       const breath = 0.5 + 0.5 * Math.sin(t * 0.8 - w.x * 0.42 + w.row * 0.3);
       const level = on * edge * BRIGHTNESS.wallMax * center * (0.55 + 0.45 * breath);
       // 켜지기 전 칸은 그리지 않는다(검은 칸이 안개에 물들어 회색 네모로 비쳤다)
-      w.mesh.visible = !WALL_OFF && ((on > 0.002 && edge > 0.002) || w.pop > 0.002);
+      w.mesh.visible = ((on > 0.002 && edge > 0.002) || w.pop > 0.002);
       w.pop += ((i === hovered ? 1 : 0) - w.pop) * Math.min(1, dt * 10);
       if (w.sat) w.sat.value = BRIGHTNESS.wallSat + (1 - BRIGHTNESS.wallSat) * w.pop;
       const lit = level + (1 - level) * w.pop;
@@ -659,26 +649,6 @@ export function createStage(canvas: HTMLCanvasElement, opts: StageOptions): Stag
   }
 
   function updateConfetti(dt: number, t: number) {
-    // TEMP(프레임 분석): 멈춘 시각의 꽃가루 위치를 식으로 계산
-    if (freezeT !== null) {
-      const tau = t - (timeline.title - 0.3);
-      let n = 0;
-      if (tau > 0) {
-        bits.forEach((b, i) => {
-          b.p.set((fh(i * 3 + 1) < 0.5 ? -1 : 1) * (3.6 + fh(i * 5 + 4) * 5.4), 9 + fh(i * 3 + 2) * 5, (fh(i * 3 + 3) - 0.5) * 6);
-          b.p.x += (fh(i * 7 + 1) - 0.5) * 1.2 * tau;
-          b.p.z += (fh(i * 7 + 2) - 0.5) * 1.2 * tau;
-          b.p.y += -(3.4 + fh(i * 7 + 5) * 2) * tau + 0.3 * tau * tau;
-          if (b.p.y < 0) return;
-          b.rot.set(fh(i * 11) * 6 + tau * 3, fh(i * 13) * 6 + tau * 2, fh(i * 17) * 6);
-          m4.compose(b.p, q.setFromEuler(b.rot), sc);
-          confetti.setMatrixAt(n++, m4);
-        });
-      }
-      confetti.count = n;
-      confetti.instanceMatrix.needsUpdate = true;
-      return;
-    }
     // 제목과 함께 터진다(위에서 화면에 들어오는 데 걸리는 만큼 0.3초 먼저)
     if (intro !== 'full') return; // 재방문은 꽃가루 없이(리뷰: 벽보다 먼저 터져 순서가 뒤집혔다)
     if (!confettiBurst && t >= timeline.title - 0.3) {
@@ -746,7 +716,7 @@ export function createStage(canvas: HTMLCanvasElement, opts: StageOptions): Stag
 
   function step(now: number) {
     const dt = Math.min(clock.getDelta(), 0.05);
-    const t = freezeT ?? (now - start) / 1000; // TEMP(프레임 분석)
+    const t = (now - start) / 1000;
     lastT = t;
 
     raycaster.setFromCamera(ndc, camera);
