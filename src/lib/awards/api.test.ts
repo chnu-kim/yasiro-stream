@@ -237,6 +237,31 @@ describe("handlePoster", () => {
     expect(calls).toEqual([{ input: POSTER, init: { redirect: "manual", headers: { accept: "image/*" } } }]);
   });
 
+  it("브라우저가 WebP를 받으면 Cloudflare 변환(WebP, 품질 80)으로 받는다(원본 PNG가 장당 약 180KB였다)", async () => {
+    const calls: { input: string; init?: RequestInit }[] = [];
+    const res = await handlePoster(
+      req("GET", url(POSTER), ADMIN, undefined, { accept: "image/avif,image/webp,image/apng,*/*;q=0.8" }),
+      deps({ fetch: async (input, init) => (calls.push({ input, init }), png({ "content-type": "image/webp" })) }),
+    );
+    expect(res.status).toBe(200);
+    expect(res.headers.get("content-type")).toBe("image/webp");
+    expect(calls).toEqual([{ input: POSTER, init: { redirect: "manual", headers: { accept: "image/*" }, cf: { image: { format: "webp", quality: 80 } } } }]);
+  });
+
+  it("변환이 실패하면(무료 한도 초과 9422 등) 원본을 다시 받아 그대로 준다", async () => {
+    const calls: { input: string; init?: RequestInit }[] = [];
+    const res = await handlePoster(
+      req("GET", url(POSTER), ADMIN, undefined, { accept: "image/webp" }),
+      deps({ fetch: async (input, init) => (calls.push({ input, init }), calls.length === 1 ? new Response("9422", { status: 403 }) : png()) }),
+    );
+    expect(res.status).toBe(200);
+    expect(res.headers.get("content-type")).toBe("image/png");
+    expect(calls.map((c) => c.init)).toEqual([
+      { redirect: "manual", headers: { accept: "image/*" }, cf: { image: { format: "webp", quality: 80 } } },
+      { redirect: "manual", headers: { accept: "image/*" } },
+    ]);
+  });
+
   it("권한이 없으면 가져오지 않는다", async () => {
     const fetch = vi.fn();
     expect(await read(await handlePoster(req("GET", url(POSTER), null), deps({ fetch })))).toEqual({ status: 401, code: "login_required" });
