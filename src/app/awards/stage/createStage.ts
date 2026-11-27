@@ -12,6 +12,7 @@
 // 시계는 포스터·트로피를 다 읽고(실패 포함, 최대 PRELOAD_MAX_MS) 셰이더를 미리 컴파일·예열한 뒤 출발한다(첫 프레임 끊김 방지).
 // 밝기는 BRIGHTNESS 한곳에서 정한다(사용자가 눈부심을 지적했다). 섬광은 피한다(점화 후 유지, 왕복 없음).
 import * as THREE from 'three';
+import { OPENING } from './opening'; // TEMP
 import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
 import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
 import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
@@ -70,14 +71,23 @@ export interface StageTimeline {
   call: number;
 }
 
-/** 링이 왼쪽 끝에서 위를 지나 오른쪽으로 그려지는 시간(초). 서서히 밝아지는 대신 그어지며 생긴다(11-27 사용자 제안) */
-const RING_DRAW = 1.1;
+/** TEMP(오프닝 방향 비교): 정의는 ./opening */
+/** 링이 왼쪽 끝에서 위를 지나 오른쪽으로 그려지는 시간(초). 서서히 밝아지는 대신 그어지며 생긴다(11-27 사용자 제안).
+ *  링이 무대를 여는 안은 붓이 지나가며 빛을 떨어뜨리므로 천천히 */
+const RING_DRAW = OPENING === 'ring' ? 2.6 : 1.1;
 /** 아치가 남기는 각도(위 가운데 기준 전체). 끝은 붓끝처럼 가늘어진다(11-27 결정) */
 const ARC_SPAN = Math.PI * 1.28;
 
 export const STAGE_TIMELINES: Record<StageIntro, StageTimeline> = {
   // 핀(0.6, full의 조명 순서는 applySpotCues 'sil') → 정적(4.4~4.9) → 링(4.9) → 빔(5.3) → 벽(5.9) → 빛기둥(6.3) → 제목(6.8) → 자막(7.8) → 버튼(8.8). SetupScreen CUES도 같이
-  full: { spot: 0.6, spread: 2.2, beams: 5.3, pillars: 6.3, open: 4.9, hold: 4.4, impact: 4.9, wall: 5.9, title: 6.8, call: 8.8 },
+  full:
+    OPENING === 'ring'
+      ? // 어둠(0~0.9) → 붓끝 아치가 왼쪽부터(0.9~3.5, 지나가는 자리마다 빛이 떨어짐) → 위 조명·키(3.5) → 빔(4.6) → 벽(5.0) → 빛기둥(5.4) → 제목(6.2) → 자막(7.2) → 버튼(8.2)
+        { spot: -99, spread: -99, beams: 4.6, pillars: 5.4, open: 3.6, hold: 3.6, impact: 0.9, wall: 5.0, title: 6.2, call: 8.2 }
+      : OPENING === 'title'
+        ? // 어둠 속 제목(0.6, 금박 스윕 0.9~2.3) → 빛이 꿀붕이로 넘어감(2.1) → 윤곽·키(2.6~3.0) → 링(4.5) → 빔(5.0) → 벽·꽃가루(5.6) → 빛기둥(6.0) → 자막(7.0) → 버튼(8.0)
+          { spot: -99, spread: -99, beams: 5.0, pillars: 6.0, open: 4.5, hold: 4.0, impact: 4.5, wall: 5.6, title: 0.6, call: 8.0 }
+        : { spot: 0.6, spread: 2.2, beams: 5.3, pillars: 6.3, open: 4.9, hold: 4.4, impact: 4.9, wall: 5.9, title: 6.8, call: 8.8 },
   // 짧은 연출(재방문 2.8초): 카메라는 최종 자리 고정. 핀(0) → 나머지 일괄(0.5) → 링(1.2) → 벽(1.5) → 제목(1.8) → 자막(2.2) → 버튼(2.8)
   short: { spot: 0, spread: 0.5, beams: 1.3, pillars: 1.5, open: 1.2, hold: 1.0, impact: 1.2, wall: 1.5, title: 1.8, call: 2.8 },
   none: { spot: -99, spread: -99, beams: -99, pillars: -99, open: -99, hold: -99, impact: -99, wall: -99, title: -99, call: -99 },
@@ -353,6 +363,9 @@ export function createStage(canvas: HTMLCanvasElement, opts: StageOptions): Stag
   const fill = new THREE.PointLight(0xffd9a0, 0, 30, 2);
   fill.position.set(0, 5, 13);
   scene.add(back, back.target, key, key.target, fill);
+  // TEMP(링 안): 처음부터 0으로 넣어 둔다(광원 수가 바뀌면 재질을 다시 컴파일해 멈칫한다)
+  const tipLight = new THREE.PointLight(0xffd29a, 0, 9, 2);
+  scene.add(tipLight);
 
   // ── 서치라이트(시각용 빛줄기): 가는 빔 6(호박) · 넓은 빛 2(차가운 백색) · 역광 2(무대 뒤에서 가장자리를 스침) · 위 빔 1 ──
   const beamGeo = track(new THREE.ConeGeometry(0.42, 1, 40, 1, true));
@@ -486,7 +499,8 @@ export function createStage(canvas: HTMLCanvasElement, opts: StageOptions): Stag
 
   /** 시각 t의 카메라 자리. 정면에서 한 번 짧게 다가가 4.4초에 멈춘다(글자는 그 뒤). 짧은 연출·완성 장면은 처음부터 최종 자리 */
   function cameraAt(t: number, out: THREE.Vector3, look: THREE.Vector3): number {
-    const k = intro === 'full' ? smootherstep((t - 0.6) / 3.8) : 1;
+    // TEMP: 링 안은 링이 그려지는 동안 다가가고, 제목 안은 글자가 처음부터 떠 있으므로 카메라를 움직이지 않는다
+    const k = intro !== 'full' || OPENING === 'title' ? 1 : OPENING === 'ring' ? smootherstep((t - 0.3) / 3.6) : smootherstep((t - 0.6) / 3.8);
     out.set(0, 4.95, 21.2).lerp(CAM_JUDGE, k);
     look.copy(LOOK_JUDGE);
     return FOV_WIDE * fovScale;
@@ -519,12 +533,33 @@ export function createStage(canvas: HTMLCanvasElement, opts: StageOptions): Stag
     const B = BRIGHTNESS;
     const poolDecay = 1 - 0.45 * ramp(t, tl.impact + 0.8, 1.5);
     let pin: number, pool: number, back2: number, rim: number, keyK: number, fillK: number, edgeK: number, envB: number, envI: number;
+    let rimR = -1; // TEMP: 링 안에서만 오른쪽 림을 따로(붓이 지나갈 때)
     if (intro !== 'full') {
       const rest = ramp(t, tl.spread, 0.6);
       pin = ramp(t, tl.spot, 0.4) * (1 - ramp(t, tl.spread, 0.6));
       pool = rest * poolDecay;
       back2 = rim = keyK = fillK = edgeK = envI = rest;
       envB = ramp(t, tl.spot, 0.5);
+    } else if (OPENING === 'ring') {
+      // 붓끝이 지나가는 자리: 왼쪽(진행 0~0.3) → 꼭대기(0.4~0.6, 역광·핀) → 오른쪽(0.7~0.95). 다 그은 뒤 위 조명·키
+      const r = easeInOutCubic((t - tl.impact) / RING_DRAW);
+      back2 = 0.3 * smooth(0.35, 0.6, r) + 0.7 * ramp(t, 3.5, 1.0);
+      rim = 0.25 * smooth(0.05, 0.3, r) + 0.75 * ramp(t, 3.5, 1.0);
+      rimR = 0.25 * smooth(0.7, 0.95, r) + 0.75 * ramp(t, 3.5, 1.0);
+      pin = smooth(0.4, 0.6, r) * (1 - ramp(t, 4.0, 1.2));
+      pool = ramp(t, 3.5, 1.0) * poolDecay;
+      keyK = ramp(t, 3.5, 1.0);
+      fillK = edgeK = envI = ramp(t, 3.9, 0.9);
+      envB = smooth(0, 0.5, r);
+    } else if (OPENING === 'title') {
+      // 제목 금박 스윕이 끝날 즈음 빛이 꿀붕이로 넘어간다
+      pin = ramp(t, 2.1, 0.9) * (1 - ramp(t, 3.3, 1.2));
+      back2 = 0.3 * ramp(t, 2.5, 1.2) + 0.7 * ramp(t, 3.0, 1.0);
+      rim = 0.25 * ramp(t, 2.6, 1.2) + 0.75 * ramp(t, 3.0, 1.0);
+      pool = ramp(t, 3.0, 1.0) * poolDecay;
+      keyK = ramp(t, 3.0, 1.0);
+      fillK = edgeK = envI = ramp(t, 3.5, 0.9);
+      envB = ramp(t, 2.1, 1.2);
     } else {
       back2 = 0.3 * ramp(t, 0.6, 1.4) + 0.7 * ramp(t, 3.0, 1.0);
       rim = 0.25 * ramp(t, 0.8, 1.4) + 0.75 * ramp(t, 3.0, 1.0);
@@ -537,7 +572,15 @@ export function createStage(canvas: HTMLCanvasElement, opts: StageOptions): Stag
     pinSpot.intensity = B.poolSpot * pin;
     poolSpot.intensity = B.poolSpot * pool;
     back.intensity = B.back * back2;
-    for (const r of rims) r.intensity = B.rimSide * rim;
+    rims[0].intensity = B.rimSide * rim;
+    rims[1].intensity = B.rimSide * (rimR >= 0 ? rimR : rim);
+    // TEMP(링 안): 붓끝을 따라가는 작은 따뜻한 빛
+    if (OPENING === 'ring' && intro === 'full') {
+      const r = easeInOutCubic((t - tl.impact) / RING_DRAW);
+      const a = Math.PI / 2 + ARC_SPAN / 2 - r * ARC_SPAN;
+      tipLight.position.set(Math.cos(a) * 4.5, GLOBE_Y + Math.sin(a) * 4.5, -1.6);
+      tipLight.intensity = 26 * ramp(t, tl.impact, 0.2) * (1 - ramp(t, tl.impact + RING_DRAW - 0.2, 0.7));
+    } else tipLight.intensity = 0;
     key.intensity = B.key * keyK;
     fill.intensity = B.fill * fillK;
     edgeMat.color.copy(edgeOn).multiplyScalar(B.edge * edgeK);
@@ -591,9 +634,12 @@ export function createStage(canvas: HTMLCanvasElement, opts: StageOptions): Stag
     }
   }
 
+  /** TEMP: 제목 먼저 안은 제목이 처음에 떠 있으므로 꽃가루를 벽이 켜질 때 */
+  const confettiAt = () => (OPENING === 'title' && intro === 'full' ? timeline.wall : timeline.title - 0.3);
+
   function updateConfetti(dt: number, t: number) {
     // 제목과 함께 터진다(위에서 화면에 들어오는 데 걸리는 만큼 0.3초 먼저)
-    if (!confettiBurst && t >= timeline.title - 0.3) {
+    if (!confettiBurst && t >= confettiAt()) {
       confettiBurst = true;
       for (const b of bits) {
         b.p.set((Math.random() - 0.5) * 16, 9 + Math.random() * 5, (Math.random() - 0.5) * 12 + 2);

@@ -22,6 +22,8 @@ import { sizeOptions, thirdPlaceAvailable } from '@/lib/awards/options';
 import type { AwardEntry, Division, SizeChoice } from '@/lib/awards/types';
 import AwardsStage from './AwardsStage';
 import type { StageIntro } from './stage/createStage';
+import { OPENING } from './stage/opening'; // TEMP
+import OpeningLab from './OpeningLab'; // TEMP(오프닝 방향 비교)
 import styles from './awards.module.css';
 
 // 입장 화면: 시상식장에 들어와 심사위원으로 위촉되는 흐름. 화면 전체가 3D 무대(AwardsStage)이고,
@@ -34,7 +36,8 @@ const SEEN_KEY = 'yasiro-awards-intro-seen';
 /** 연출 방식별 자막·버튼 시각(초, 무대 시계 출발 기준). 무대 시간표(stage/createStage STAGE_TIMELINES)와 맞물린다:
  *  제목 = title(6.8), 자막 한 줄은 그 뒤(7.8). captions[i] = i번째 줄이 나오는 시각, 마지막 줄은 남는다. 시간값은 판단 시작값 */
 const CUES: Record<StageIntro, { title: number; captions: number[]; cta: number }> = {
-  full: { title: 6.8, captions: [7.8], cta: 8.8 },
+  // TEMP(오프닝 방향 비교): 무대 OPENING과 같은 시각
+  full: OPENING === 'ring' ? { title: 6.2, captions: [7.2], cta: 8.2 } : OPENING === 'title' ? { title: 0.6, captions: [7.0], cta: 8.0 } : { title: 6.8, captions: [7.8], cta: 8.8 },
   short: { title: 1.8, captions: [2.2], cta: 2.8 },
   none: { title: 0, captions: [0], cta: 0 },
 };
@@ -178,6 +181,7 @@ export default function SetupScreen({
         {finished ? paused ? <Play size={18} strokeWidth={1.8} aria-hidden="true" /> : <Pause size={18} strokeWidth={1.8} aria-hidden="true" /> : <FastForward size={18} strokeWidth={1.8} aria-hidden="true" />}
       </button>
 
+      {process.env.NODE_ENV !== 'production' && <OpeningLab />}
       <header className={styles.ceremonyTop} data-show={elapsed >= cues.title || undefined}>
         <p className={styles.kicker}>{CEREMONY_EYEBROW}</p>
         {/* 금박 제목: 그림자는 따로 깐 복제 글자(배경을 글자로 자른 금박에 그림자를 직접 걸면 탁해진다) */}
