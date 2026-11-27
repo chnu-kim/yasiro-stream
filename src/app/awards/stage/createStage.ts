@@ -109,8 +109,8 @@ const CAM_MODE = devFlag('stage-cam', ['push', 'fixed', 'descend'] as const, 'pu
 const IMPACT_MODE = devFlag('stage-impact', ['confetti', 'ring', 'full'] as const, 'confetti');
 /** TEMP(링 비교): beads(지금: 두 겹 + 구슬 48) | thin(구슬 없는 가는 링 하나) | arc(위쪽만 남고 아래로 사라지는 호) */
 const RING = devFlag('stage-ring', ['beads', 'thin', 'arc'] as const, 'beads');
-/** 링(임팩트)에서 꽃가루가 터지기까지(초). 링이 0.5초에 다 차오른 뒤로 미룬다(사용자 메모) */
-const CONFETTI_DELAY = SPOT ? 0.7 : 0.14;
+/** 링이 왼쪽 끝에서 위를 지나 오른쪽으로 그려지는 시간(초). 서서히 밝아지는 대신 그어지며 생긴다(11-27 사용자 제안) */
+const RING_DRAW = 1.1;
 
 export const STAGE_TIMELINES: Record<StageIntro, StageTimeline> = {
   // 금 웅덩이(11-26, 조사 ①안): 어둠 속 웅덩이가 은은히 빛나다(0.3) → 스포트라이트 하나(1.6) → 트로피가 수면을 뚫고 솟음(2.4~5.2)
@@ -591,6 +591,41 @@ export function createStage(canvas: HTMLCanvasElement, opts: StageOptions): Stag
     }
     ring.geometry = geo;
   }
+
+  // 링이 그려지는 진행: 정점마다 0(왼쪽 끝) → 1(끝) 값을 두고 셰이더가 진행보다 앞선 부분을 버린다. 맨 앞은 조금 더 밝게
+  const ringReveal = { value: 1 };
+  const revealOf = (x: number, y: number) => {
+    const theta = Math.atan2(y, x);
+    if (RING === 'arc') {
+      const arc = Math.PI * 1.28;
+      const left = Math.PI / 2 + arc / 2;
+      return clamp01((left - (theta < -Math.PI / 2 ? theta + Math.PI * 2 : theta)) / arc);
+    }
+    return (Math.PI - theta) / (Math.PI * 2); // 왼쪽 0 → 위 0.25 → 오른쪽 0.5 → 아래 0.75
+  };
+  for (const child of halo.children) {
+    const mesh = child as THREE.Mesh;
+    const g = mesh.geometry as THREE.BufferGeometry;
+    if (g.type !== 'TorusGeometry') {
+      mesh.userData.reveal = revealOf(mesh.position.x, mesh.position.y); // 구슬은 자리로 켠다
+      continue;
+    }
+    const pos = g.attributes.position as THREE.BufferAttribute;
+    const rv = new Float32Array(pos.count);
+    for (let i = 0; i < pos.count; i++) rv[i] = revealOf(pos.getX(i), pos.getY(i));
+    g.setAttribute('aReveal', new THREE.BufferAttribute(rv, 1));
+  }
+  haloMat.onBeforeCompile = (sh) => {
+    sh.uniforms.uReveal = ringReveal;
+    sh.vertexShader = 'attribute float aReveal;\nvarying float vReveal;\n' + sh.vertexShader.replace('#include <begin_vertex>', '#include <begin_vertex>\n  vReveal = aReveal;');
+    sh.fragmentShader =
+      'uniform float uReveal;\nvarying float vReveal;\n' +
+      sh.fragmentShader.replace(
+        '#include <dithering_fragment>',
+        '#include <dithering_fragment>\n  if (vReveal > uReveal) discard;\n  gl_FragColor.rgb *= 1.0 + 1.6 * smoothstep(uReveal - 0.07, uReveal, vReveal) * step(uReveal, 0.999);',
+      );
+  };
+  haloMat.customProgramCacheKey = () => 'halo-reveal';
 
   // ── 임팩트 효과: 바닥 충격파 링(트로피를 타고 오르던 금빛 띠는 11-27 사용자 요청으로 뺐다) ──
   const shockMat = track(new THREE.MeshBasicMaterial({ color: 0xd9b45a, transparent: true, opacity: 0, blending: THREE.AdditiveBlending, depthWrite: false }));
@@ -1166,7 +1201,12 @@ export function createStage(canvas: HTMLCanvasElement, opts: StageOptions): Stag
     // 링(결정 3): 스포트 컨셉의 confetti·ring은 0.5초에 걸쳐 차오르고, full은 예전처럼 0.3초
     haloMat.color
       .copy(haloOn)
-      .multiplyScalar(BRIGHTNESS.halo * (RING === 'beads' ? 1 : 0.85) * (SPOT && IMPACT_MODE !== 'full' ? ramp(t, tl.impact, 0.5) : ramp(t, tl.impact + 0.08, 0.3)));
+      .multiplyScalar(BRIGHTNESS.halo * (RING === 'beads' ? 1 : 0.85) * (SPOT ? ramp(t, tl.impact, 0.12) : ramp(t, tl.impact + 0.08, 0.3)));
+    // 스포트 컨셉: 링이 왼쪽 끝부터 그려진다(구슬은 그 자리에 선이 닿을 때 켜진다)
+    ringReveal.value = SPOT ? easeInOutCubic((t - tl.impact) / RING_DRAW) : 1;
+    for (const child of halo.children) {
+      if (child.userData.reveal !== undefined && RING === 'beads') child.visible = child.userData.reveal <= ringReveal.value;
+    }
     lampMat.color.setRGB(0.95, 0.62, 0.25).multiplyScalar(BRIGHTNESS.lamp * ramp(t, -0.4, 1.2));
     // 샹들리에: 쇼 전에는 볼룸 조명으로 반짝이고, 암전 때 낮아졌다가 임팩트 뒤 다시 은은하게
     const chandelierLevel = tl.house < 0 ? ramp(t, tl.pillars + 0.4, 1.2) : Math.max(houseOn * ramp(t, -0.3, 0.8), 0.7 * ramp(t, tl.impact + 0.5, 1.2));
@@ -1231,11 +1271,14 @@ export function createStage(canvas: HTMLCanvasElement, opts: StageOptions): Stag
     }
   }
 
+  /** 꽃가루가 터지는 시각: 스포트 컨셉은 제목과 함께(위에서 화면에 들어오는 데 걸리는 만큼 0.3초 먼저), 이전 컨셉은 임팩트 직후 */
+  const confettiAt = () => (SPOT ? timeline.title - 0.3 : timeline.impact + 0.14);
+
   function updateConfetti(dt: number, t: number) {
     if (SPOT && IMPACT_MODE === 'ring') return; // 링만(결정 3)
     // TEMP(스토리보드): 시계를 멈춘 화면이면 꽃가루를 그 시각의 위치로 계산해 그린다(물리 적분은 실제 시간으로 흘러 다 떨어진다)
     if (freezeT !== null) {
-      const tau = t - (timeline.impact + CONFETTI_DELAY);
+      const tau = t - confettiAt();
       let n = 0;
       if (tau > 0) {
         bits.forEach((b, i) => {
@@ -1254,7 +1297,7 @@ export function createStage(canvas: HTMLCanvasElement, opts: StageOptions): Stag
       confetti.instanceMatrix.needsUpdate = true;
       return;
     }
-    if (!confettiBurst && t >= timeline.impact + CONFETTI_DELAY) {
+    if (!confettiBurst && t >= confettiAt()) {
       confettiBurst = true;
       for (const b of bits) {
         b.p.set((Math.random() - 0.5) * 16, 9 + Math.random() * 5, (Math.random() - 0.5) * 12 + 2);
