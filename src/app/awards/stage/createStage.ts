@@ -70,6 +70,8 @@ export interface StageTimeline {
   rise: number;
   /** 빛이 꿀붕이에서 단으로 번지기 시작(키·림·보조광·단 금선). 이전 컨셉은 임팩트와 같다 */
   spread: number;
+  /** 좁은 빔이 가운데부터 켜지기 시작(스포트 컨셉). 이전 컨셉은 open과 같다 */
+  beams: number;
   pillars: number;
   open: number;
   hold: number;
@@ -88,21 +90,38 @@ const CORRIDOR = CONCEPT === 'corridor';
 const LATTICE = CONCEPT === 'lattice';
 /** 공통 언어(11-27) 오프닝: 어둠 → 위에서 스포트가 꿀붕이에 열림 → 빛이 단으로 번짐 → 헤일로·벽 → 제목. 카메라는 한 번의 느린 접근 */
 const SPOT = CONCEPT === 'spot';
+/** TEMP(오프닝 결정 비교): 개발 중 localStorage로 선택지를 바꿔 본다. 결정 뒤 하나만 남긴다.
+ *  stage-order: top(꼭대기부터, 추천) | bottom(바닥부터) | sil(윤곽 먼저)
+ *  stage-cam: push(짧은 직선 접근, 추천) | fixed(고정) | descend(내려앉기)
+ *  stage-impact: confetti(링 + 꽃가루, 추천) | ring(링만) | full(꽃가루 + 충격파 + 흔들림) */
+const devFlag = <T extends string>(key: string, allowed: readonly T[], fallback: T): T => {
+  if (process.env.NODE_ENV === 'production' || typeof window === 'undefined') return fallback;
+  try {
+    const v = window.localStorage.getItem(key);
+    return (allowed as readonly string[]).includes(v ?? '') ? (v as T) : fallback;
+  } catch {
+    return fallback;
+  }
+};
+const ORDER = devFlag('stage-order', ['top', 'bottom', 'sil'] as const, 'top');
+const CAM_MODE = devFlag('stage-cam', ['push', 'fixed', 'descend'] as const, 'push');
+const IMPACT_MODE = devFlag('stage-impact', ['confetti', 'ring', 'full'] as const, 'confetti');
 
 export const STAGE_TIMELINES: Record<StageIntro, StageTimeline> = {
   // 금 웅덩이(11-26, 조사 ①안): 어둠 속 웅덩이가 은은히 빛나다(0.3) → 스포트라이트 하나(1.6) → 트로피가 수면을 뚫고 솟음(2.4~5.2)
   // → 임팩트(5.4: 헤일로·충격파·꽃가루) → 빛이 퍼짐 → 제목. 카메라는 처음부터 한 방향으로 천천히 물러나 9.6초에 심사위원석. SetupScreen CUES도 같이
   // 금 격자(11-27, 조사 ②안): 어둠 속 격자 안(0) → 위에서 빛 한 줄기(0.6) → 카메라가 격자 틈으로 빠져나와 물러남 → 트로피 전체가 드러남
   // → 임팩트(6.2: 지구본 속 심이 켜지고 헤일로) → 제목. 카메라는 한 방향으로 물러나 12초에 심사위원석
-  // 스포트(11-27, 공통 언어): 어둠(0~0.8) → 스포트가 꿀붕이에 열림(0.8) → 빛이 단으로 번짐(2.4~3.8) → 헤일로·벽·빔(4.2~) → 제목(5.6).
-  // 카메라는 0.3초부터 9초까지 한 번 느리게 다가가 지금의 최종 자리에 멈춘다. SetupScreen CUES도 같이
+  // 스포트(11-27, 오프닝 설계 work/trophy/lang/opening-decisions.json): 한 점(핀 0.6) → 형태(트로피가 켜짐 2.2~4.4) → 정적(4.4~4.9)
+  // → 링(4.9) → 빔(5.3, 가운데부터) → 벽(5.9) → 빛기둥(6.3) → 제목(6.8) → 자막(7.8) → 버튼(8.8). 카메라는 4.4초에 멈추고 글자는 그 뒤. SetupScreen CUES도 같이
   full: SPOT
-    ? { house: -99, spot: 0.8, spread: 2.4, rise: -99, pillars: 4.8, open: 4.2, hold: 5.4, impact: 4.2, wall: 4.6, title: 5.6, call: 8.3 }
+    ? { house: -99, spot: 0.6, spread: 2.2, beams: 5.3, rise: -99, pillars: 6.3, open: 4.9, hold: 4.4, impact: 4.9, wall: 5.9, title: 6.8, call: 8.8 }
     : LATTICE
-    ? { house: -99, spot: 0.6, spread: 6.2, rise: -99, pillars: 6.8, open: 6.2, hold: 7.4, impact: 6.2, wall: 7.6, title: 8.4, call: 11.1 }
-    : { house: -99, spot: 1.6, spread: 5.4, rise: 2.4, pillars: 6.0, open: 5.4, hold: 6.6, impact: 5.4, wall: 6.8, title: 7.6, call: 10.3 },
-  short: { house: -99, spot: 0, spread: 0.4, rise: -99, pillars: 0, open: 0, hold: 0.15, impact: 0.4, wall: 0.9, title: 1.4, call: 2.0 },
-  none: { house: -99, spot: -99, spread: -99, rise: -99, pillars: -99, open: -99, hold: -99, impact: -99, wall: -99, title: -99, call: -99 },
+    ? { house: -99, spot: 0.6, spread: 6.2, beams: 6.2, rise: -99, pillars: 6.8, open: 6.2, hold: 7.4, impact: 6.2, wall: 7.6, title: 8.4, call: 11.1 }
+    : { house: -99, spot: 1.6, spread: 5.4, beams: 5.4, rise: 2.4, pillars: 6.0, open: 5.4, hold: 6.6, impact: 5.4, wall: 6.8, title: 7.6, call: 10.3 },
+  // 짧은 연출(재방문 2.8초): 카메라는 최종 자리 고정. 핀(0) → 나머지 일괄(0.5) → 링(1.2) → 벽(1.5) → 제목(1.8) → 자막(2.2) → 버튼(2.8)
+  short: { house: -99, spot: 0, spread: 0.5, beams: 1.3, rise: -99, pillars: 1.5, open: 1.2, hold: 1.0, impact: 1.2, wall: 1.5, title: 1.8, call: 2.8 },
+  none: { house: -99, spot: -99, spread: -99, beams: -99, rise: -99, pillars: -99, open: -99, hold: -99, impact: -99, wall: -99, title: -99, call: -99 },
 };
 
 /** 밝기 예산. 노출·bloom 상한은 올리지 않는다(사용자 눈부심 지적). 효과를 더할 때는 여기 값을 먼저 정한다 */
@@ -495,6 +514,16 @@ export function createStage(canvas: HTMLCanvasElement, opts: StageOptions): Stag
   poolSpot.position.set(0, 21, 1.0);
   poolSpot.target.position.set(0, STAGE_TOP, 0);
   scene.add(poolSpot, poolSpot.target); // 격자 컨셉도 같은 위 조명을 쓴다(웅덩이 묶음이 숨어도 켜지게)
+  // 오프닝 "한 점": 꿀붕이만 겨누는 좁은 핀(각 0.05). 처음부터 장면에 둔다(광원 수가 바뀌면 셰이더를 다시 컴파일한다)
+  const pinSpot = new THREE.SpotLight(0xfff0cf, 0, 34, 0.05, 0.6, 1.4);
+  pinSpot.position.set(0, 21, 1);
+  pinSpot.target.position.set(0, 7.6, 0);
+  scene.add(pinSpot, pinSpot.target);
+  // 바닥부터 켜기(시안 bottom)에서만: 정면 낮은 곳에서 위로 훑어 올라가는 빛
+  const liftSpot = new THREE.SpotLight(0xffe2b8, 0, 30, 0.07, 0.8, 1.4);
+  liftSpot.position.set(0, 3.0, 14);
+  liftSpot.target.position.set(0, 1.9, 0);
+  if (SPOT && ORDER === 'bottom') scene.add(liftSpot, liftSpot.target);
   /** 수면: 느린 너울 + 트로피가 뚫고 나올 때 가운데서 퍼지는 물결(감쇠). 정점 높이를 매 프레임 다시 계산한다 */
   function updatePool(t: number) {
     if (!POOL) return;
@@ -801,6 +830,13 @@ export function createStage(canvas: HTMLCanvasElement, opts: StageOptions): Stag
   }
   for (const side of [-1, 1]) addBeam('wash', new THREE.Vector3(side * 6, 22, 10), side * 2.1, 0xdfe6f0, BRIGHTNESS.washAlpha, 0.11);
   if (!compact) for (const side of [-1, 1]) addBeam('back', new THREE.Vector3(side * 5, 12, -12), side * 3.3, 0xf3d58e, BRIGHTNESS.backBeamAlpha, 0.05);
+  /** 가는 빔의 점등 순서: 가운데(원점 x가 작은 것)부터 */
+  const narrowRank = new Map(
+    beams
+      .filter((b) => b.kind === 'narrow')
+      .sort((a, b) => Math.abs(a.origin.x) - Math.abs(b.origin.x))
+      .map((b, i) => [b, i] as const),
+  );
   if (POOL || LATTICE || SPOT) addBeam('pool', new THREE.Vector3(0, 21, 1.0), 0, 0xf3cf86, BRIGHTNESS.beamAlpha, 0.075);
 
   // ── 안개 막: 트로피 앞뒤 반투명 판(느리게 흐르는 잡음). 빛줄기가 겹을 통과하는 깊이 ──
@@ -911,12 +947,28 @@ export function createStage(canvas: HTMLCanvasElement, opts: StageOptions): Stag
   if (process.env.NODE_ENV !== 'production' && typeof window !== 'undefined') Object.assign(window as object, { __stageDbg: { scene, camera, THREE } });
   // TEMP(슬로 모션 확인): 개발 중 localStorage['stage-slow']='0.25'면 연출 시계를 늦춘다. 커밋 전 제거
   const slowMo = process.env.NODE_ENV !== 'production' && typeof window !== 'undefined' ? Number(window.localStorage.getItem('stage-slow') ?? 1) || 1 : 1;
+  // TEMP(스토리보드): 개발 중 localStorage['stage-t']='4.2'면 연출 시계를 그 시각에 멈춘다(정해진 시각의 장면을 찍는다). 커밋 전 제거
+  const freezeRaw = process.env.NODE_ENV !== 'production' && typeof window !== 'undefined' ? window.localStorage.getItem('stage-t') : null;
+  const freezeT = freezeRaw === null ? null : Number(freezeRaw);
   const audienceAim = new THREE.Vector3(0, 0.3, 26);
 
   /** 시각 t의 카메라 자리(키프레임). 돌리 줌 구간에는 fov도 정한다 */
   function cameraAt(t: number, out: THREE.Vector3, look: THREE.Vector3): number {
     const tl = timeline;
     const fovAt = (f: number) => f * fovScale;
+    if (SPOT && !launch) {
+      // 오프닝 카메라(결정 2). 짧은 연출·시안 fixed는 처음부터 최종 자리. 접근은 4.4초에 멈춘다(글자는 그 뒤)
+      rollNow = 0;
+      const k = intro === 'full' && CAM_MODE !== 'fixed' ? smootherstep((t - 0.6) / 3.8) : 1;
+      if (CAM_MODE === 'descend') {
+        out.set(0, 7.4, 21.3).lerp(CAM_JUDGE, k);
+        look.set(0, 7.0, 0).lerp(LOOK_JUDGE, k);
+      } else {
+        out.set(0, 4.95, 21.2).lerp(CAM_JUDGE, k);
+        look.copy(LOOK_JUDGE);
+      }
+      return fovAt(FOV_WIDE);
+    }
     if (intro === 'short' && tl !== STAGE_TIMELINES.none) {
       const k = easeInOutCubic(t / (tl.call + 1.2));
       out.lerpVectors(CAM_SHORT, CAM_JUDGE, k);
@@ -992,6 +1044,60 @@ export function createStage(canvas: HTMLCanvasElement, opts: StageOptions): Stag
     }
   }
 
+  /** 오프닝 조명 큐(스포트 컨셉, 결정 1 '켜는 순서'). 위 핀·위 조명·역광·림·키·보조·단 금선·환경 반사를 큐 표대로 켠다.
+   *  ramp는 p²라 어둠에서 툭 켜지지 않는다. 짧은 연출은 핀(0) → 나머지 일괄(0.5) */
+  function applySpotCues(t: number) {
+    const tl = timeline;
+    const B = BRIGHTNESS;
+    const poolDecay = 1 - 0.45 * ramp(t, tl.impact + 0.8, 1.5);
+    let pin: number, pool: number, back2: number, rim: number, keyK: number, fillK: number, edgeK: number, envB: number, envI: number;
+    let lift = 0;
+    if (intro !== 'full') {
+      const rest = ramp(t, tl.spread, 0.6);
+      pin = ramp(t, tl.spot, 0.4) * (1 - ramp(t, tl.spread, 0.6));
+      pool = rest * poolDecay;
+      back2 = rim = keyK = fillK = edgeK = envI = rest;
+      envB = ramp(t, tl.spot, 0.5);
+    } else if (ORDER === 'bottom') {
+      edgeK = ramp(t, 0.6, 1.0);
+      lift = ramp(t, 1.6, 0.6) * (1 - ramp(t, 3.6, 0.8));
+      liftSpot.target.position.y = THREE.MathUtils.lerp(1.9, 7.2, smootherstep((t - 1.6) / 1.8));
+      rim = ramp(t, 3.0, 1.0);
+      back2 = ramp(t, 3.0, 1.2);
+      pin = ramp(t, 3.5, 0.8) * (1 - ramp(t, tl.impact + 0.3, 1.2));
+      pool = ramp(t, 3.7, 0.9) * poolDecay;
+      keyK = ramp(t, 3.5, 0.9);
+      fillK = envI = ramp(t, 3.7, 0.7);
+      envB = ramp(t, 0.6, 1.2);
+    } else if (ORDER === 'sil') {
+      back2 = 0.3 * ramp(t, 0.6, 1.4) + 0.7 * ramp(t, 3.0, 1.0);
+      rim = 0.25 * ramp(t, 0.8, 1.4) + 0.75 * ramp(t, 3.0, 1.0);
+      pin = ramp(t, 2.2, 0.9) * (1 - ramp(t, 3.4, 1.2));
+      pool = ramp(t, 3.0, 1.0) * poolDecay;
+      keyK = ramp(t, 3.0, 1.0);
+      fillK = edgeK = envI = ramp(t, 3.5, 0.9);
+      envB = ramp(t, 2.2, 1.2);
+    } else {
+      // 꼭대기부터(추천): 꿀붕이 핀 → 위 조명이 넓어져 컵·기둥 → 윤곽 → 정면 → 단 금선
+      pin = ramp(t, tl.spot, 0.9) * (1 - ramp(t, tl.spread + 0.6, 1.4));
+      pool = ramp(t, tl.spread, 1.2) * poolDecay;
+      back2 = 0.35 * ramp(t, tl.spread, 1.2) + 0.65 * ramp(t, tl.spread + 1.3, 0.9);
+      rim = ramp(t, tl.spread + 0.6, 1.0);
+      keyK = ramp(t, tl.spread + 1.0, 1.0);
+      fillK = edgeK = envI = ramp(t, tl.spread + 1.3, 0.9);
+      envB = ramp(t, tl.spot, 1.2);
+    }
+    pinSpot.intensity = B.poolSpot * pin;
+    poolSpot.intensity = B.poolSpot * pool;
+    liftSpot.intensity = 0.6 * B.key * lift;
+    back.intensity = B.back * back2;
+    for (const r of rims) r.intensity = B.rimSide * rim;
+    key.intensity = B.key * keyK;
+    fill.intensity = B.fill * fillK;
+    edgeMat.color.copy(edgeOn).multiplyScalar(B.edge * edgeK);
+    scene.environmentIntensity = B.envBase * envB + B.envImpact * envI;
+  }
+
   function applyLights(t: number) {
     const tl = timeline;
     const impactK = ramp(t, tl.impact, 0.3);
@@ -1022,12 +1128,19 @@ export function createStage(canvas: HTMLCanvasElement, opts: StageOptions): Stag
       coreGlow.scale.setScalar(0.2 + 0.8 * easeOutCubic((t - tl.impact + 0.15) / 0.6));
     }
 
-    for (const p of pillars) {
-      const on = ramp(t, tl.pillars + p.cue, 0.35);
+    if (SPOT) applySpotCues(t);
+
+    for (let pi = 0; pi < pillars.length; pi++) {
+      const p = pillars[pi];
+      // 스포트 컨셉: 안쪽(i가 작은 쌍)부터 0.12초 간격
+      const on = ramp(t, tl.pillars + (SPOT ? Math.floor(pi / 2) * 0.12 : p.cue), 0.35);
       p.mat.color.copy(pillarOn).multiplyScalar(BRIGHTNESS.pillar * on * (0.8 + 0.2 * Math.sin(t * 0.6 + p.phase)));
     }
-    edgeMat.color.copy(edgeOn).multiplyScalar(BRIGHTNESS.edge * spreadK);
-    haloMat.color.copy(haloOn).multiplyScalar(BRIGHTNESS.halo * ramp(t, tl.impact + 0.08, 0.3));
+    if (!SPOT) edgeMat.color.copy(edgeOn).multiplyScalar(BRIGHTNESS.edge * spreadK);
+    // 링(결정 3): 스포트 컨셉의 confetti·ring은 0.5초에 걸쳐 차오르고, full은 예전처럼 0.3초
+    haloMat.color
+      .copy(haloOn)
+      .multiplyScalar(BRIGHTNESS.halo * (SPOT && IMPACT_MODE !== 'full' ? ramp(t, tl.impact, 0.5) : ramp(t, tl.impact + 0.08, 0.3)));
     lampMat.color.setRGB(0.95, 0.62, 0.25).multiplyScalar(BRIGHTNESS.lamp * ramp(t, -0.4, 1.2));
     // 샹들리에: 쇼 전에는 볼룸 조명으로 반짝이고, 암전 때 낮아졌다가 임팩트 뒤 다시 은은하게
     const chandelierLevel = tl.house < 0 ? ramp(t, tl.pillars + 0.4, 1.2) : Math.max(houseOn * ramp(t, -0.3, 0.8), 0.7 * ramp(t, tl.impact + 0.5, 1.2));
@@ -1045,7 +1158,7 @@ export function createStage(canvas: HTMLCanvasElement, opts: StageOptions): Stag
     // 충격파: 임팩트 순간 바닥에서 퍼져 나가며 사라진다
     const sk = clamp01((t - tl.impact) / 1.3);
     shock.scale.setScalar(1 + easeOutCubic(sk) * 13);
-    shockMat.opacity = t < tl.impact ? 0 : 0.5 * (1 - sk);
+    shockMat.opacity = t < tl.impact || (SPOT && IMPACT_MODE !== 'full') ? 0 : 0.5 * (1 - sk);
 
     // 서치라이트: 열림부터 훑고 → 정지에서 트로피로 모이고 → 호명에서 넓은 빛이 객석(관객) 쪽으로
     const holdK = easeInOutCubic((t - tl.hold) / 0.6);
@@ -1053,7 +1166,24 @@ export function createStage(canvas: HTMLCanvasElement, opts: StageOptions): Stag
     const titleBeam = 1 - 0.4 * easeInOutCubic((t - tl.title) / 0.8);
     for (const b of beams) {
       let on = 0;
-      if (b.kind === 'narrow') {
+      if (SPOT) {
+        // 스포트 컨셉: 처음부터 트로피로 모인 채 가운데부터 0.12초 간격(무작위 점등 대신), 워시·역광 빔은 0.4초 뒤, 위 빔은 위 조명을 따른다
+        if (b.kind === 'narrow') {
+          on = ramp(t, tl.beams + (narrowRank.get(b) ?? 0) * 0.12, 0.3) * titleBeam;
+          aimTmp.set(Math.sin(t * 0.45 + b.seed) * 13, 1 + Math.abs(Math.sin(t * 0.3 + b.seed * 2)) * 4, Math.cos(t * 0.38 + b.seed) * 9 + 6);
+          b.aim.lerpVectors(aimTmp, trophyAim, 0.85);
+        } else if (b.kind === 'wash') {
+          on = ramp(t, tl.beams + 0.4, 0.8);
+          aimTmp.set(b.seed * 2.5 + Math.sin(t * 0.2 + b.seed) * 2, STAGE_TOP, 2 + Math.cos(t * 0.17) * 2);
+          b.aim.lerpVectors(aimTmp, audienceAim, callK);
+        } else if (b.kind === 'pool') {
+          on = poolSpot.intensity / BRIGHTNESS.poolSpot;
+          b.aim.set(0, STAGE_TOP, 0);
+        } else {
+          on = ramp(t, tl.beams + 0.4, 0.6);
+          b.aim.set(Math.sign(b.seed) * (10 + Math.sin(t * 0.25) * 1.5), 7, 22);
+        }
+      } else if (b.kind === 'narrow') {
         on = ramp(t, tl.open + hash(b.seed * 10) * 0.5, 0.25) * titleBeam;
         aimTmp.set(Math.sin(t * 0.45 + b.seed) * 13, 1 + Math.abs(Math.sin(t * 0.3 + b.seed * 2)) * 4, Math.cos(t * 0.38 + b.seed) * 9 + 6);
         b.aim.lerpVectors(aimTmp, trophyAim, holdK * 0.85);
@@ -1076,6 +1206,28 @@ export function createStage(canvas: HTMLCanvasElement, opts: StageOptions): Stag
   }
 
   function updateConfetti(dt: number, t: number) {
+    if (SPOT && IMPACT_MODE === 'ring') return; // 링만(결정 3)
+    // TEMP(스토리보드): 시계를 멈춘 화면이면 꽃가루를 그 시각의 위치로 계산해 그린다(물리 적분은 실제 시간으로 흘러 다 떨어진다)
+    if (freezeT !== null) {
+      const tau = t - (timeline.impact + 0.14);
+      let n = 0;
+      if (tau > 0) {
+        bits.forEach((b, i) => {
+          b.p.set((hash(i * 3 + 1) - 0.5) * 16, 9 + hash(i * 3 + 2) * 5, (hash(i * 3 + 3) - 0.5) * 12 + 2);
+          const vy = -(3.4 + hash(i * 7 + 5) * 2);
+          b.p.x += (hash(i * 7 + 1) - 0.5) * 1.2 * tau;
+          b.p.z += (hash(i * 7 + 2) - 0.5) * 1.2 * tau;
+          b.p.y += vy * tau + 0.3 * tau * tau;
+          if (b.p.y < 0) return;
+          b.rot.set(hash(i * 11) * 6 + tau * 3, hash(i * 13) * 6 + tau * 2, hash(i * 17) * 6);
+          m4.compose(b.p, q.setFromEuler(b.rot), sc.set(1, 1, 1));
+          confetti.setMatrixAt(n++, m4);
+        });
+      }
+      confetti.count = n;
+      confetti.instanceMatrix.needsUpdate = true;
+      return;
+    }
     if (!confettiBurst && t >= timeline.impact + 0.14) {
       confettiBurst = true;
       for (const b of bits) {
@@ -1116,13 +1268,14 @@ export function createStage(canvas: HTMLCanvasElement, opts: StageOptions): Stag
     const bx = camPos.x;
     const bz = camPos.z;
     // 격자 컨셉: 틈을 빠져나가는 동안에는 마우스 시차를 끈다(금 줄에 부딪히지 않게)
-    const parallax = LATTICE ? smooth(ENTRY_SPEC.times.peak - 1, ENTRY_SPEC.times.peak + 1, t) : 1;
+    // 스포트 컨셉: 연출 중에는 마우스 시차를 끄고, 버튼이 나온 뒤 1초에 걸쳐 켠다
+    const parallax = LATTICE ? smooth(ENTRY_SPEC.times.peak - 1, ENTRY_SPEC.times.peak + 1, t) : SPOT ? smooth(timeline.call, timeline.call + 1, t) : 1;
     camPos.x = bx * Math.cos(yaw) + bz * Math.sin(yaw) + pointer.x * (0.25 + 0.45 * idle) * parallax;
     camPos.z = -bx * Math.sin(yaw) + bz * Math.cos(yaw);
     camPos.y += pointer.y * 0.25 * (settled ? 1 : 0.4) * parallax;
     // 임팩트 흔들림: 3~4프레임, 아주 작게
     const shakeK = t - timeline.impact;
-    if (shakeK > 0 && shakeK < 0.12) {
+    if (shakeK > 0 && shakeK < 0.12 && !(SPOT && IMPACT_MODE !== 'full')) {
       camPos.x += (hash(Math.floor(t * 60)) - 0.5) * 0.08;
       camPos.y += (hash(Math.floor(t * 60) + 9) - 0.5) * 0.06;
     }
@@ -1154,7 +1307,7 @@ export function createStage(canvas: HTMLCanvasElement, opts: StageOptions): Stag
 
   function step(now: number) {
     const dt = Math.min(clock.getDelta(), 0.05);
-    const t = ((now - start) / 1000) * slowMo;
+    const t = freezeT ?? ((now - start) / 1000) * slowMo;
     lastT = t;
 
     raycaster.setFromCamera(ndc, camera);
@@ -1168,7 +1321,10 @@ export function createStage(canvas: HTMLCanvasElement, opts: StageOptions): Stag
     layoutCorridor(t);
 
     // 격자 컨셉: 카메라가 틈을 빠져나가는 동안 돌지 않는다(임팩트 뒤부터 천천히)
-    trophy.rotation.y = Math.sin(t * 0.22) * 0.18 * (LATTICE ? smooth(timeline.impact, timeline.impact + 3, t) : 1);
+    // 스포트 컨셉: 연출 중에는 돌지 않고(빛이 움직인다) 버튼 뒤 0에서 천천히 붙는다
+    trophy.rotation.y = SPOT
+      ? Math.sin((t - timeline.call) * 0.22) * 0.18 * smooth(timeline.call, timeline.call + 2, t)
+      : Math.sin(t * 0.22) * 0.18 * (LATTICE ? smooth(timeline.impact, timeline.impact + 3, t) : 1);
     // 금에서 솟는 트로피: 수면 아래(단상 속)에서 2.8초에 걸쳐 올라온다. 받침까지 다 잠길 만큼 깊게 시작
     trophy.position.y = trophyRestY - (timeline.rise < 0 ? 0 : (1 - smootherstep((t - timeline.rise) / 2.8)) * 7.2);
     updatePool(t);
