@@ -21,7 +21,6 @@ import {
 import { sizeOptions, thirdPlaceAvailable } from '@/lib/awards/options';
 import type { AwardEntry, Division, SizeChoice } from '@/lib/awards/types';
 import AwardsStage from './AwardsStage';
-import OpeningLab from './OpeningLab'; // TEMP(오프닝 결정 비교)
 import type { StageIntro } from './stage/createStage';
 import styles from './awards.module.css';
 
@@ -93,22 +92,13 @@ export default function SetupScreen({
   const [elapsed, setElapsed] = useState(-1);
   const [skipKey, setSkipKey] = useState(0);
   const startedAt = useRef<number | null>(null);
-  const frozenRef = useRef(false); // TEMP(스토리보드)
   const onReady = () => {
     if (startedAt.current !== null) return;
     startedAt.current = performance.now();
-    // TEMP(스토리보드): 개발 중 localStorage['stage-t']가 있으면 자막·버튼도 그 시각 상태로 멈춘다. 커밋 전 제거
-    const frozen = process.env.NODE_ENV !== 'production' ? window.localStorage.getItem('stage-t') : null;
-    if (frozen !== null) {
-      frozenRef.current = true;
-      startedAt.current = performance.now() - Number(frozen) * 1000;
-      setElapsed(Number(frozen));
-      return;
-    }
     setElapsed(0);
   };
   useEffect(() => {
-    if (elapsed < 0 || elapsed >= cues.cta || frozenRef.current) return;
+    if (elapsed < 0 || elapsed >= cues.cta) return;
     const next = [cues.title, ...cues.captions, cues.cta].filter((c) => c > elapsed).sort((a, b) => a - b)[0];
     const wait = Math.max(0, next * 1000 - (performance.now() - (startedAt.current ?? 0)));
     const t = window.setTimeout(() => setElapsed(next), wait);
@@ -169,7 +159,6 @@ export default function SetupScreen({
       onPointerDown={finished ? undefined : skip}
     >
       <AwardsStage entries={nominees} intro={intro} launching={drawing} skipKey={skipKey} paused={paused} onReady={onReady} />
-      {process.env.NODE_ENV !== 'production' && <OpeningLab />}
 
       {/* 준비 박자: 포스터를 읽고 셰이더를 예열하는 동안(무대 시계 출발 전) 검은 화면 대신 "곧 시작된다"를 보인다 */}
       <div className={styles.preparing} data-hide={elapsed >= 0 || undefined} aria-hidden="true">

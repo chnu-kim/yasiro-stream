@@ -15,7 +15,3 @@ const nextConfig: NextConfig = {
 };
 
 export default nextConfig;
-
-// TEMP(로컬 확인 전용, 커밋 금지)
-import { initOpenNextCloudflareForDev } from "@opennextjs/cloudflare";
-initOpenNextCloudflareForDev();
