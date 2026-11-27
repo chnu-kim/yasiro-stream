@@ -161,7 +161,10 @@ const ramp = (t: number, at: number, dur: number) => {
 export function createStage(canvas: HTMLCanvasElement, opts: StageOptions): Stage {
   const compact = opts.compact;
   const renderer = new THREE.WebGLRenderer({ canvas, antialias: false, alpha: true, powerPreference: 'high-performance' });
-  renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, compact ? 1.5 : 2));
+  // 데스크톱은 배율 1 화면에서도 1.5배로 그려 줄인다(슈퍼샘플링): MSAA는 윤곽만 다듬고 무광 금 위의 가는 하이라이트
+  // (기둥 나선·깃 구슬) 반짝임은 못 다듬었다(11-27 "안티앨리어싱이 없는 것 같다"). 정지 장면 위주라 비용(픽셀 약 2.25배)을 감당한다
+  const dpr = window.devicePixelRatio || 1;
+  renderer.setPixelRatio(compact ? Math.min(dpr, 1.5) : Math.min(Math.max(dpr, 1.5), 2));
   renderer.toneMapping = THREE.ACESFilmicToneMapping;
   renderer.toneMappingExposure = BRIGHTNESS.exposure;
   // 불투명 검정: 페이지 배경의 CSS 조명이 비치지 않게. --gala-bg(#0F0C09)를 넣으면 후처리(OutputPass)를 거치며 갈색으로 떠서 검정을 쓴다
@@ -448,8 +451,9 @@ export function createStage(canvas: HTMLCanvasElement, opts: StageOptions): Stag
   const q = new THREE.Quaternion();
   const sc = new THREE.Vector3(1, 1, 1);
 
-  // ── 후처리: 데스크톱은 MSAA 4(얇은 금선 계단 방지), 약한 bloom ──
-  const target = new THREE.WebGLRenderTarget(1, 1, { type: THREE.HalfFloatType, samples: compact ? 0 : 4 });
+  // ── 후처리: MSAA(얇은 금선 계단 방지, 데스크톱 8·모바일 4) + 데스크톱 1.5배 이상 해상도, 약한 bloom ──
+  // MSAA: 데스크톱 8(지원하는 만큼), 모바일 4(타일 GPU라 비용이 작다)
+  const target = new THREE.WebGLRenderTarget(1, 1, { type: THREE.HalfFloatType, samples: Math.min(compact ? 4 : 8, renderer.capabilities.maxSamples) });
   const composer = new EffectComposer(renderer, target);
   composer.addPass(new RenderPass(scene, camera));
   if (!compact) composer.addPass(new UnrealBloomPass(new THREE.Vector2(1, 1), BRIGHTNESS.bloomStrength, 0.18, 0.88));
