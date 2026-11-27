@@ -29,7 +29,8 @@ export function orbitItems(entries: readonly OrbitSource[], max: number): OrbitI
 /** 3D 무대(WebGL)에서 텍스처로 읽을 주소. 치지직 포스터는 CORS 헤더가 없어 같은 출처 중계(/api/awards/poster)를 거치고,
  *  Steam 캡슐·유튜브 썸네일은 CORS가 열려 있어 그대로 쓴다 */
 export function stageTextureUrl(url: string): string {
-  return isChzzkPosterUrl(url) ? `/api/awards/poster?u=${encodeURIComponent(url)}` : url;
+  // v: 중계 응답 판(브라우저 하루 캐시를 넘기려고 응답이 바뀌면 올린다. 2 = WebP 변환, 2026-11-27). 서버는 u만 읽는다
+  return isChzzkPosterUrl(url) ? `/api/awards/poster?u=${encodeURIComponent(url)}&v=2` : url;
 }
 
 /** 그림을 targetAspect(가로/세로) 칸에 object-fit: cover로 채우는 텍스처 repeat·offset(UV 0~1). 넘치는 쪽을 가운데 기준으로 자른다 */

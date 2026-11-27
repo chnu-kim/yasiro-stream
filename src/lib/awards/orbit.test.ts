@@ -30,7 +30,7 @@ describe("orbitItems", () => {
 
 describe("stageTextureUrl", () => {
   it("치지직 포스터만 같은 출처 중계로", () => {
-    expect(stageTextureUrl("https://nng-phinf.pstatic.net/a b.png")).toBe("/api/awards/poster?u=https%3A%2F%2Fnng-phinf.pstatic.net%2Fa%20b.png");
+    expect(stageTextureUrl("https://nng-phinf.pstatic.net/a b.png")).toBe("/api/awards/poster?u=https%3A%2F%2Fnng-phinf.pstatic.net%2Fa%20b.png&v=2");
     expect(stageTextureUrl("https://shared.akamai.steamstatic.com/x.jpg")).toBe("https://shared.akamai.steamstatic.com/x.jpg");
     expect(stageTextureUrl("https://i.ytimg.com/vi/abc/hqdefault.jpg")).toBe("https://i.ytimg.com/vi/abc/hqdefault.jpg");
   });
