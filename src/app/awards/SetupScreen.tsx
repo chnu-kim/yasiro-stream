@@ -34,7 +34,7 @@ const SEEN_KEY = 'yasiro-awards-intro-seen';
  *  제목 = title(6.2), 자막 한 줄은 그 뒤(7.2). captions[i] = i번째 줄이 나오는 시각, 마지막 줄은 남는다. 시간값은 판단 시작값 */
 const CUES: Record<StageIntro, { title: number; captions: number[]; cta: number }> = {
   full: { title: 6.2, captions: [7.2], cta: 8.2 },
-  short: { title: 1.6, captions: [2.0], cta: 2.6 },
+  short: { title: 1.3, captions: [1.8], cta: 2.2 },
   none: { title: 0, captions: [0], cta: 0 },
 };
 
@@ -213,7 +213,6 @@ export default function SetupScreen({
         </p>
 
         <div className={styles.cta} data-show={finished || undefined} inert={!finished}>
-          <p className={styles.kicker}>{JUDGE_SEAT_LABEL}</p>
           <div className={styles.ctaRow}>
             <Button variant="primary" size="lg" className={styles.ctaButton} disabled={drawing || !DIVISIONS.some((d) => divisionAvailable(counts[d]))} onClick={openSettings}>
               {drawing ? DRAW_LOADING_TEXT : START_LABEL}

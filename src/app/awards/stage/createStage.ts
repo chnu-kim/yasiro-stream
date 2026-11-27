@@ -74,6 +74,8 @@ export interface StageTimeline {
 /** 링이 왼쪽 끝에서 위를 지나 오른쪽으로 그려지는 시간(초). 첫 방문은 붓이 지나가며 빛을 떨어뜨리므로 천천히(오프닝 '링이 무대를 연다', 11-27 결정),
  *  재방문 짧은 연출은 같은 문법을 줄여서 */
 const RING_DRAW = { full: 2.6, short: 1.0, none: 1.0 } as const;
+/** 벽 칸 하나가 켜지는 시간(초) */
+const WALL_RAMP = { full: 1.4, short: 0.5, none: 0.5 } as const;
 /** 조명이 켜지는 데 걸리는 시간(초) */
 const LIGHT_RAMP = { full: 1.2, short: 0.5, none: 0.5 } as const;
 /** 아치가 남기는 각도(위 가운데 기준 전체). 끝은 붓끝처럼 가늘어진다(11-27 결정) */
@@ -81,34 +83,34 @@ const ARC_SPAN = Math.PI * 1.28;
 
 export const STAGE_TIMELINES: Record<StageIntro, StageTimeline> = {
   // 오프닝 '링이 무대를 연다'(11-27 결정): 어둠(0~0.6) → 붓끝 아치가 왼쪽부터(0.6~3.2, 끝은 가늘고 어두워 1.2초쯤 보이기 시작, 붓끝 빛이 지나가는 쪽부터 트로피를 비춤: applySpotCues)
-  // → 위 조명·키(3.1) → 빔(4.4) → 벽(4.6, 천천히) → 제목·꽃가루(6.2) → 자막(7.2) → 버튼(8.2). SetupScreen CUES도 같이
-  full: { lights: 3.1, fill: 3.6, pinOff: 4.0, beams: 4.4, open: 3.6, hold: 3.6, impact: 0.6, wall: 4.6, title: 6.2, call: 8.2 },
-  // 짧은 연출(재방문 2.6초): 같은 문법을 줄인 것. 카메라는 최종 자리 고정. 링(0~1.0) → 조명(0.5) → 빔·벽(0.9) → 제목(1.6) → 자막(2.0) → 버튼(2.6)
-  short: { lights: 0.5, fill: 0.8, pinOff: 1.0, beams: 0.9, open: 0.9, hold: -99, impact: 0, wall: 0.9, title: 1.6, call: 2.6 },
+  // → 위 조명·키(2.7, 링이 끝나기 직전부터 이어서) → 빔(4.4) → 벽(4.6, 천천히) → 제목·꽃가루(6.2) → 자막(7.2) → 버튼(8.2). SetupScreen CUES도 같이
+  full: { lights: 2.7, fill: 3.2, pinOff: 3.8, beams: 4.4, open: 3.6, hold: 3.6, impact: 0.3, wall: 4.6, title: 6.2, call: 8.2 },
+  // 짧은 연출(재방문 2.2초): 같은 문법을 줄인 것. 카메라는 최종 자리 고정. 겹치지 않게: 링(0~1.0)·조명(0.5) → 빔·벽(0.7) → 제목(1.3) → 자막(1.8) → 버튼(2.2). 꽃가루 없음
+  short: { lights: 0.5, fill: 0.8, pinOff: 1.0, beams: 0.7, open: 0.7, hold: -99, impact: 0, wall: 0.7, title: 1.3, call: 2.2 },
   none: { lights: -99, fill: -99, pinOff: -99, beams: -99, open: -99, hold: -99, impact: -99, wall: -99, title: -99, call: -99 },
 };
 
 /** 밝기 예산. 노출·bloom 상한은 올리지 않는다(사용자 눈부심 지적). 효과를 더할 때는 여기 값을 먼저 정한다 */
 const BRIGHTNESS = {
   exposure: 0.82,
-  bloomStrength: 0.18,
+  bloomStrength: 0.13, // 11-27 리뷰: 정수리·받침 테두리가 하얗게 번졌다
   key: 95, // 11-27: 140이면 최종 화면에서 트로피가 납작한 노란 덩어리로 보였다. 옆·뒤 빛이 형태를 맡는다
   rimSide: 100,
   back: 170,
   fill: 26,
   beamAlpha: 0.2,
-  washAlpha: 0.09,
+  washAlpha: 0.045, // 11-27 리뷰: 양옆 넓은 빛이 회색 안개 기둥처럼 탁했다
   backBeamAlpha: 0.12,
   hazeAlpha: 0.045,
   /** 스크린 벽 최대 밝기(색 배율). 트로피보다 확실히 낮게 */
-  wallMax: 0.11,
+  wallMax: 0.026, // 11-27 리뷰: 제목 전에 벽이 가장 밝아 주인공이 됐다. 눌러 낮추던 값(최종)을 처음부터 쓴다
   /** 포스터 채도(0 흑백 ~ 1 원색). 원색 일러스트가 트로피와 싸워 무늬처럼 물러나게(11-27) */
   wallSat: 0.12,
   /** 반사 환경 세기(어둠 속 처음 / 빛이 번진 뒤 더하는 값) */
   envBase: 0.35,
   envImpact: 0.4,
   /** 위에서 트로피로 떨어지는 스포트라이트·핀(실제 광원) */
-  poolSpot: 78, // 11-27: 180이면 새 트로피 꿀붕이 머리 꼭대기가 하얗게 날아갔다. 90에서 머리가 아직 조금 밝아 78로
+  poolSpot: 55, // 11-27: 180이면 머리 꼭대기가 날아갔고, 78에서도 눈·입보다 이마 얼룩이 먼저 읽혀(리뷰) 55로
   halo: 0.72,
   edge: 0.45, // 단 몸체는 어둠에 묻혀 금선만 떠 보였다(11-27)
   /** 은은한 실내광(반구광, 처음부터 고정) */
@@ -119,7 +121,7 @@ const PRELOAD_MAX_MS = 2500;
 const STEPS = 8;
 const STAGE_TOP = 1.6;
 /** 트로피(glb, 높이 3.19m)를 무대 크기(약 6.6)에 맞추는 배율 */
-const TROPHY_GLB_SCALE = 2.07;
+const TROPHY_GLB_SCALE = 1.93; // 11-27 리뷰: 7% 줄여 받침과 아래 자막 사이를 띄운다(시선을 낮춰 머리 자리는 거의 그대로)
 /** 헤일로·역광·빔이 겨누는 높이(예전 임시 트로피의 지구본 높이 2.5 × 배율 1.55) */
 const GLOBE_Y = STAGE_TOP + 2.5 * 1.55;
 const TILE_W = 2.1;
@@ -130,7 +132,7 @@ const STAGE_ASSETS = '/stage/v1';
 
 /** 심사위원석(카메라가 머무는 자리, 사용자 승인 구도) */
 const CAM_JUDGE = new THREE.Vector3(0, 5.0, 19.8); // 11-26: 21.5에서 당김
-const LOOK_JUDGE = new THREE.Vector3(0, 5.2, 0);
+const LOOK_JUDGE = new THREE.Vector3(0, 4.85, 0);
 const CAM_LAUNCH = new THREE.Vector3(0, 6.1, 2.4);
 const LOOK_LAUNCH = new THREE.Vector3(0, 6.3, -4);
 /** 세로 시야(다가가며 줌까지 겹치면 확대가 두 번으로 느껴져 바꾸지 않는다) */
@@ -229,6 +231,14 @@ export function createStage(canvas: HTMLCanvasElement, opts: StageOptions): Stag
   const trophy = new THREE.Group();
   trophy.position.y = STAGE_TOP;
   scene.add(trophy);
+  // 받침 아래 접촉 그림자: 위 조명만으로는 받침이 단에서 떠 보였다(11-27 리뷰)
+  const contactShadow = new THREE.Mesh(
+    track(new THREE.PlaneGeometry(3.4, 3.4)),
+    track(new THREE.MeshBasicMaterial({ map: track(dotTexture()), color: 0x000000, transparent: true, opacity: 0.75, depthWrite: false })),
+  );
+  contactShadow.rotation.x = -Math.PI / 2;
+  contactShadow.position.set(0, STAGE_TOP + 0.004, 0);
+  scene.add(contactShadow);
 
   // 위에서 트로피로 떨어지는 스포트라이트(빛이 번질 때 켜진다)
   const poolSpot = new THREE.SpotLight(0xfff0cf, 0, 34, 0.16, 0.55, 1.4);
@@ -278,19 +288,28 @@ export function createStage(canvas: HTMLCanvasElement, opts: StageOptions): Stag
       rv[i] = clamp01((left - (theta < -Math.PI / 2 ? theta + Math.PI * 2 : theta)) / ARC_SPAN);
     }
     arcGeo.setAttribute('aReveal', new THREE.BufferAttribute(rv, 1));
+    const top = new Float32Array(pos.count);
+    for (let i = 0; i < pos.count; i++) {
+      const ang = Math.atan2(pos.getY(i), pos.getX(i));
+      top[i] = Math.abs(((ang - Math.PI / 2 + Math.PI * 3) % (Math.PI * 2)) - Math.PI);
+    }
+    arcGeo.setAttribute('aTop', new THREE.BufferAttribute(top, 1));
   }
   halo.add(new THREE.Mesh(arcGeo, haloMat));
   scene.add(halo);
   // 맨 앞은 조금 더 밝게
   const ringReveal = { value: 1 };
+  /** 0~1: 제목이 뜨면 아치 꼭대기(제목 뒤를 지나는 구간)를 흐린다 */
+  const ringTitle = { value: 0 };
   haloMat.onBeforeCompile = (sh) => {
     sh.uniforms.uReveal = ringReveal;
-    sh.vertexShader = 'attribute float aReveal;\nvarying float vReveal;\n' + sh.vertexShader.replace('#include <begin_vertex>', '#include <begin_vertex>\n  vReveal = aReveal;');
+    sh.uniforms.uTitle = ringTitle;
+    sh.vertexShader = 'attribute float aReveal;\nattribute float aTop;\nvarying float vReveal;\nvarying float vTop;\n' + sh.vertexShader.replace('#include <begin_vertex>', '#include <begin_vertex>\n  vReveal = aReveal;\n  vTop = aTop;');
     sh.fragmentShader =
-      'uniform float uReveal;\nvarying float vReveal;\n' +
+      'uniform float uReveal;\nuniform float uTitle;\nvarying float vReveal;\nvarying float vTop;\n' +
       sh.fragmentShader.replace(
         '#include <dithering_fragment>',
-        '#include <dithering_fragment>\n  if (vReveal > uReveal) discard;\n  gl_FragColor.rgb *= 1.0 + 1.6 * smoothstep(uReveal - 0.07, uReveal, vReveal) * step(uReveal, 0.999);',
+        '#include <dithering_fragment>\n  if (vReveal > uReveal) discard;\n  gl_FragColor.rgb *= 1.0 + 1.6 * smoothstep(uReveal - 0.07, uReveal, vReveal) * step(uReveal, 0.999);\n  gl_FragColor.rgb *= 1.0 - 0.9 * uTitle * (1.0 - smoothstep(0.42, 0.78, vTop));',
       );
   };
   haloMat.customProgramCacheKey = () => 'halo-reveal';
@@ -315,7 +334,9 @@ export function createStage(canvas: HTMLCanvasElement, opts: StageOptions): Stag
       tile.lookAt(0, tile.position.y, 0);
       tile.userData.tileIndex = wallTiles.length;
       wall.add(tile);
-      wallTiles.push({ mesh: tile, mat, item: items.length === 0 ? -1 : (row * 7 + col * 3) % items.length, col, row, home: tile.position.clone(), pop: 0 });
+      // 같은 포스터가 좌우 대칭이나 한 줄로 반복되지 않게 칸 번호를 흩어 고른다(칸 수가 그림 수보다 많다)
+      const idx = row * wallCols + col;
+      wallTiles.push({ mesh: tile, mat, item: items.length === 0 ? -1 : (idx * 11 + Math.floor(idx / items.length) * 13) % items.length, col, row, home: tile.position.clone(), pop: 0 });
     }
   }
   scene.add(wall);
@@ -413,7 +434,7 @@ export function createStage(canvas: HTMLCanvasElement, opts: StageOptions): Stag
   scene.add(new THREE.Points(dustGeo, dustMat));
 
   // ── 금 꽃가루: 제목과 함께 한 번, 짧게(약 2.5초 안에 다 내려온다. 자막과 겹치지 않게) ──
-  const CONFETTI = compact ? 120 : 260;
+  const CONFETTI = compact ? 50 : 90;
   const confettiMat = track(new THREE.MeshStandardMaterial({ color: 0xb8954a, metalness: 0.75, roughness: 0.55, side: THREE.DoubleSide }) /* 거칠게: 매끈하면 반사가 bloom을 넘어 흐린 빛 방울로 번졌다(11-27) */);
   const confetti = new THREE.InstancedMesh(track(new THREE.PlaneGeometry(0.09, 0.16)), confettiMat, CONFETTI);
   const bits = Array.from({ length: CONFETTI }, () => ({ p: new THREE.Vector3(), v: new THREE.Vector3(), rot: new THREE.Euler(), spin: new THREE.Vector3(), alive: false }));
@@ -506,14 +527,16 @@ export function createStage(canvas: HTMLCanvasElement, opts: StageOptions): Stag
 
   function layoutWall(dt: number, hovered: number, t: number) {
     const tl = timeline;
-    // 제목 구간에서 한 번, 호명 구간에서 한 번 더 누른다(한 시점에 주인공 하나)
-    const duck = 1 - 0.45 * easeInOutCubic((t - tl.title) / 0.8) - 0.35 * easeInOutCubic((t - tl.call + 1.6) / 1.6);
     for (let i = 0; i < wallTiles.length; i++) {
       const w = wallTiles[i];
       const centerDist = Math.abs(w.col - (wallCols - 1) / 2);
-      const on = ramp(t, tl.wall + centerDist * 0.06 + w.row * 0.04, 1.4); // 제목·꽃가루와 한꺼번에 터지지 않게 천천히
+      const on = ramp(t, tl.wall + centerDist * 0.06 + w.row * 0.04, WALL_RAMP[intro]); // 제목·꽃가루와 한꺼번에 터지지 않게 천천히
+      // 트로피 뒤 가운데(화면 폭 약 35%)는 비워 실루엣이 포스터 격자에 잘리지 않게
+      const center = 0.62 + 0.38 * smooth(1.5, 3.2, centerDist);
       const breath = 0.5 + 0.5 * Math.sin(t * 0.8 - w.col * 0.42 + w.row * 0.3);
-      const level = on * BRIGHTNESS.wallMax * (0.55 + 0.45 * breath) * duck;
+      const level = on * BRIGHTNESS.wallMax * center * (0.55 + 0.45 * breath);
+      // 켜지기 전 칸은 그리지 않는다(검은 칸이 안개에 물들어 회색 네모로 비쳤다)
+      w.mesh.visible = !WALL_OFF && (on > 0.002 || w.pop > 0.002);
       w.pop += ((i === hovered ? 1 : 0) - w.pop) * Math.min(1, dt * 10);
       if (w.sat) w.sat.value = BRIGHTNESS.wallSat + (1 - BRIGHTNESS.wallSat) * w.pop;
       const lit = level + (1 - level) * w.pop;
@@ -535,9 +558,9 @@ export function createStage(canvas: HTMLCanvasElement, opts: StageOptions): Stag
     // 위 조명은 핀·붓끝 빛이 물러나기 전에 겹쳐 켠다(사이가 비면 트로피가 잠깐 갈색으로 탁해졌다, 11-27). 짧은 연출도 같은 문법
     const r = easeInOutCubic((t - tl.impact) / ringDraw);
     const d = LIGHT_RAMP[intro];
-    const back2 = 0.3 * smooth(0.35, 0.6, r) + 0.7 * ramp(t, tl.lights - 0.1, d);
-    const rim = 0.25 * smooth(0.05, 0.3, r) + 0.75 * ramp(t, tl.lights - 0.1, d);
-    const rimR = 0.25 * smooth(0.7, 0.95, r) + 0.75 * ramp(t, tl.lights - 0.1, d);
+    const back2 = 0.4 * smooth(0.35, 0.6, r) + 0.6 * ramp(t, tl.lights - 0.1, d);
+    const rim = 0.4 * smooth(0.05, 0.3, r) + 0.6 * ramp(t, tl.lights - 0.1, d);
+    const rimR = 0.4 * smooth(0.7, 0.95, r) + 0.6 * ramp(t, tl.lights - 0.1, d);
     const pin = smooth(0.4, 0.6, r) * (1 - ramp(t, tl.pinOff, d));
     const pool = ramp(t, tl.lights, d) * poolDecay;
     const keyK = ramp(t, tl.lights, d);
@@ -570,6 +593,7 @@ export function createStage(canvas: HTMLCanvasElement, opts: StageOptions): Stag
     // 링(결정 3): 왼쪽 끝부터 RING_DRAW초에 걸쳐 그어진다
     haloMat.color.copy(haloOn).multiplyScalar(BRIGHTNESS.halo * 0.85 * ramp(t, tl.impact, 0.12));
     ringReveal.value = easeInOutCubic((t - tl.impact) / ringDraw);
+    ringTitle.value = easeInOutCubic((t - tl.title + 0.3) / 0.8);
     const titleDuck = 1 - 0.4 * easeInOutCubic((t - tl.title) / 0.8);
     dustMat.opacity = 0.55 * ramp(t, tl.open, 1.5) * titleDuck;
     for (const m of hazeMats) {
@@ -611,7 +635,7 @@ export function createStage(canvas: HTMLCanvasElement, opts: StageOptions): Stag
       let n = 0;
       if (tau > 0) {
         bits.forEach((b, i) => {
-          b.p.set((fh(i * 3 + 1) - 0.5) * 16, 9 + fh(i * 3 + 2) * 5, (fh(i * 3 + 3) - 0.5) * 6);
+          b.p.set((fh(i * 3 + 1) < 0.5 ? -1 : 1) * (3.6 + fh(i * 5 + 4) * 5.4), 9 + fh(i * 3 + 2) * 5, (fh(i * 3 + 3) - 0.5) * 6);
           b.p.x += (fh(i * 7 + 1) - 0.5) * 1.2 * tau;
           b.p.z += (fh(i * 7 + 2) - 0.5) * 1.2 * tau;
           b.p.y += -(3.4 + fh(i * 7 + 5) * 2) * tau + 0.3 * tau * tau;
@@ -626,10 +650,12 @@ export function createStage(canvas: HTMLCanvasElement, opts: StageOptions): Stag
       return;
     }
     // 제목과 함께 터진다(위에서 화면에 들어오는 데 걸리는 만큼 0.3초 먼저)
+    if (intro !== 'full') return; // 재방문은 꽃가루 없이(리뷰: 벽보다 먼저 터져 순서가 뒤집혔다)
     if (!confettiBurst && t >= timeline.title - 0.3) {
       confettiBurst = true;
       for (const b of bits) {
-        b.p.set((Math.random() - 0.5) * 16, 9 + Math.random() * 5, (Math.random() - 0.5) * 6); // 깊이 폭을 좁혀 조각 크기가 고르게
+        // 트로피와 제목을 덮지 않게 양옆(|x| 3.6~9)으로만, 깊이 폭을 좁혀 조각 크기가 고르게
+        b.p.set((Math.random() < 0.5 ? -1 : 1) * (3.6 + Math.random() * 5.4), 9 + Math.random() * 5, (Math.random() - 0.5) * 6);
         b.v.set((Math.random() - 0.5) * 1.2, -(3.4 + Math.random() * 2), (Math.random() - 0.5) * 1.2);
         b.rot.set(Math.random() * 6, Math.random() * 6, Math.random() * 6);
         b.spin.set((Math.random() - 0.5) * 8, (Math.random() - 0.5) * 8, (Math.random() - 0.5) * 8);

@@ -1828,6 +1828,11 @@
   background: rgba(30, 24, 16, 0.8);
 }
 
+/* 연출 중에는 건너뛰기를 물러나 있게(무대보다 떠나는 조작이 먼저 보였다, 11-27 리뷰). 가리키거나 초점이 가면 또렷하게 */
+.ceremony[data-playing] .stageControl:not(:hover):not(:focus-visible) {
+  opacity: 0.4;
+}
+
 .stageControl:focus-visible {
   outline: 2px solid var(--focus);
   outline-offset: 2px;

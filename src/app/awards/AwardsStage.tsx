@@ -11,7 +11,7 @@ import styles from './awards.module.css';
 // WebGL을 못 쓰거나 불러오기에 실패하면 CSS 궤도(NomineeOrbit)로 대신하고, 그때도 onReady를 불러 자막이 진행되게 한다.
 // skipKey가 바뀌면 입장 연출을 건너뛰고, paused면 대기 움직임을 멈춘다(WCAG 2.2.2). 진행 중에 동작 줄이기가 켜지면 완성 장면으로 멈춘다.
 // 장식이라 aria-hidden이고 버튼·모달은 그대로 HTML이다.
-const MAX = 18;
+const MAX = 30; // 벽 칸(60)보다 그림이 적으면 반복이 눈에 띈다(11-27 리뷰)
 
 export default function AwardsStage({
   entries,
