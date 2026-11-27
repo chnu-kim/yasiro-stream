@@ -57,11 +57,8 @@ describe("페이지 제목", () => {
 });
 
 describe("입장 화면 문구", () => {
-  it("자막 두 줄(후보 수는 강조)", () => {
-    expect(ceremonyLines(92)).toEqual([
-      ["올해 야시로가 탐험한 게임, ", "92편"],
-      ["그중 단 한 편만 이 트로피를 받습니다", ""],
-    ]);
+  it("자막 한 줄(후보 수는 강조)", () => {
+    expect(ceremonyLines(92)).toEqual([["올해 야시로가 탐험한 게임, ", "92편"]]);
   });
   it("버튼·링크·모달 제목", () => {
     expect([START_LABEL, SETTINGS_LABEL, RESULTS_LINK_LABEL, JUDGE_TITLE]).toEqual([
