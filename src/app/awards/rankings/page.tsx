@@ -26,7 +26,7 @@ export default async function AwardsRankingsPage({ searchParams }: PageProps<'/a
   if (result.kind !== 'ok') notFound();
 
   return (
-    <div className={styles.page}>
+    <div className={styles.page} data-stage="gala">
       <RankingsView division={result.division} rankings={result.rankings} entries={result.entries} />
     </div>
   );

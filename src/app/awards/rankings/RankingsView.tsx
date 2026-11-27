@@ -1,9 +1,8 @@
 import Link from 'next/link';
 import Button from '@/components/Button';
-import SectionLabel from '@/components/SectionLabel';
 import { emptyRankingText, rankingStatsText, RANKINGS_FAILURE_TEXT, runsSummaryText, winRateNote } from '@/lib/awards/client';
 import { DIVISIONS, DIVISION_LABEL, rankingsHref } from '@/lib/awards/entries';
-import { RANKINGS_PAGE_TITLE } from '@/lib/awards/labels';
+import { DIVISION_AWARD, RANKINGS_PAGE_TITLE } from '@/lib/awards/labels';
 import type { Rankings, TallyRow } from '@/lib/awards/rankings';
 import type { AwardEntry, Division } from '@/lib/awards/types';
 import RankThumb from '../RankThumb';
@@ -25,8 +24,11 @@ export default function RankingsView({
   return (
     <div className={styles.wrap}>
       <header className={styles.header}>
-        <SectionLabel>RANKING</SectionLabel>
+        <p className={styles.kicker}>Ranking</p>
         <h1 className={styles.title}>{RANKINGS_PAGE_TITLE}</h1>
+        <span className={styles.ornament} aria-hidden="true">
+          <span className={styles.ornamentGem} />
+        </span>
         {rankings !== null && <p className={styles.lead}>{runsSummaryText(rankings.runs)}</p>}
       </header>
 
@@ -47,6 +49,10 @@ export default function RankingsView({
           ))}
         </ul>
       </nav>
+
+      <p className={styles.kicker} style={{ marginTop: 'var(--space-5)', textAlign: 'center' }}>
+        {DIVISION_AWARD[division]}
+      </p>
 
       {rankings === null ? (
         <p role="alert" className={styles.note} style={{ marginTop: 'var(--space-5)' }}>
@@ -98,18 +104,35 @@ function RankSection({
       {shown.length === 0 ? (
         <p className={styles.note}>{empty}</p>
       ) : (
-        <ol className={styles.rankList}>
-          {shown.map(({ row, entry }, i) => (
-            <li key={row.id} className={styles.rankRow}>
-              <span className={styles.rankNo}>{i + 1}</span>
-              <RankThumb entry={entry} />
-              <span className={styles.rankText}>
-                <span className={styles.rankName}>{entry.name}</span>
+        <>
+          {/* 1~3위는 명예의 전당 시상대(2·1·3 순서로 세우지만 목록 순서는 1·2·3), 4위부터 기록지 행 */}
+          <ol className={styles.podium}>
+            {shown.slice(0, 3).map(({ row, entry }, i) => (
+              <li key={row.id} className={styles.podiumSpot} data-place={i + 1}>
+                <RankThumb entry={entry} />
+                <span className={styles.podiumName}>{entry.name}</span>
                 <span className={styles.rankLabel}>{rankingStatsText(row)}</span>
-              </span>
-            </li>
-          ))}
-        </ol>
+                <span className={styles.podiumBlock} aria-hidden="true">
+                  {i + 1}
+                </span>
+              </li>
+            ))}
+          </ol>
+          {shown.length > 3 && (
+            <ol className={styles.rankList} start={4}>
+              {shown.slice(3).map(({ row, entry }, i) => (
+                <li key={row.id} className={styles.rankRow}>
+                  <span className={styles.rankNo}>{i + 4}</span>
+                  <RankThumb entry={entry} />
+                  <span className={styles.rankText}>
+                    <span className={styles.rankName}>{entry.name}</span>
+                    <span className={styles.rankLabel}>{rankingStatsText(row)}</span>
+                  </span>
+                </li>
+              ))}
+            </ol>
+          )}
+        </>
       )}
       {note !== undefined && <p className={styles.note}>{note}</p>}
     </section>

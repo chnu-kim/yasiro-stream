@@ -6,8 +6,11 @@ import {
   AWARDS_PUBLIC,
   awardsAccess,
   awardsGate,
+  awardsNavVisible,
   DRAW_BODY_MAX_BYTES,
   handleDraw,
+  handlePoster,
+  POSTER_MAX_BYTES,
   handleRankings,
   handleSubmit,
   SUBMIT_BODY_MAX_BYTES,
@@ -86,6 +89,21 @@ describe("awardsAccess / awardsGate", () => {
   it("공개로 바꾸면 누구나 ok", () => {
     expect(states.map((s) => awardsAccess(s, true))).toEqual(["ok", "ok", "ok", "ok"]);
     expect(states.map((s) => awardsGate(s, true))).toEqual(["ok", "ok", "ok", "ok"]);
+  });
+});
+
+describe("awardsNavVisible", () => {
+  it("지금은 허용 목록에 든 로그인 채널만 Nav에 어워즈가 보인다", () => {
+    expect(awardsNavVisible(null, FAKE_ADMIN_ID)).toBe(false);
+    expect(awardsNavVisible(FAKE_USER_ID, FAKE_ADMIN_ID)).toBe(false);
+    expect(awardsNavVisible(FAKE_ADMIN_ID, FAKE_ADMIN_ID)).toBe(true);
+    expect(awardsNavVisible(FAKE_ADMIN_ID, undefined)).toBe(false);
+    // 야시로는 secret 없이도 관리자
+    expect(awardsNavVisible("d6e680f5b17eba0b078f978dd722c0f3", undefined)).toBe(true);
+  });
+  it("공개로 바꾸면 비로그인에게도 보인다", () => {
+    expect(awardsNavVisible(null, undefined, true)).toBe(true);
+    expect(awardsNavVisible(FAKE_USER_ID, undefined, true)).toBe(true);
   });
 });
 
@@ -195,5 +213,69 @@ describe("예외 경로", () => {
       status: 500,
       code: "unavailable",
     });
+  });
+});
+
+describe("handlePoster", () => {
+  const POSTER = "https://nng-phinf.pstatic.net/MjAy/poster.png";
+  const url = (u: string) => `/api/awards/poster?u=${encodeURIComponent(u)}`;
+  const png = (headers: Record<string, string> = {}, body: BodyInit = new Uint8Array([1, 2, 3]), status = 200) =>
+    new Response(body, { status, headers: { "content-type": "image/png", ...headers } });
+
+  it("관리자 + 치지직 포스터면 그림을 그대로 돌려준다(private 캐시, 리다이렉트 안 따라감)", async () => {
+    const calls: { input: string; init?: RequestInit }[] = [];
+    const res = await handlePoster(
+      req("GET", url(POSTER), ADMIN),
+      deps({ fetch: async (input, init) => (calls.push({ input, init }), png()) }),
+    );
+    expect(res.status).toBe(200);
+    expect(res.headers.get("content-type")).toBe("image/png");
+    expect(res.headers.get("cache-control")).toBe("private, max-age=86400");
+    expect(res.headers.get("x-content-type-options")).toBe("nosniff");
+    expect(new Uint8Array(await res.arrayBuffer())).toEqual(new Uint8Array([1, 2, 3]));
+    expect(calls).toEqual([{ input: POSTER, init: { redirect: "error", headers: { accept: "image/*" } } }]);
+  });
+
+  it("권한이 없으면 가져오지 않는다", async () => {
+    const fetch = vi.fn();
+    expect(await read(await handlePoster(req("GET", url(POSTER), null), deps({ fetch })))).toEqual({ status: 401, code: "login_required" });
+    expect(await read(await handlePoster(req("GET", url(POSTER), USER), deps({ fetch })))).toEqual({ status: 403, code: "forbidden" });
+    expect(fetch).not.toHaveBeenCalled();
+  });
+
+  it("치지직 포스터가 아니거나 주소가 없거나 fetch가 없으면 400", async () => {
+    const fetch = vi.fn();
+    for (const path of [url("https://example.com/a.png"), url("http://nng-phinf.pstatic.net/a.png"), url("https://shared.akamai.steamstatic.com/a.jpg"), "/api/awards/poster"]) {
+      expect(await read(await handlePoster(req("GET", path, ADMIN), deps({ fetch })))).toEqual({ status: 400, code: "bad_request" });
+    }
+    expect(fetch).not.toHaveBeenCalled();
+    expect(await read(await handlePoster(req("GET", url(POSTER), ADMIN), deps()))).toEqual({ status: 400, code: "bad_request" });
+  });
+
+  it("실패 응답·그림이 아님·크기 초과(선언·실제)는 502", async () => {
+    const big = new Uint8Array(POSTER_MAX_BYTES + 1);
+    for (const upstream of [
+      png({}, "x", 404),
+      png({ "content-type": "text/html" }),
+      new Response(new Uint8Array([1]), { status: 200 }),
+      png({ "content-length": String(POSTER_MAX_BYTES + 1) }),
+      png({}, big),
+    ]) {
+      const res = await handlePoster(req("GET", url(POSTER), ADMIN), deps({ fetch: async () => upstream }));
+      expect(await read(res)).toEqual({ status: 502, code: "upstream_failed" });
+    }
+  });
+
+  it("가져오다 던지면(리다이렉트 포함) 500, 로그에 주소 없음", async () => {
+    const res = await handlePoster(
+      req("GET", url(POSTER), ADMIN),
+      deps({
+        fetch: async () => {
+          throw new TypeError("redirect");
+        },
+      }),
+    );
+    expect(await read(res)).toEqual({ status: 500, code: "unavailable" });
+    expect(logs).toEqual(["awards-api unavailable TypeError"]);
   });
 });

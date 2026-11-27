@@ -16,6 +16,8 @@ interface NavUser {
 
 interface NavProps {
   initialUser: NavUser | null;
+  /** 어워즈 링크. 관리자 전용이라 레이아웃이 세션으로 정한다(lib/awards/api awardsNavVisible) */
+  showAwards: boolean;
 }
 
 // 새 페이지를 추가하면 여기 한 줄 — 데스크톱 링크와 모바일 메뉴가 같은 목록을 쓴다
@@ -24,11 +26,17 @@ const LINKS = [
   { href: '/games', label: '게임' },
 ] as const;
 
+// 관리자에게만(공개 전에는) 보이는 링크. 게임 다음에 붙인다
+const AWARDS_LINK = { href: '/awards', label: '어워즈' } as const;
+
 const isCurrent = (pathname: string, href: string) =>
   pathname === href || pathname.startsWith(`${href}/`);
 
-export default function Nav({ initialUser }: NavProps) {
+export default function Nav({ initialUser, showAwards }: NavProps) {
   const [user, setUser] = useState<NavUser | null>(initialUser);
+  // 로그인해서 받은 링크는 로그아웃하면 바로 감춘다(router.refresh가 레이아웃 값을 다시 받기 전까지)
+  const awards = showAwards && (user !== null || initialUser === null);
+  const links = awards ? [...LINKS, AWARDS_LINK] : LINKS;
   const [menuOpen, setMenuOpen] = useState(false);
   const router = useRouter();
   const pathname = usePathname() ?? '/';
@@ -77,7 +85,7 @@ export default function Nav({ initialUser }: NavProps) {
       </Link>
 
       <nav aria-label="주 메뉴" className={styles.links}>
-        {LINKS.map((l) => (
+        {links.map((l) => (
           <Link
             key={l.href}
             href={l.href}
@@ -93,7 +101,7 @@ export default function Nav({ initialUser }: NavProps) {
       </nav>
 
       <div className={styles.actions}>
-        <button onClick={toggleTheme} className={styles.iconBtn} aria-label="테마 전환 (라이트/다크 모드)">
+        <button onClick={toggleTheme} className={`${styles.iconBtn} ${styles.themeBtn}`} aria-label="테마 전환 (라이트/다크 모드)">
           <span className={styles.iconLight} aria-hidden="true"><Moon size={17} strokeWidth={1.8} /></span>
           <span className={styles.iconDark} aria-hidden="true"><Sun size={17} strokeWidth={1.8} /></span>
         </button>
@@ -136,7 +144,7 @@ export default function Nav({ initialUser }: NavProps) {
         <>
           <div className={styles.backdrop} onClick={closeMenu} aria-hidden="true" />
           <nav id="mobile-menu" aria-label="모바일 메뉴" className={styles.mobileMenu}>
-            {LINKS.map((l) => (
+            {links.map((l) => (
               <Link
                 key={l.href}
                 href={l.href}

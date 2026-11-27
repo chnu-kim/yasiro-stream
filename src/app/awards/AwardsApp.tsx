@@ -20,6 +20,9 @@ import styles from './awards.module.css';
 // 진행 중인 대진(token + picks)은 localStorage에 저장해 새로고침해도 이어 한다(검증은 lib/awards/resume restoreRun).
 // 제출이 끝나거나(재시도할 수 없는 실패 포함) 처음으로 돌아가면 지운다.
 const noopSubscribe = () => () => {};
+/** 심사 시작 연출(카메라가 고리 안으로 → 암전) 길이. 대진 요청과 함께 기다린다. 동작 줄이기면 0 */
+const LAUNCH_MS = 1500;
+const wait = (ms: number) => new Promise<void>((resolve) => window.setTimeout(resolve, ms));
 
 // 저장된 대진은 브라우저에만 있어 서버 렌더와 첫 화면이 달라질 수 있다. 하이드레이션이 끝난 뒤에만 AwardsGame을
 // 그리고, AwardsGame은 첫 렌더에서 localStorage를 읽어 바로 이어 할 화면으로 시작한다(설정 화면이 깜빡이지 않게).
@@ -43,6 +46,11 @@ function AwardsGame({ entries }: { entries: AwardEntry[] }) {
   const [division, setDivision] = useState<Division>(() => defaultDivision(counts));
   const [thirdRequested, setThirdRequested] = useState(DEFAULT_THIRD_PLACE);
   const [sizeChoice, setSizeChoice] = useState<SizeChoice | null>(() => defaultSizeChoice(counts[defaultDivision(counts)]));
+  // 궤도 그림은 부문 선택과 상관없이 2026년에 한 게임(올해의 시상식). 2026 후보가 없으면 전체로 대신한다
+  const nominees = useMemo(() => {
+    const year = divisionEntries(entries, '2026');
+    return year.length > 0 ? year : entries;
+  }, [entries]);
   const byId = useMemo(() => new Map(entries.map((e) => [e.id, e])), [entries]);
 
   const changeDivision = (next: Division) => {
@@ -65,7 +73,8 @@ function AwardsGame({ entries }: { entries: AwardEntry[] }) {
     if (sizeChoice === null || drawing.current) return; // 시작 버튼이 막혀 있어 오지 않는다
     drawing.current = true;
     setDraw({ kind: 'loading' });
-    const res = await awardsApi.draw(division, sizeChoice, thirdRequested);
+    const launchMs = window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 0 : LAUNCH_MS;
+    const [res] = await Promise.all([awardsApi.draw(division, sizeChoice, thirdRequested), wait(launchMs)]);
     drawing.current = false;
     const outcome = classifyDraw(res.status, res.body, new Set(byId.keys()));
     if (outcome.ok) {
@@ -116,6 +125,7 @@ function AwardsGame({ entries }: { entries: AwardEntry[] }) {
       <SetupScreen
         division={division}
         counts={counts}
+        nominees={nominees}
         sizeChoice={sizeChoice}
         thirdRequested={thirdRequested}
         headingRef={headingRef}

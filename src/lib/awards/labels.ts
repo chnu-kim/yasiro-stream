@@ -1,10 +1,36 @@
 // 어워즈 화면 문구. UI는 이 함수들만 쓴다(문구를 컴포넌트에 흩지 않는다).
 import { thirdPlaceAvailable } from "./options.ts";
-import type { Placement, Progress, SizeOption } from "./types.ts";
+import type { Division, Placement, Progress, SizeOption } from "./types.ts";
 
 export const PAGE_TITLE = "2026 야시로 게임 어워즈";
 /** /awards/rankings 제목(새 문구, 사용자 확인 전) */
 export const RANKINGS_PAGE_TITLE = "게임 어워즈 집계 순위";
+
+/** 시상식 패러디 부문 상 이름(영문 의전 라벨, Cinzel). 한글 부문 이름은 entries.ts DIVISION_LABEL */
+export const DIVISION_AWARD: Record<Division, string> = { alltime: "Best Game of All Time", "2026": "Best Game of 2026" };
+
+// ── 입장 화면(시상식 입장 → 심사위원 위촉). 문구는 사용자 확인(2026-11-26) ──
+export const START_LABEL = "심사 시작하기";
+/** 위촉장(설정 모달) 안의 출발 버튼. "심사 시작하기"를 누르면 위촉장이 열리고 여기서 시작한다(2026-11-27 사용자 요청) */
+export const CONFIRM_START_LABEL = "시작하기";
+export const RESULTS_LINK_LABEL = "지금까지의 심사 결과";
+export const JUDGE_TITLE = "2026 야시로 게임 어워즈 심사위원";
+/** 제목 위 영문 의전 라벨(Cinzel) */
+export const CEREMONY_EYEBROW = "The 2026 Yasiro Game Awards";
+/** 시작 버튼 위 영문 라벨(Cinzel) */
+export const JUDGE_SEAT_LABEL = "Judge's Seat";
+/** 입장 → 첫 대결 사이 부문 카드: [영문 라벨(Cinzel), 한글 부문명] */
+export const CATEGORY_CARD: Record<Division, [string, string]> = {
+  "2026": ["Best Game of 2026", "올해의 게임 부문"],
+  alltime: ["All-Time", "역대 최고의 게임 부문"],
+};
+
+/** 입장 자막. [보통 글자, 강조 글자]. n = 올해(2026 부문) 후보 수. 마지막 줄이 화면에 남는다
+ *  ("오늘 밤, 수상작을 고르는 사람은 — 당신입니다"(2026-11-26)와 "그중 단 한 편만 이 트로피를 받습니다"(2026-11-27)는
+ *  오글거리고 주제와 맞지 않아 사용자 요청으로 뺐다) */
+export function ceremonyLines(n: number): [string, string][] {
+  return [["올해 야시로가 탐험한 게임, ", `${n}편`]];
+}
 
 /** "4강", "512강" */
 export function sizeLabel(option: SizeOption): string {

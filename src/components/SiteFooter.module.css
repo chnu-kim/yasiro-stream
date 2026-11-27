@@ -104,3 +104,30 @@
     grid-column: 1 / -1;
   }
 }
+
+/* ─── /awards(밤 무대): 무대 아래로 스며들도록 선·배경 없이 흐린 글자만, 가운데 정렬 ─── */
+:global(:root:has([data-stage='gala'])) .footer {
+  border-top: 0;
+  background: transparent;
+  text-align: center;
+  opacity: 0.7;
+}
+
+:global(:root:has([data-stage='gala'])) .top {
+  flex-direction: column;
+  gap: 6px;
+}
+
+:global(:root:has([data-stage='gala'])) .brand {
+  font-family: 'Nanum Myeongjo', serif;
+  font-weight: 800;
+}
+
+:global(:root:has([data-stage='gala'])) .channels {
+  justify-content: center;
+  border-top: 0;
+}
+
+:global(:root:has([data-stage='gala'])) .channels li:first-child .channel {
+  padding-left: 16px;
+}
