@@ -33,8 +33,11 @@ export interface AwardsDeps {
   /** 운영: console.error */
   log?: (message: string) => void;
   /** 포스터 중계(handlePoster)만 쓴다. 운영: (i, init) => fetch(i, init) (그냥 넘기면 Workers에서 Illegal invocation) */
-  fetch?: (input: string, init?: RequestInit) => Promise<Response>;
+  fetch?: (input: string, init?: PosterFetchInit) => Promise<Response>;
 }
+
+/** Workers fetch 옵션 + Cloudflare 이미지 변환(cf.image). Node(로컬)는 cf를 무시하고 원본을 준다 */
+export type PosterFetchInit = RequestInit & { cf?: { image: { format: "webp"; quality: number } } };
 
 export const DRAW_BODY_MAX_BYTES = 1024;
 export const SUBMIT_BODY_MAX_BYTES = 512 * 1024;
@@ -344,7 +347,12 @@ export function handlePoster(req: Request, deps: AwardsDeps): Promise<Response> 
     if (!isChzzkPosterUrl(target) || deps.fetch === undefined) return badRequest();
     // 리다이렉트는 따라가지 않는다. Workers fetch는 redirect "error"를 받지 않고 던지므로(운영에서 중계가 전부 500이었다, 2026-11-27)
     // "manual"로 받아 3xx를 아래 !upstream.ok로 실패 처리한다
-    const upstream = await deps.fetch(target, { redirect: "manual", headers: { accept: "image/*" } });
+    const raw: PosterFetchInit = { redirect: "manual", headers: { accept: "image/*" } };
+    // 치지직 포스터는 300×400 PNG라 장당 약 180KB(벽 전체 약 20MB)였다. 브라우저가 WebP를 받으면 Cloudflare가 WebP로 바꿔 준다
+    // (무료 플랜 월 5,000 고유 변환 포함, 같은 그림은 한 달에 한 번만 센다). 변환이 실패하면(한도 초과 9422 등) 원본으로 되돌린다
+    const webp = (req.headers.get("accept") ?? "").includes("image/webp");
+    let upstream = await deps.fetch(target, webp ? { ...raw, cf: { image: { format: "webp", quality: 80 } } } : raw);
+    if (webp && !upstream.ok) upstream = await deps.fetch(target, raw);
     const type = upstream.headers.get("content-type") ?? "";
     const declared = Number(upstream.headers.get("content-length") ?? "0");
     const upstreamFailed = () => fail(502, "upstream_failed", "그림을 가져오지 못했어요.");
