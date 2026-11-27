@@ -314,29 +314,33 @@ export function createStage(canvas: HTMLCanvasElement, opts: StageOptions): Stag
   };
   haloMat.customProgramCacheKey = () => 'halo-reveal';
 
-  // ── 스크린 벽: 무대 뒤 곡면에 후보 포스터(낮은 밝기, 숨 쉬듯 느린 파동, 약한 탈채도) ──
+  // ── 스크린 벽: 무대 뒤 곡면에 후보 포스터(낮은 밝기, 흑백). 줄마다 번갈아 반대로 아주 천천히 흐르며(띠) 올해 한 게임이 끊김 없이 차례로 지나간다 ──
   const loader = new THREE.TextureLoader();
   loader.setCrossOrigin('anonymous');
-  const items = compact ? opts.items.slice(0, 12) : opts.items;
+  const items = compact ? opts.items.slice(0, 24) : opts.items;
   const wallCols = compact ? 9 : 15;
   const wallRows = 4;
   const wallR = 26;
   const wallGeo = track(new THREE.PlaneGeometry(TILE_W, TILE_H));
-  const wallTiles: { mesh: THREE.Mesh; mat: THREE.MeshBasicMaterial; item: number; col: number; row: number; home: THREE.Vector3; pop: number; sat?: { value: number } }[] = [];
+  /** 줄마다 보이는 칸(wallCols)보다 둘 많은 칸을 띠로 돌린다(양 끝 어둠 속에서 반대편으로 넘어가며 다음 게임으로 바뀐다) */
+  const ROW_TILES = wallCols + 2;
+  /** 흐르는 속도(칸/초). 6초에 한 칸: 배경은 아주 멀리 물러나 숨 쉬듯(조사 P2·P6) */
+  const DRIFT_SPEED = 1 / 6;
+  const wallTiles: { mesh: THREE.Mesh; mat: THREE.MeshBasicMaterial; item: number; col: number; row: number; home: THREE.Vector3; pop: number; x: number; sat?: { value: number } }[] = [];
+  /** 줄별 흐름: 누적 칸 수와 속도 배율(마우스를 올린 줄은 천천히 멈춘다) */
+  const rowDrift = Array.from({ length: wallRows }, () => ({ offset: 0, speed: 1 }));
+  /** 게임별 포스터 텍스처(읽히는 대로 채운다) */
+  const itemTex: (THREE.Texture | null)[] = items.map(() => null);
   const wall = new THREE.Group();
   wall.position.set(0, 0, 14);
   for (let row = 0; row < wallRows; row++) {
-    for (let col = 0; col < wallCols; col++) {
-      const a = ((col - (wallCols - 1) / 2) / wallCols) * 1.25;
+    for (let col = 0; col < ROW_TILES; col++) {
       const mat = track(new THREE.MeshBasicMaterial({ color: 0x000000, fog: true }));
       const tile = new THREE.Mesh(wallGeo, mat);
-      tile.position.set(Math.sin(a) * wallR, 2.2 + row * 3.05, -Math.cos(a) * wallR);
-      tile.lookAt(0, tile.position.y, 0);
       tile.userData.tileIndex = wallTiles.length;
       wall.add(tile);
-      // 같은 포스터가 좌우 대칭이나 한 줄로 반복되지 않게 칸 번호를 흩어 고른다(칸 수가 그림 수보다 많다)
-      const idx = row * wallCols + col;
-      wallTiles.push({ mesh: tile, mat, item: items.length === 0 ? -1 : (idx * 11 + Math.floor(idx / items.length) * 13) % items.length, col, row, home: tile.position.clone(), pop: 0 });
+      // 자리·게임은 layoutWall이 흐름에 맞춰 정한다
+      wallTiles.push({ mesh: tile, mat, item: -2, col, row, home: new THREE.Vector3(), pop: 0, x: col - 1 });
     }
   }
   scene.add(wall);
@@ -525,18 +529,43 @@ export function createStage(canvas: HTMLCanvasElement, opts: StageOptions): Stag
     return FOV_WIDE * fovScale;
   }
 
-  function layoutWall(dt: number, hovered: number, t: number) {
+  /** driftDt: 띠가 흐를 시간(초). 멈춘 장면·예열에서는 0 */
+  function layoutWall(dt: number, hovered: number, t: number, driftDt = dt) {
     const tl = timeline;
+    const hoveredRow = hovered >= 0 ? wallTiles[hovered].row : -1;
+    for (let r = 0; r < wallRows; r++) {
+      const d = rowDrift[r];
+      d.speed += ((r === hoveredRow ? 0 : 1) - d.speed) * Math.min(1, driftDt * 2.5);
+      d.offset += (r % 2 === 0 ? 1 : -1) * DRIFT_SPEED * d.speed * driftDt;
+    }
+    const n = items.length;
+    const rowBase = Math.ceil(n / wallRows);
     for (let i = 0; i < wallTiles.length; i++) {
       const w = wallTiles[i];
-      const centerDist = Math.abs(w.col - (wallCols - 1) / 2);
+      // 띠 위 자리: 0~ROW_TILES를 돌고, 한 바퀴 넘을 때마다(wrap) 그 칸은 띠의 다음 게임이 된다
+      const p = w.col + rowDrift[w.row].offset;
+      const wrap = Math.floor(p / ROW_TILES);
+      w.x = p - wrap * ROW_TILES - 1;
+      const item = n === 0 ? -1 : (((w.row * rowBase + w.col - wrap * ROW_TILES) % n) + n) % n;
+      if (item !== w.item) {
+        w.item = item;
+        const next = item >= 0 ? itemTex[item] : null;
+        if ((next === null) !== (w.mat.map === null)) w.mat.needsUpdate = true;
+        w.mat.map = next;
+      }
+      const a = ((w.x - (wallCols - 1) / 2) / wallCols) * 1.25;
+      w.home.set(Math.sin(a) * wallR, 2.2 + w.row * 3.05, -Math.cos(a) * wallR);
+      w.mesh.rotation.set(0, -a, 0); // 벽 중심(0, y, 0)을 바라본다
+      // 양 끝 어둠 속에서 넘어간다
+      const edge = smooth(-1, 0.4, w.x) * smooth(wallCols, wallCols - 1.4, w.x);
+      const centerDist = Math.abs(w.x - (wallCols - 1) / 2);
       const on = ramp(t, tl.wall + centerDist * 0.06 + w.row * 0.04, WALL_RAMP[intro]); // 제목·꽃가루와 한꺼번에 터지지 않게 천천히
       // 트로피 뒤 가운데(화면 폭 약 35%)는 비워 실루엣이 포스터 격자에 잘리지 않게
       const center = 0.62 + 0.38 * smooth(1.5, 3.2, centerDist);
-      const breath = 0.5 + 0.5 * Math.sin(t * 0.8 - w.col * 0.42 + w.row * 0.3);
-      const level = on * BRIGHTNESS.wallMax * center * (0.55 + 0.45 * breath);
+      const breath = 0.5 + 0.5 * Math.sin(t * 0.8 - w.x * 0.42 + w.row * 0.3);
+      const level = on * edge * BRIGHTNESS.wallMax * center * (0.55 + 0.45 * breath);
       // 켜지기 전 칸은 그리지 않는다(검은 칸이 안개에 물들어 회색 네모로 비쳤다)
-      w.mesh.visible = !WALL_OFF && (on > 0.002 || w.pop > 0.002);
+      w.mesh.visible = !WALL_OFF && ((on > 0.002 && edge > 0.002) || w.pop > 0.002);
       w.pop += ((i === hovered ? 1 : 0) - w.pop) * Math.min(1, dt * 10);
       if (w.sat) w.sat.value = BRIGHTNESS.wallSat + (1 - BRIGHTNESS.wallSat) * w.pop;
       const lit = level + (1 - level) * w.pop;
@@ -758,7 +787,7 @@ export function createStage(canvas: HTMLCanvasElement, opts: StageOptions): Stag
   function renderStill() {
     const t = reduced ? 99 : lastT;
     applyLights(t);
-    layoutWall(1, -1, t);
+    layoutWall(1, -1, t, 0);
     placeCamera(t, 1);
     composer.render();
   }
@@ -771,7 +800,7 @@ export function createStage(canvas: HTMLCanvasElement, opts: StageOptions): Stag
     canvas.style.visibility = 'hidden';
     try {
       applyLights(99); // 모든 효과가 켜진 상태로 컴파일·예열해 프로그램을 빠짐없이 만든다
-      layoutWall(1, -1, 99);
+      layoutWall(1, -1, 99, 0);
       await renderer.compileAsync(scene, camera);
       if (disposed) return;
       composer.render();
@@ -804,6 +833,7 @@ export function createStage(canvas: HTMLCanvasElement, opts: StageOptions): Stag
         tex.offset.set(c.offsetX, c.offsetY);
         tex.anisotropy = 4;
         renderer.initTexture(tex); // GPU에 미리 올려 첫 표시 때 끊기지 않게
+        itemTex[i] = tex;
         for (const w of wallTiles) {
           if (w.item === i) {
             w.mat.map = tex;
